@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.dowinsys.mes</groupId>
-	<artifactId>dwisMES</artifactId>
+	<artifactId>dwisCOST</artifactId>
 	<version>${revision}</version>
-	<name>dwisMES</name>
-	<description>Dowinsys MES Project</description>
+	<name>dwisCOST</name>
+	<description>Dowinsys COST Project</description>
 	<url/>
 	<licenses>
 		<license/>

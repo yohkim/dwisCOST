@@ -20,7 +20,7 @@ module.exports = defineConfig({
         changeOrigin: false,
       },
     },
-    port: 4200,
+    port: 4300,
   },
   configureWebpack: {
     resolve: {
