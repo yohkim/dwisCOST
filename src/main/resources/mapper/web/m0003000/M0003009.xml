@@ -1,0 +1,486 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0003000.mapper.M0003009Mapper">
+    <select id="M0003009_Sch1" parameterType="Map" resultType="CamelMap">
+        select *
+        from Get_내포장실적_설비이물제거Manual(#{startDate},#{endDate},#{gubun})
+        where 1=1
+        <choose>
+      		<when test="packNo != null and packNo != ''">
+				and PACK_NO like CONCAT('%',#{packNo},'%')
+	        </when>
+	        <otherwise>      
+	          and 구분 = #{gubun}  
+			</otherwise>
+    	</choose>
+        order by RUN_NO, ORIGIN_NO, PACK_NO, 작업일자 desc;
+    </select>
+
+    <select id="M0003009_Sch2" parameterType="Map" resultType="CamelMap">
+        select *
+        from Get_내포장실적_설비이물제거Manual_Pack관리(#{startDate},#{endDate},#{gubun},#{prePackNo})
+        where 1=1
+        order by 생성시각 desc, PACK_QRNO, 대포장_QRNO;
+    </select>
+    
+    <select id="M0003009_Sch3" parameterType="Map" resultType="CamelMap">
+        select *
+        from Get_내포장실적_설비이물제거Auto(#{startDate},#{endDate},#{gubun},#{packNo})
+        where 1=1
+        <if test="packNo != null and packNo != ''">
+            and PACK_NO like CONCAT('%',#{packNo},'%')
+        </if>
+        order by 작업일자 desc, PACK_NO, RUN_NO;
+    </select>
+
+    <select id="M0003009_Sch3_1" parameterType="Map" resultType="CamelMap">
+        select *
+        from Get_내포장실적_설비이물제거Auto_미생성(#{startDate},#{endDate})
+        where 1=1
+        <if test="packNo != null and packNo != ''">
+            and PACK_NO like CONCAT('%',#{packNo},'%')
+        </if>
+        order by RUN_NO, PACK_NO, 작업일자 desc ;
+    </select>
+
+    <select id="M0003009_Sch4" parameterType="Map" resultType="CamelMap">
+        select *
+        from Get_내포장실적_설비이물제거Auto_Pack관리(#{startDate},#{endDate},#{gubun},#{prePackNo})
+        where 1=1
+        order by 생성시각 desc, PACK_QRNO;
+    </select>
+
+    <select id="M0003009_Sch5" parameterType="Map" resultType="CamelMap">
+        select *
+        from (
+            select 'AUTO' 작업구분,구분,run_no,''origin_no,pack_no,cell수량,작업일자,작업자,설비,shift,svi,agb,pfl,처리시각,발행자,발행자서명,승인자,승인자서명,특이사항,PACK상태
+            from Get_내포장실적_설비이물제거Auto(#{startDate},#{endDate},#{gubun},NULL)
+            union all
+            select 'MANUAL' 작업구분,구분,run_no,origin_no,pack_no,cell수량,작업일자,작업자,설비,shift,svi,agb,pfl,처리시각,발행자,발행자서명,승인자,승인자서명,특이사항,PACK상태
+            from Get_내포장실적_설비이물제거Manual(#{startDate},#{endDate},#{gubun})
+        ) A
+        where 1=1
+        and 구분 = #{gubun}
+        <if test="packNo != null and packNo != ''">
+            and PACK_NO like CONCAT('%',#{packNo},'%')
+        </if>
+         order by 작업일자 desc, PACK_NO, RUN_NO;
+    </select>
+
+       <select id="M0003009_Sch5_1" parameterType="Map" resultType="CamelMap">
+        select *
+        from (
+            select 'AUTO' 작업구분,구분,run_no,''origin_no,pack_no,cell수량,format(작업일자,'yyyyMMdd HHmmss') 작업일자, 작업자,설비,shift,svi,agb,pfl,처리시각,발행자,발행자서명,승인자,승인자서명,특이사항,PACK상태
+            from Get_내포장실적_설비이물제거Auto_미생성(#{startDate},#{endDate})
+            union all
+            select 'MANUAL' 작업구분,구분,run_no,origin_no,pack_no,cell수량,작업일자,작업자,설비,shift,svi,agb,pfl,처리시각,발행자,발행자서명,승인자,승인자서명,특이사항,PACK상태
+            from Get_내포장실적_설비이물제거Manual(#{startDate},#{endDate},#{gubun})
+            where 1=1 
+            and 구분='미생성'
+        ) A
+        where 1=1
+        <if test="packNo != null and packNo != ''">
+            and PACK_NO like CONCAT('%',#{packNo},'%')
+        </if>
+         order by 작업일자 desc, PACK_NO, RUN_NO;
+    </select>
+    
+    <select id="M0003009_Sch6" parameterType="Map" resultType="CamelMap">
+        SELECT *
+        from Get_내포장실적_설비이물제거_통합PackSummaryCell수량조회(#{startDate},#{endDate}, null)
+        where 1=1
+        order by 구분 desc;
+    </select>
+
+    <select id="M0003009_Sch7" parameterType="Map" resultType="CamelMap">
+    	BEGIN
+			IF #{packStatus} IS NULL BEGIN RETURN; END		
+	        	EXEC Get_내포장실적_설비이물제거_통합Pack상세조회 #{startDate},#{endDate},#{packStatus}
+        END
+    </select>
+    
+    <select id="M0003009_Sch8" parameterType="Map" resultType="CamelMap">
+       EXEC Get_내포장실적_설비이물제거_통합PackCell조회 #{startDate},#{endDate},#{packStatus}
+    </select>
+
+    <select id="M0003009_Sch11" parameterType="Map" resultType="CamelMap">
+        select * from Get_PalletList()
+        where 1=1
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and Pallet_Date between #{startDate} and #{endDate}
+        </if>
+        order by pallet_no desc
+    </select>
+
+    <select id="M0003009_Sch12" parameterType="Map" resultType="CamelMap">
+        select * from Get_PalletBoxList(#{palletNo})
+        order by 대포장_QRNO
+    </select>
+
+    <select id="M0003009_Sch13" parameterType="Map" resultType="CamelMap">
+        select * from Get_PalletBoxInfo(#{boxNo})
+        order by 대포장_QRNO
+    </select>
+
+    <select id="M0003009_ExecRemove" parameterType="Map" resultType="CamelMap">
+        EXEC Pallet_Box제거
+        @pallet_no = #{palletNo},
+        @BoxNoList = #{boxNoList}
+    </select>
+
+    <select id="M0003009_ExecAdd" parameterType="Map" resultType="CamelMap">
+        EXEC Pallet_Box추가
+        @pallet_no = #{palletNo},
+        @대기발행자 = #{user1},
+        @대기승인자 = #{user2},
+        @BoxNoList = #{boxNoList}
+    </select>
+
+    <select id="M0003009_ExecDismantle" parameterType="Map" resultType="CamelMap">
+        EXEC dbo.Pallet해체
+        @palletNoList = #{palletNoList}
+    </select>
+
+    <select id="M0003009_Sch21_Col" parameterType="Map" resultType="CamelMap">
+        SELECT DISTINCT substring(run_id,1,4) model
+        FROM d27_내포장MST 
+        WHERE PACK상태 in ('소포장 반출','창고 재고') 
+        and ((폐기시각 BETWEEN #{startDate}+' 000000' AND #{endDate}+' 235959' AND pack상태 = '폐기') 
+				    OR (출하작업시각 BETWEEN #{startDate}+' 000000' AND #{endDate}+' 235959' AND pack상태 = '출하 완료') 
+				    OR (대기작업시각 BETWEEN #{startDate}+' 000000' AND #{endDate}+' 235959' AND pack상태 = '창고 재고') 
+				    OR (반출시각 BETWEEN #{startDate}+' 000000' AND #{endDate}+' 235959' AND pack상태 = '소포장 반출') 
+				    OR (SI_의뢰시각 BETWEEN #{startDate}+' 000000' AND #{endDate}+' 235959' AND pack상태 = 'SI 의뢰'))
+        ORDER BY 1
+    </select>
+
+    <select id="M0003009_Sch21" parameterType="Map" resultType="CamelMap">
+        exec Get_from_소포장반출_to_출하대기List #{startDate}, #{endDate}
+    </select>
+
+    <select id="M0003009_Sch22" parameterType="Map" resultType="CamelMap">
+        select * from Get_PackNonBoxNo검증(#{packNo}, #{boxNo});
+    </select>
+
+    <select id="M0003009_Sch23" parameterType="Map" resultType="CamelMap">
+        select * from Get_PackNonBoxNoInfo(#{packNo}, #{boxNo});
+    </select>
+
+    <select id="M0003009_Sch11_Storage" parameterType="Map" resultType="CamelMap">
+        select * from Get_PalletList()
+        where 1=1
+            and 보관구역 is not null and 보관구역 != ''
+        order by pallet_no desc
+    </select>
+
+    <update id="M0003009_Update_Storage">
+        UPDATE d27_PALLET수불파일
+        SET 보관구역 = #{보관구역}
+        WHERE PALLET_NO = #{palletNo}
+        and pack상태 != '출하 완료'
+    </update>
+
+    <select id="M0003009_Sch24" parameterType="Map" resultType="CamelMap">
+        select * from Get_NextPalletNo(#{modelNo});
+    </select>
+
+    <select id="M0003009_ExecBox" parameterType="Map" resultType="CamelMap">
+        EXEC dbo.Pallet_Box구성
+        @pallet_no = #{palletNo},
+        @대기발행자 = #{user1},
+        @대기승인자 = #{user2},
+        @BoxNoList = #{boxNoList}
+    </select>
+
+    <select id="M0003009_Sch31_Col" parameterType="Map" resultType="CamelMap">
+        SELECT  MODEL FROM (
+			(SELECT '합계' as MODEL
+			union all
+			SELECT DISTINCT substring(run_id,1,4) model
+			  from d27_내포장MST 
+			where PACK상태 in ('SI 의뢰','SI 대기') 
+			  and (	 (SI_의뢰시각 BETWEEN #{startDate} + ' 000000' AND #{endDate} + ' 235959' AND pack상태 = 'SI 의뢰')
+			  	  OR (처리시각 BETWEEN #{startDate} + ' 000000' AND dbo.AddOneDayAndTime(#{endDate}) AND pack상태 = 'SI 대기')
+				  OR (SI_등록일자 BETWEEN #{startDate}  AND #{endDate} AND pack상태 = 'SI LIST') 
+		          )
+			  and coalesce(run_id,'') != ''
+			  )
+		)a 
+		ORDER BY CASE WHEN MODEL='합계' THEN '0000' ELSE MODEL END  
+    </select>
+
+    <select id="M0003009_Sch31" parameterType="Map" resultType="CamelMap">
+        exec Get_출하검사대기의뢰 #{startDate}, #{endDate}
+    </select>
+
+    <select id="M0003009_ExeInspectionInfo" parameterType="Map" resultType="CamelMap">
+        exec Get_출하검사의뢰_Cell #{startDate}, #{endDate}, #{packNo};
+    </select>
+
+    <select id="M0003009_RequestInspection" parameterType="Map" resultType="CamelMap">
+        exec Req_출하검사의뢰 #{packNoList}, #{user};
+    </select>
+    
+	<insert id="M0003009_WaitShipment">
+		exec SI대기_To_출하대기 #{packqrno}, #{uerid}, #{comment};
+	</insert>
+    
+    <select id="M0003009_ExecCancel" parameterType="Map" resultType="CamelMap">
+        exec Cancel_출하검사의뢰 #{reqDate}, #{reqSeq}, #{cancelUser};
+    </select>
+    
+    <select id="M0003009_ExecRemovePack" parameterType="Map" resultType="CamelMap">
+        exec Remove_출하검사의뢰Pack #{reqDate}, #{reqSeq}, #{removelUser}, #{packNoList};
+    </select>
+    
+    <select id="M0003009_ExecAddPack" parameterType="Map" resultType="CamelMap">
+        exec Add_출하검사의뢰Pack #{reqDate}, #{reqSeq}, #{addUser}, #{packNoList};
+    </select>
+    
+    <select id="M0003009_ExeInspectionPack" parameterType="Map" resultType="CamelMap">
+        select * from Get_출하검사대기_Pack(#{startDate}, #{endDate}, #{model});
+    </select>
+    
+    <select id="M0003009_ExeReqPack" parameterType="Map" resultType="CamelMap">
+        select * from Get_출하검사의뢰_Pack(#{startDate}, #{endDate}, #{model});
+    </select>
+    
+    <select id="M0003009_Sch41_Col" parameterType="Map" resultType="CamelMap">
+        SELECT DISTINCT substring(run_id,1,4) model
+        from d27_내포장MST where PACK상태 in ('SI 의뢰') and SI_의뢰시각 BETWEEN #{startDate}+' 000000' and #{endDate}+ ' 235959'
+        order by 1
+    </select>
+
+    <select id="M0003009_Sch41" parameterType="Map" resultType="CamelMap">
+        exec Get_출하검사의뢰 #{startDate}, #{endDate}
+    </select>
+
+    <select id="M0003009_Sch42" parameterType="Map" resultType="CamelMap">
+        exec Get_출하검사의뢰_List #{startDate}, #{endDate}, #{modelNo}
+    </select>
+    
+    <select id="M0003009_ExeReqDateSeq" parameterType="Map" resultType="CamelMap">
+        select * from Get_출하검사의뢰_일자차수(#{reqDate}, #{reqSeq})
+    </select>
+
+    <select id="M0003009_ExeRequestPack" parameterType="Map" resultType="CamelMap">
+        exec Req_출하검사PACK요청 #{packNoList}, #{user};
+    </select>
+    
+    <select id="M0003009_ExeRequestRun" parameterType="Map">
+        exec Req_출하검사RUN요청 #{req_Date}, #{req_Seq}, #{pack_No}, #{sample}, #{user};
+    </select>
+
+    <select id="M0003009_Sch43_Col" parameterType="Map" resultType="CamelMap">
+        SELECT DISTINCT substring(run_id,1,4) model
+        from d27_내포장MST where PACK상태 in ('SI 의뢰' ) and SI_의뢰시각 BETWEEN #{startDate}+' 000000' and #{endDate}+ ' 235959'
+        order by 1
+    </select>
+
+    <select id="M0003009_Sch43" parameterType="Map" resultType="CamelMap">
+        exec Get_출하검사SAMPLE #{startDate}, #{endDate}
+    </select>
+
+    <select id="M0003009_Sch44" parameterType="Map" resultType="CamelMap">
+        exec Get_샘플의뢰PACK_List #{startDate}, #{endDate}, #{modelNo}
+    </select>
+
+    <select id="M0003009_Sch45" parameterType="Map" resultType="CamelMap">
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            SELECT * FROM Get_출하검사List(#{startDate}, #{endDate}, #{si});
+        </if>
+    </select>
+
+    <update id="M0003009_Update_Inspection">
+     <!-- 첫 번째 업데이트: 검사 결과 업데이트 -->
+    --UPDATE d27_출하검사    SET 
+    exec PACK_출하검사결과
+        @SI진행단계 = #{si진행단계},
+        @SI의뢰일 = #{si의뢰일},
+        @SI검사일 = #{si검사일},
+        @SI검사자 = #{si검사자},
+        @외관 = #{외관},
+        @엣지 = #{엣지},
+        @포장이물 = #{포장이물},
+        @Curl = #{curl},
+        @접촉각 = #{접촉각},
+        @PF저항 = #{pf저항},
+        @치수 = #{치수},
+        @두께 = #{두께},
+        @강화특성 = #{강화특성},
+        @이형력 = #{이형력},
+        @점착력 = #{점착력},
+        @굴곡강도 = #{굴곡강도},
+        @최종결과 = #{최종결과},
+        @특이사항 = #{특이사항},
+      	@의뢰차수 = #{의뢰차수},
+     	@Model = #{model};
+	</update>
+
+    <select id="M0003009_GetHoldRunList" parameterType="Map" resultType="CamelMap">
+			exec Get_출하검사RunHold  #{reqDate}, #{reqNo}, #{model}
+    </select>
+
+    <select id="M0003009_SetHoldRunList" parameterType="Map" resultType="CamelMap">
+        exec Set_출하검사RunHold설정  #{runNoList}
+    </select>
+
+    <select id="M0003009_Sch46" parameterType="Map" resultType="CamelMap">
+        select * from d27_출하검사
+        where 1=1
+        and SI진행단계 = '검사 완료'
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and SI의뢰일 between #{startDate} and #{endDate}
+        </if>
+    </select>
+
+    <select id="M0003009_ExecDonePack" parameterType="Map" resultType="CamelMap">
+        exec Done_PACK인계 #{packNoList}, #{user};
+    </select>
+
+	<select id="M0003009_ExecGetPackLabel" parameterType="Map" resultType="CamelMap">
+       	exec get_pack_label #{packNo};
+    </select>
+
+    <select id="M0003009_ManualQty_Sch1" parameterType="Map" resultType="CamelMap">
+        Select CELL_ID
+        From d26_이물제거파일
+        Where 1=1
+            and RUN_ID + '-' + ORIGIN_NO = #{runNoOriginNo}
+            and SCRAP <![CDATA[<>]]> '삭제'
+        Order By CELL_ID;
+    </select>
+
+    <select id="M0003009_ManualQty_Sch2" parameterType="Map" resultType="CamelMap">
+        Select CELL_ID, 특이사항 as Remark
+        From d26_이물제거파일
+        Where 1=1
+            and RUN_ID + '-' + ORIGIN_NO = #{runNoOriginNo}
+            and SCRAP = '삭제'
+        Order By CELL_ID;
+    </select>
+
+    <select id="M0003009_ManualQty_Sch3" parameterType="Map" resultType="CamelMap">
+        Select RUN_ID, ORIGIN_NO, sum(생산수량) as qty, sum(정상수) remain_qty, sum(삭제수) delete_qty
+        From(
+            Select RUN_ID, ORIGIN_NO, SCRAP, 1 as 생산수량
+            , case when SCRAP = '삭제' then 0 else 1 end as 정상수
+            , case when SCRAP = '삭제' then 1 else 0 end as 삭제수
+            From d26_이물제거파일
+            Where RUN_ID = #{runNo}
+            and ORIGIN_NO = #{originNo}
+            and RESULT = '양품'
+        ) as a
+        group By RUN_ID, ORIGIN_NO
+    </select>
+
+    <insert id="M0003009_ManualQty_Update">
+       exec S라인_cell_불량처리 #{originNo}, #{cellId}, #{remark}, #{charger}, #{approver};
+    </insert>
+
+    <select id="M0003009_ManualQty_Cancel" parameterType="Map" resultType="CamelMap">
+        exec S라인_cell_불량처리_CanCel #{originNo}, #{cellList};
+    </select>
+
+    <select id="M0003009_ExeCreation" parameterType="Map" resultType="CamelMap">
+        exec GEN_이물제거_S라인_PACKNO #{originList}, #{charger}, #{approver};
+    </select>
+
+    <select id="M0003009_ExeDispose" parameterType="Map" resultType="CamelMap">
+        exec 폐기_S라인_PACK #{packNo}, #{reason};
+    </select>
+
+    <select id="M0003009_ExeSignificant" parameterType="Map" resultType="CamelMap">
+        exec 특이사항_S라인_PACK #{packNo}, #{description};
+    </select>
+
+    <select id="M0003009_ExeCreationAuto" parameterType="Map" resultType="CamelMap">
+        exec Gen_이물제거_AUTO_BoxNo #{packNo}, #{charger}, #{approver};
+    </select>
+
+    <select id="M0003009_ExeDisposeAuto" parameterType="Map" resultType="CamelMap">
+        exec 폐기_AUTO_PACK #{packNo}, #{reason};
+    </select>
+
+    <select id="M0003009_ExeSignificantAuto" parameterType="Map" resultType="CamelMap">
+        exec 특이사항_AUTO_PACK #{packNo}, #{description};
+    </select>
+
+    <select id="M0003009_Sch51_Col" parameterType="Map" resultType="CamelMap">
+        SELECT DISTINCT substring(run_id,1,4) model
+        FROM d27_PALLET수불파일 
+        WHERE 1=1
+		  AND ((대기처리시각 BETWEEN #{startDate} + ' 000000' AND #{endDate}  + ' 235959' and  pack상태 = '창고 재고')
+		    OR (출하처리시각 BETWEEN #{startDate} + ' 000000' AND #{endDate}  + ' 235959' and  pack상태 = '출하 완료'))
+        ORDER BY 1;
+    </select>
+
+    <select id="M0003009_Sch51" parameterType="Map" resultType="CamelMap">
+        exec Get_출하대기List #{startDate}, #{endDate}
+    </select>
+
+    <select id="M0003009_GetShipmentPalletInfo" parameterType="Map" resultType="CamelMap">
+        select * from Get_출하PalletInfo(#{palletNo});
+    </select>
+
+    <select id="M0003009_ShipmentTempSave" parameterType="Map" resultType="CamelMap">
+        exec 출하Pallet임시저장 #{palletNo}, #{생산계획번호};
+    </select>
+
+    <select id="M0003009_Shipment" parameterType="Map" resultType="CamelMap">
+        exec Pallet출하처리 #{palletNo}, #{생산계획번호};
+    </select>
+
+    <select id="M0003009_ShipmentCancel" parameterType="Map" resultType="CamelMap">
+        exec Pallet출하취소처리 #{palletNo};
+    </select>
+    
+    <select id="M0003009_ShipmentList" parameterType="Map" resultType="CamelMap">
+        SELECT * FROM Get_출하완료_Pallet(#{startDate}, #{endDate},#{selModel});
+    </select>
+
+    <select id="M0003009_Sch61_Col" parameterType="Map" resultType="CamelMap">
+        SELECT DISTINCT substring(run_id,1,4) model
+        FROM d27_내포장MST
+        WHERE PACK상태 in ('HOLD','SI 대기','SI 의뢰','SI LIST','창고 재고','소포장 반출')
+        AND ( (폐기시각 BETWEEN #{startDate} + ' 000000' AND #{endDate} + ' 235959' AND pack상태 = '폐기')
+        OR (출하작업시각 BETWEEN #{startDate} + ' 000000' AND #{endDate} + ' 235959' AND pack상태 = '출하 완료')
+        OR (반출시각 BETWEEN #{startDate} + ' 000000' AND #{endDate} + ' 235959' AND pack상태 = '소포장 반출')
+        OR (SI_의뢰시각 BETWEEN #{startDate} + ' 000000' AND #{endDate} + ' 235959' AND pack상태 = 'SI 의뢰')
+        OR (SI_등록일자 BETWEEN #{startDate} AND #{endDate} AND pack상태 = 'SI LIST')
+        OR (처리시각 BETWEEN #{startDate} + ' 080000' AND dbo.AddOneDayAndTime(#{endDate}) AND pack상태 = 'SI 대기'))
+        AND NULLIF(run_id,'') IS NOT NULL
+        UNION  
+    	SELECT substring(run_id,1,4) model
+        FROM d27_PALLET수불파일 
+        WHERE  pack상태 = '창고 재고'
+		  AND 대기처리시각 BETWEEN #{startDate} + ' 000000' AND #{endDate}  + ' 235959'
+        ORDER BY 1;
+    </select>
+
+    <select id="M0003009_Sch6S" parameterType="Map" resultType="CamelMap">
+        EXEC Get_포장출하_재고현황 #{startDate}, #{endDate}
+    </select>
+    
+    <select id="M0003009_Sch61" parameterType="Map" resultType="CamelMap">
+        EXEC  Get_출하검사대기_List #{startDate}, #{endDate},#{modelNo}
+    </select>
+
+    
+    <select id="M0003009_Sch62" parameterType="Map" resultType="CamelMap">
+        SELECT * FROM  Get_출하대기_PackList(#{startDate}, #{endDate},#{modelNo})
+    </select>
+    
+    <select id="M0003009_Sch63" parameterType="Map" resultType="CamelMap">
+        EXEC  Get_소포장반출_List #{startDate}, #{endDate},#{modelNo}
+    </select>
+   
+    <select id="M0003009_ShipWait" parameterType="Map" resultType="CamelMap">
+        EXEC  샘플재작업_PACK확인 #{originNo}
+    </select>
+    
+    <select id="M0003009_PackOut" parameterType="Map" resultType="CamelMap">
+        exec 샘플재작업후_출하대기 #{packno}, #{charger}, #{approver};
+    </select>
+</mapper>

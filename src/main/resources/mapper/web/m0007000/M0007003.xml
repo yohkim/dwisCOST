@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0007000.mapper.M0007003Mapper">
+    <select id="getFacility" resultType="CamelMap">
+        select 설비약명, 설비번호
+        from dw_기타설비
+        where 1=1
+        and 설비구분 = '카세트세척'
+        and 구분자 =  #{step}
+        and upper(사용여부) = 'Y'
+        order by 설비번호
+    </select>
+
+    <select id="M0007003_Sch1" parameterType="Map" resultType="CamelMap">
+        select A.*,B.설비약명
+        from (
+        select 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,최근세척시작일,최근세척시작시간,최근세척종료일,최근세척종료시간,세척작업자,최근점검시작일,최근점검시작시간,최근점검종료일,최근점검종료시간,점검작업자,점검결과, 세척설비
+        from d04_카세트마스터
+        where 1=1
+        and 종류 =  #{step}
+        and 카세트상태 != '반출' and 카세트상태 != '공정투입'
+        <if test="type != null and type != ''">
+            and upper(타입) like CONCAT('%',upper(#{type}),'%')
+        </if>
+        <if test="model != null and model != ''">
+            and upper(모델) like CONCAT('%',upper(#{model}),'%')
+        </if>
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) like CONCAT('%',upper(#{cstNo}),'%')
+        </if>
+        <if test="charger != null and charger != ''">
+            and upper(세척작업자) like CONCAT('%',upper(#{charger}),'%')
+        </if>
+        ) A
+        left join (select 설비약명, 설비번호 from dw_기타설비 where 설비구분 = '카세트세척') B
+        on A.세척설비 = B.설비번호
+        order by A.공장코드,A.종류,A.타입,A.모델,A.CST_NO,A.카세트상태,A.카세트상태값,A.최근점검시작일,A.최근점검시작시간,A.최근점검종료일,A.최근점검종료시간,A.최근세척시작일,A.최근세척시작시간,A.최근세척종료일,A.최근세척종료시간,A.세척작업자
+    </select>
+
+    <select id="M0007003_Sch1_Qr" parameterType="Map" resultType="CamelMap">
+        select A.*,B.설비약명
+        from (
+        select 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,최근세척시작일,최근세척시작시간,최근세척종료일,최근세척종료시간,세척작업자,최근점검시작일,최근점검시작시간,최근점검종료일,최근점검종료시간,점검작업자,점검결과, 세척설비
+        from d04_카세트마스터
+        where 1=1
+        and 종류 =  #{step}
+        and 카세트상태 != '반출' and 카세트상태 != '공정투입'
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) = upper(#{cstNo})
+        </if>
+        ) A
+        left join (select 설비약명, 설비번호 from dw_기타설비 where 설비구분 = '카세트세척') B
+        on A.세척설비 = B.설비번호
+        order by A.공장코드,A.종류,A.타입,A.모델,A.CST_NO,A.카세트상태,A.카세트상태값,A.최근점검시작일,A.최근점검시작시간,A.최근점검종료일,A.최근점검종료시간,A.최근세척시작일,A.최근세척시작시간,A.최근세척종료일,A.최근세척종료시간,A.세척작업자
+    </select>
+
+    <update id="M0007003_TempSave1" parameterType="Map">
+        update d04_카세트마스터
+        set 카세트상태 = #{카세트상태}
+        ,최근세척시작일 = #{최근세척시작일}
+        ,최근세척시작시간 = #{최근세척시작시간}
+        ,세척작업자 = #{세척작업자}
+        ,세척설비 = #{세척설비}
+        ,최근세척종료일 = #{최근세척종료일}
+        ,최근세척종료시간 = #{최근세척종료시간}
+        WHERE 1=1
+        and 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+    </update>
+
+    <update id="M0007003_Save1" parameterType="Map">
+        update d04_카세트마스터
+        set 카세트상태 = '대기'
+        ,카세트상태값 = '정상'
+        ,최근세척종료일 = #{최근세척종료일}
+        ,최근세척종료시간 = #{최근세척종료시간}
+        WHERE 1=1
+        and 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo};
+
+        insert into d04_카세트HISTORY
+        (공장코드, 종류, 타입, 모델, CST_NO, 위치, 카세트상태, 카세트상태값, 시작일자, 시작시간, 종료일자, 종료시간, 담당자, 설비코드)
+        select 공장코드, 종류, 타입, 모델, CST_NO, 위치, 카세트상태, 카세트상태값,
+        최근세척시작일 시작일자, 최근세척시작시간 시작시간,
+        최근세척종료일 종료일자, 최근세척종료시간 종료시간,
+        세척작업자 담당자,
+        세척설비 설비코드
+        from d04_카세트마스터
+        where 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트상태 = '대기';
+    </update>
+</mapper>

@@ -1,0 +1,135 @@
+CREATE PROCEDURE dbo.Run_Create(
+	 @LOT_LIST VARCHAR(1500),
+	 @발행자  varchar(12),
+	 @발행자서명  bit,
+	 @승인자  varchar(12),
+	 @승인자서명  bit,
+	 @입고일자  varchar(8),
+	 @입고시각  varchar(6),
+	 @작업일자  varchar(8),
+	 @작업시각  varchar(6)
+)
+AS
+BEGIN
+	BEGIN TRY
+		BEGIN TRANSACTION;
+		   --선택된 첫번째 LOT을 이용하여 발행할 RUN_NO의 기본정보를 셋팅	
+			declare @LOT_NO1 varchar (24) =(SELECT top 1 value from STRING_SPLIT(@LOT_LIST, ','));
+			DECLARE @제품유형  varchar(2); --70731
+			DECLARE @작업구분  varchar(2); --(P) Production Run_정규
+			DECLARE @투입구분  varchar(1); --(P) Production Run_정규 
+			DECLARE @작업지시일자  varchar(8);
+		    DECLARE @승인일자  varchar(8);
+		    DECLARE @거래처코드 varchar(5);
+		 	DECLARE @제품코드  varchar(6);
+		    DECLARE @자재코드  varchar(6);
+		    DECLARE @적층수  real;
+		    DECLARE @BLOCK수  real;
+		    DECLARE @CELL수  real;
+		   	DECLARE @RUN_LIST TABLE (
+			    RUN_NO VARCHAR(50)
+			);
+			select
+				@제품유형 = a.제품유형,
+				@투입구분 = a.투입구분,
+				@작업구분 = a.작업구분,
+				@작업지시일자 = b.납품요망일,
+				@거래처코드 = a.거래처코드,
+				@제품코드 = a.제품코드,
+				@자재코드 = a.자재코드,
+				@적층수 = a.Sheet,
+				@BLOCK수 = a.BLOCK수,
+				@CELL수 = a.CELL수,
+				@승인일자 = CONVERT(VARCHAR(10), GETDATE(), 112)
+			from	d21_제조지시MST a inner join d33_제품수주서파일 b on (a.po_no=b.po_no) 
+			where	LOT_NO = @LOT_NO1;
+			
+			INSERT INTO @RUN_LIST 
+			select distinct run_no1 
+			from d21_제조지시MST a
+		    WHERE a.LOT_NO in (SELECT value  from STRING_SPLIT(@LOT_LIST, ','));
+		 	--RUN_마스터 테이블에 RUN 정보 입력 
+			INSERT	INTO d22_RUN제조MST
+					(공장코드,
+					RUN_NO,
+					작업지시일자,
+					제품유형,
+					투입구분,
+					작업구분,
+					LOT_NO,
+					거래처코드,
+					제품코드,
+					자재코드,
+					적층수,
+					BLOCK수,
+					CELL수,
+					발행자,
+					발행자서명,
+					승인자,
+					승인자서명,
+					승인일자,
+					입고일자,
+					입고시각,
+					작업일자,
+					작업시각,
+					작업수량,
+					Etching_Rate,
+					생산완료여부,
+					세정차수,
+					출력횟수,
+					재공적용_여부)
+		 	select
+			  '2' 공장코드,	--공장코드
+		      RUN_NO,
+		      @작업지시일자 작업지시일자,
+		      @제품유형 제품유형,
+		      @투입구분 투입구분,
+		      @작업구분 작업구분,
+		      --@PO_NO,
+		      '' LOT_NO,
+		      @거래처코드 거래처코드,
+		      @제품코드 제품코드,
+		      @자재코드 자재코드,
+		      @적층수 적층수,
+		      @BLOCK수 BLOCK수,
+		      @CELL수 CELL수,
+		      @발행자 발행자,
+		      @발행자서명 발행자서명,
+		      @승인자 승인자,
+		      @승인자서명 승인자서명,
+		      @승인일자 승인일자,
+		      @입고일자 입고일자,
+		      @입고시각 입고시각,
+		      @작업일자 작업일자,
+		      @작업시각 작업시각,
+		      --@Machine_Code,
+		      0 작업수량,
+		      0 Etching_Rate,
+		      0 생산완료여부,
+		      --@생산완료일자,
+		      0 세정차수,
+		      0 출력횟수,
+		      --@특기사항,
+		      1 재공적용_여부
+			 from @RUN_LIST;
+				
+			--RUN Histrory에 테이블에 공정별 등록
+			INSERT INTO d22_RUN제조VLR (공장코드,	RUN_NO,	공정코드,	책임자시작,	책임자종료,	작업구분,	투입수량,	검사수량,	불량수량,	양품수량)
+				SELECT '2',RUN_NO,공정코드,0,	0,	1,	0,	0,	0,	0
+				FROM d21_제조지시MST A
+				INNER JOIN dw_product_process B ON(A.제품코드=B.PROD_CODE)
+				INNER JOIN DW_PROCESS_PLAN C ON (B.PROCESS_ID=C.PROCESS_ID AND C.공정구분>='11')
+				INNER JOIN @RUN_LIST D ON (1=1)
+			WHERE a.LOT_NO=@LOT_NO1
+			ORDER BY C.공정코드;
+
+			SELECT 'SUCCESS TABLE INSERT : d22_RUN제조MST, d22_RUN제조VLR' AS message;
+		COMMIT TRANSACTION;
+	END TRY
+	
+	BEGIN CATCH
+	    ROLLBACK TRANSACTION;
+	    SELECT ERROR_MESSAGE() AS ErrorMessage;
+	END CATCH;
+
+END;

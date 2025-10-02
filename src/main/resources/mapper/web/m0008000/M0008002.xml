@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0008000.mapper.M0008002Mapper">
+    <select id="getInspectionItems" resultType="CamelMap">
+        select 대분류코드, 대분류명, 중분류코드, 중분류명, MIN(주기) 주기
+        from dw_품질검사
+        where 공장코드 = '2'
+        and 대분류코드 = '300'
+        group by 대분류코드, 대분류명, 중분류코드, 중분류명
+        order by 중분류코드
+    </select>
+
+    <select id="getInspectionSubItems" resultType="CamelMap">
+        select distinct 소분류코드, 소분류명
+        from dw_품질검사
+        where 공장코드 = '2'
+        and 대분류코드 = '300'
+        and 중분류코드 = #{item}
+        order by 소분류코드
+    </select>
+
+    <select id="getUtmList" resultType="CamelMap">
+        select code,code_name
+        from dw_common_code
+        where maj_code = '91'
+        order by code
+    </select>
+
+    <select id="getCellTrackingInfo" resultType="CamelMap">
+        select *
+        from GetCellTrackingInfobyRunCell(#{runNo}, #{cellId})
+        order by end_time
+    </select>
+
+    <select id="M0008002_Sch1" parameterType="Map" resultType="CamelMap">
+        select *
+        from dw_품질검사내역
+        where 1=1
+        and 진행상태 in ('검사대기', '검사의뢰')
+        <if test="mainCode != null and mainCode != ''">
+            and 대분류코드 = #{mainCode}
+        </if>
+        <if test="item != null and item != ''">
+            and 중분류코드 = #{item}
+        </if>
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and 의뢰일자 between #{startDate} and #{endDate}
+        </if>
+        order by 의뢰일자, cell_id, 차수
+    </select>
+
+    <select id="M0008002_Get1" parameterType="Map" resultType="CamelMap">
+        select * from Get품질검사대기(#{mainCode},#{item},#{user},#{cellId});
+    </select>
+
+    <select id="M0008002_Get2" parameterType="Map" resultType="CamelMap">
+        select * from Get품질검사대기_소분류(#{mainCode},#{item},#{subItem},#{user},#{cellId});
+    </select>
+
+    <delete id="M0008002_Delete1">
+        delete from dw_품질검사내역
+        where 1=1
+        and 공장코드 = #{공장코드}
+        and 의뢰일자 = #{의뢰일자}
+        and 차수 = #{차수}
+        and 대분류코드 = #{대분류코드}
+        and 중분류코드 = #{중분류코드}
+        and 검사측정항목코드 = #{검사측정항목코드}
+        and run_no = #{runNo}
+        and cell_id = #{cellId}
+        and 진행상태 = #{진행상태}
+    </delete>
+
+    <insert id="M0008002_Insert1">
+        INSERT INTO dw_품질검사내역
+        (
+        의뢰일자,
+        차수,
+        대분류코드,
+        중분류코드,
+        검사측정항목코드,
+        검사측정항목,
+        의뢰자,
+        model,
+        run_no,
+        cell_id,
+        진행상태
+        )
+        VALUES
+        (
+        #{의뢰일자},
+        #{차수},
+        #{대분류코드},
+        #{중분류코드},
+        #{검사측정항목코드},
+        #{검사측정항목},
+        #{의뢰자},
+        #{model},
+        #{runNo},
+        #{cellId},
+        #{진행상태}
+        )
+    </insert>
+
+    <update id="M0008002_U_Inspection1" parameterType="Map">
+        UPDATE dw_품질검사내역
+        SET 진행상태 = '검사의뢰'
+        WHERE 1=1
+        and 공장코드 = #{공장코드}
+        and 의뢰일자 = #{의뢰일자}
+        and 차수 = #{차수}
+        and 대분류코드 = #{대분류코드}
+        and 중분류코드 = #{중분류코드}
+        and 검사측정항목코드 = #{검사측정항목코드}
+        and run_no = #{runNo}
+        and cell_id = #{cellId}
+        and 진행상태 = '검사대기'
+    </update>
+
+    <select id="M0008002_Sch2" parameterType="Map" resultType="CamelMap">
+        select *
+        from dw_품질검사내역
+        where 1=1
+        and 진행상태 in ('검사의뢰', '검사중', '재검사의뢰', '검사완료')
+        <if test="mainCode != null and mainCode != ''">
+            and 대분류코드 = #{mainCode}
+        </if>
+        <if test="item != null and item != ''">
+            and 중분류코드 = #{item}
+        </if>
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and 의뢰일자 between #{startDate} and #{endDate}
+        </if>
+        order by 의뢰일자, cell_id, 차수
+    </select>
+
+    <update id="M0008002_Update1" parameterType="Map">
+        UPDATE dw_품질검사내역
+        SET 판정1 = #{판정1}
+        ,판정2 = #{판정2}
+        ,특이사항 = #{특이사항}
+        where 1=1
+        and 공장코드 = #{공장코드}
+        and 의뢰일자 = #{의뢰일자}
+        and 차수 = #{차수}
+        and 대분류코드 = #{대분류코드}
+        and 중분류코드 = #{중분류코드}
+        and 검사측정항목코드 = #{검사측정항목코드}
+        and run_no = #{runNo}
+        and cell_id = #{cellId}
+        and 진행상태 = #{진행상태}
+    </update>
+
+    <update id="M0008002_Update2" parameterType="Map">
+        UPDATE dw_품질검사내역
+        SET 진행상태 = #{진행상태}
+        ,검사자 = #{검사자}
+        ,검사시작 = #{검사시작}
+        ,UTM호기 = #{utm호기}
+        where 1=1
+        and 공장코드 = #{공장코드}
+        and 의뢰일자 = #{의뢰일자}
+        and 차수 = #{차수}
+        and 대분류코드 = #{대분류코드}
+        and 중분류코드 = #{중분류코드}
+        and 검사측정항목코드 = #{검사측정항목코드}
+        and run_no = #{runNo}
+        and cell_id = #{cellId}
+        and 진행상태 in ('검사의뢰', '검사중', '재검사의뢰')
+    </update>
+
+    <update id="M0008002_Update3" parameterType="Map">
+        UPDATE dw_품질검사내역
+        SET 진행상태 = #{진행상태}
+        ,검사종료 = #{검사종료}
+        ,판정1 = #{판정1}
+        ,판정2 = #{판정2}
+        ,특이사항 = #{특이사항}
+        where 1=1
+        and 공장코드 = #{공장코드}
+        and 의뢰일자 = #{의뢰일자}
+        and 차수 = #{차수}
+        and 대분류코드 = #{대분류코드}
+        and 중분류코드 = #{중분류코드}
+        and 검사측정항목코드 = #{검사측정항목코드}
+        and run_no = #{runNo}
+        and cell_id = #{cellId}
+        and 진행상태 = '검사중'
+    </update>
+
+    <select id="M0008002_Sch3" parameterType="Map" resultType="CamelMap">
+        select *
+        from dw_품질검사내역
+        where 1=1
+        and 진행상태 in ('검사완료', '검사확정')
+        <if test="mainCode != null and mainCode != ''">
+            and 대분류코드 = #{mainCode}
+        </if>
+        <if test="item != null and item != ''">
+            and 중분류코드 = #{item}
+        </if>
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and 의뢰일자 between #{startDate} and #{endDate}
+        </if>
+        order by 의뢰일자, cell_id, 차수
+    </select>
+
+    <update id="M0008002_U_Inspection2" parameterType="Map">
+        UPDATE dw_품질검사내역
+        SET 진행상태 = '재검사의뢰'
+        ,검사결과_확인 = #{검사결과확인}
+        ,검사결과_확인일시 = #{검사결과확인일시}
+        WHERE 1=1
+        and 공장코드 = #{공장코드}
+        and 의뢰일자 = #{의뢰일자}
+        and 차수 = #{차수}
+        and 대분류코드 = #{대분류코드}
+        and 중분류코드 = #{중분류코드}
+        and 검사측정항목코드 = #{검사측정항목코드}
+        and run_no = #{runNo}
+        and cell_id = #{cellId}
+        and 진행상태 = '검사완료'
+    </update>
+
+    <update id="M0008002_U_Inspection3" parameterType="Map">
+        UPDATE dw_품질검사내역
+        SET 진행상태 = '검사확정'
+        ,검사결과_확인 = #{검사결과확인}
+        ,검사결과_확인일시 = #{검사결과확인일시}
+        WHERE 1=1
+        and 공장코드 = #{공장코드}
+        and 의뢰일자 = #{의뢰일자}
+        and 차수 = #{차수}
+        and 대분류코드 = #{대분류코드}
+        and 중분류코드 = #{중분류코드}
+        and 검사측정항목코드 = #{검사측정항목코드}
+        and run_no = #{runNo}
+        and cell_id = #{cellId}
+        and 진행상태 = '검사완료'
+    </update>
+</mapper>

@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0007000.mapper.M0007001Mapper">
+    <select id="M0007001_Sch1" parameterType="Map" resultType="CamelMap">
+        select *
+        from d04_카세트_불출처리_마스터
+        where 1=1
+        and 종류 = #{step}
+        and 카세트_상태 in ('불출대기', '검사대기')
+        and CST_NO NOT IN (
+            SELECT CST_NO FROM d04_카세트마스터 WHERE 위치 = '공정'
+        )
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and 불출대기일자 between #{startDate} and #{endDate}
+        </if>
+        <if test="type != null and type != ''">
+            and upper(타입) like CONCAT('%',upper(#{type}),'%')
+        </if>
+        <if test="model != null and model != ''">
+            and upper(모델) like CONCAT('%',upper(#{model}),'%')
+        </if>
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) like CONCAT('%',upper(#{cstNo}),'%')
+        </if>
+        <if test="charger != null and charger != ''">
+            and upper(카세트팀_담당자) like CONCAT('%',upper(#{charger}),'%')
+        </if>
+        order by 공장코드, 불출대기일자, seq_no, 타입, 모델, CST_NO, 카세트팀_담당자, 카세트_상태, 검사부서, 검사자, 검사결과, 불출부서, 불출담당자
+    </select>
+
+    <select id="M0007001_Sch2" parameterType="Map" resultType="CamelMap">
+        select *
+        from d04_카세트_불출처리_마스터
+        where 1=1
+        and 종류 = #{step}
+        and 카세트_상태 in ('검사대기')
+        and CST_NO NOT IN (
+            SELECT CST_NO FROM d04_카세트마스터 WHERE 위치 = '공정'
+        )
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and ( (불출대기일자 between #{startDate} and #{endDate})
+            or (검사일자 between #{startDate} and #{endDate})
+            )
+        </if>
+        <if test="type != null and type != ''">
+            and upper(타입) like CONCAT('%',upper(#{type}),'%')
+        </if>
+        <if test="model != null and model != ''">
+            and upper(모델) like CONCAT('%',upper(#{model}),'%')
+        </if>
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) like CONCAT('%',upper(#{cstNo}),'%')
+        </if>
+        <if test="charger != null and charger != ''">
+            and upper(카세트팀_담당자) like CONCAT('%',upper(#{charger}),'%')
+        </if>
+        order by 공장코드, 불출대기일자, seq_no, 타입, 모델, CST_NO, 카세트팀_담당자, 카세트_상태, 검사부서, 검사자, 검사결과, 불출부서, 불출담당자
+    </select>
+
+    <select id="M0007001_Sch3" parameterType="Map" resultType="CamelMap">
+        select *
+        from d04_카세트_불출처리_마스터
+        where 1=1
+        and 종류 = #{step}
+        and 카세트_상태 in ('검사완료', '대기')
+        and CST_NO NOT IN (
+            SELECT CST_NO FROM d04_카세트마스터 WHERE 위치 = '공정'
+        )
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and ( (검사일자 between #{startDate} and #{endDate})
+            or (불출일자 between #{startDate} and #{endDate})
+            )
+        </if>
+        <if test="type != null and type != ''">
+            and upper(타입) like CONCAT('%',upper(#{type}),'%')
+        </if>
+        <if test="model != null and model != ''">
+            and upper(모델) like CONCAT('%',upper(#{model}),'%')
+        </if>
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) like CONCAT('%',upper(#{cstNo}),'%')
+        </if>
+        <if test="charger != null and charger != ''">
+            and upper(카세트팀_담당자) like CONCAT('%',upper(#{charger}),'%')
+        </if>
+        order by 공장코드, 불출대기일자, seq_no, 타입, 모델, CST_NO, 카세트팀_담당자, 카세트_상태, 검사부서, 검사자, 검사결과, 불출부서, 불출담당자
+    </select>
+
+    <select id="checkDuplicate" parameterType="Map" resultType="int">
+        select count(*) from d04_카세트_불출처리_마스터
+        where 1=1
+        and 불출대기일자 = #{field1}
+<!--        and seq_no = #{field2}-->
+        and 종류 = #{field3}
+        and 타입 = #{field4}
+        and 모델 = #{field5}
+        and CST_NO = #{field6}
+    </select>
+
+    <delete id="deleteDuplicate" parameterType="Map">
+        delete from d04_카세트_불출처리_마스터
+        where 1=1
+        and 불출대기일자 = #{field1}
+        <!--        and seq_no = #{field2}-->
+        and 종류 = #{field3}
+        and 타입 = #{field4}
+        and 모델 = #{field5}
+        and CST_NO = #{field6}
+    </delete>
+
+    <select id="checkDuplicateMasterList" parameterType="java.util.List" resultType="CamelMap">
+        DROP TABLE IF EXISTS #TempTable1;
+
+        CREATE TABLE #TempTable1 (
+            불출대기일자 NVARCHAR(8) COLLATE Korean_Wansung_CI_AS NULL,
+            seq_no INT,
+            종류 NVARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+            타입 NVARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+            모델 NVARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+            CST_NO NVARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+            열 INT,
+            행 INT,
+            카세트팀_담당자 NVARCHAR(20) COLLATE Korean_Wansung_CI_AS NULL,
+            카세트_상태 NVARCHAR(10) COLLATE Korean_Wansung_CI_AS NULL
+        );
+
+        INSERT INTO #TempTable1
+        (
+        불출대기일자
+        , seq_no
+        , 종류
+        , 타입
+        , 모델
+        , CST_NO
+        , 열
+        , 행
+        , 카세트팀_담당자
+        , 카세트_상태
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.field1}
+            , #{item.field2}
+            , #{item.field3}
+            , #{item.field4}
+            , #{item.field5}
+            , #{item.field6}
+            , #{item.field7}
+            , #{item.field8}
+            , #{item.field9}
+            , '불출대기'
+            )
+        </foreach>;
+
+        SELECT * FROM #TempTable1
+        WHERE CST_NO IN (
+            SELECT CST_NO FROM d04_카세트마스터 WHERE 위치 = '공정'
+        );
+    </select>
+
+
+    <insert id="uploadExcel" parameterType="java.util.List">
+        CREATE TABLE #TempTable (
+            불출대기일자 NVARCHAR(8) COLLATE Korean_Wansung_CI_AS NULL,
+            seq_no INT,
+            종류 NVARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+            타입 NVARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+            모델 NVARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+            CST_NO NVARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+            열 INT,
+            행 INT,
+            카세트팀_담당자 NVARCHAR(20) COLLATE Korean_Wansung_CI_AS NULL,
+            카세트_상태 NVARCHAR(10) COLLATE Korean_Wansung_CI_AS NULL
+        );
+
+        INSERT INTO #TempTable
+        (
+        불출대기일자
+        , seq_no
+        , 종류
+        , 타입
+        , 모델
+        , CST_NO
+        , 열
+        , 행
+        , 카세트팀_담당자
+        , 카세트_상태
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+        (
+        #{item.field1}
+        , #{item.field2}
+        , #{item.field3}
+        , #{item.field4}
+        , #{item.field5}
+        , #{item.field6}
+        , #{item.field7}
+        , #{item.field8}
+        , #{item.field9}
+        , '불출대기'
+        )
+    </foreach>;
+
+        INSERT INTO d04_카세트_불출처리_마스터 (불출대기일자, seq_no, 종류, 타입, 모델,CST_NO ,열 ,행 ,카세트팀_담당자 ,카세트_상태)
+        SELECT 불출대기일자, MAX(seq_no) seq_no, 종류, 타입, 모델, CST_NO, MAX(열) 열, MAX(행) 행, MAX(카세트팀_담당자) 카세트팀_담당자, MAX(카세트_상태) 카세트_상태
+        FROM (
+            SELECT A.*
+            FROM (
+                SELECT 불출대기일자, seq_no, 종류, 타입, 모델, CST_NO, 열, 행, 카세트팀_담당자, 카세트_상태
+                FROM (
+                    SELECT *, MAX(seq_no) over (partition by 불출대기일자, 종류, 타입, 모델, CST_NO) max_seq_no FROM #TempTable
+                )A
+                WHERE 1=1
+                AND seq_no = max_seq_no
+                AND CST_NO NOT IN (
+                    SELECT CST_NO FROM d04_카세트마스터 WHERE 위치 = '공정'
+                )
+            ) A
+            LEFT OUTER JOIN d04_카세트_불출처리_마스터 B
+            ON A.불출대기일자 = B.불출대기일자
+            AND A.종류 = B.종류
+            AND A.타입 = B.타입
+            AND A.모델 = B.모델
+            AND A.CST_NO = B.CST_NO
+            WHERE B.CST_NO IS NULL
+        ) A
+        GROUP BY 불출대기일자, 종류, 타입, 모델, CST_NO;
+
+        DROP TABLE #TempTable;
+    </insert>
+
+    <update id="M0007001_Update1" parameterType="Map">
+        UPDATE d04_카세트_불출처리_마스터
+        SET	공장코드 = #{공장코드}
+        ,seq_no = #{seqNo}
+        ,열 = #{열}
+        ,행 = #{행}
+        ,카세트팀_담당자 = #{카세트팀담당자}
+        where 1=1
+        and 불출대기일자 = #{불출대기일자}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+    </update>
+
+    <delete id="M0007001_Delete1" parameterType="Map">
+        delete from d04_카세트_불출처리_마스터
+        where 1=1
+        and 공장코드 = #{공장코드}
+        and 불출대기일자 = #{불출대기일자}
+        and seq_no = #{seqNo}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+    </delete>
+
+    <update id="M0007001_Update2" parameterType="Map">
+        UPDATE d04_카세트_불출처리_마스터
+        SET	검사부서 = #{검사부서}
+        ,검사자 = #{검사자}
+        ,검사일자 = #{검사일자}
+        ,검사시간 = #{검사시간}
+        ,검사결과 = #{검사결과}
+        WHERE 공장코드 = #{공장코드}
+        and 불출대기일자 = #{불출대기일자}
+        and 종류 = #{종류}
+        and seq_no = #{seqNo}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트_상태 = '검사대기'
+    </update>
+
+    <update id="M0007001_Update3" parameterType="Map">
+        UPDATE d04_카세트_불출처리_마스터
+        SET	불출부서 = #{불출부서}
+        ,불출담당자 = #{불출담당자}
+        ,불출일자 = #{불출일자}
+        ,불출시간 = #{불출시간}
+        ,비고 = #{비고}
+        WHERE 공장코드 = #{공장코드}
+        and 불출대기일자 = #{불출대기일자}
+        and 종류 = #{종류}
+        and seq_no = #{seqNo}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트_상태 = '검사완료'
+    </update>
+
+    <update id="M0007001_U_Inspection1" parameterType="Map">
+        UPDATE d04_카세트_불출처리_마스터
+        SET 카세트_상태 = '검사대기'
+        WHERE 공장코드 = #{공장코드}
+        and 불출대기일자 = #{불출대기일자}
+        and 종류 = #{종류}
+        and seq_no = #{seqNo}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트_상태 = '불출대기'
+    </update>
+
+    <update id="M0007001_U_Inspection2" parameterType="Map">
+        UPDATE d04_카세트_불출처리_마스터
+        SET 카세트_상태 = case when upper(검사결과) = 'OK' then '검사완료' when upper(검사결과) = 'NG' then '불출대기' else '검사대기' end
+        WHERE 공장코드 = #{공장코드}
+        and 불출대기일자 = #{불출대기일자}
+        and 종류 = #{종류}
+        and seq_no = #{seqNo}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트_상태 = '검사대기'
+    </update>
+
+    <update id="M0007001_U_Inspection3" parameterType="Map">
+        UPDATE d04_카세트_불출처리_마스터
+        SET 카세트_상태 = '대기'
+        WHERE 공장코드 = #{공장코드}
+        and 불출대기일자 = #{불출대기일자}
+        and 종류 = #{종류}
+        and seq_no = #{seqNo}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트_상태 = '검사완료';
+
+        update A
+        set 열 = B.열
+        ,행 = B.행
+        ,위치 = '공정'
+        ,종류 = B.종류
+        ,타입 = B.타입
+        ,모델 = B.모델
+        ,카세트상태 = '대기'
+        ,카세트상태값 = '정상'
+        ,반입일자 = B.불출일자
+        ,반입시간 = B.불출시간
+        ,반입자 = B.불출담당자
+        from d04_카세트마스터 A
+        join d04_카세트_불출처리_마스터 B
+        on A.공장코드 = B.공장코드
+        and A.CST_NO = B.CST_NO
+        and B.공장코드 = #{공장코드}
+        and B.불출대기일자 = #{불출대기일자}
+        and B.종류 = #{종류}
+        and B.seq_no = #{seqNo}
+        and B.타입 = #{타입}
+        and B.모델 = #{모델}
+        and B.CST_NO = #{cstNo}
+        and B.카세트_상태 = '대기'
+        where A.공장코드 = #{공장코드}
+        and A.CST_NO = #{cstNo};
+
+        insert into d04_카세트마스터
+        (공장코드, 종류, 타입, 모델, CST_NO, 열, 행, 위치, 카세트상태, 카세트상태값, 반입일자, 반입시간, 반입자)
+        select 공장코드, 종류, 타입, 모델, CST_NO, 열, 행, '공정' 위치, 카세트_상태 카세트상태, '정상' 카세트상태값, 불출일자 반입일자, 불출시간 반입시간, 불출담당자 반입자
+        from d04_카세트_불출처리_마스터
+        where 공장코드 = #{공장코드}
+        and 불출대기일자 = #{불출대기일자}
+        and 종류 = #{종류}
+        and seq_no = #{seqNo}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트_상태 = '대기'
+        and not exists (
+            select 공장코드, 종류, 타입, 모델, CST_NO
+            from d04_카세트마스터
+            where 공장코드 = #{공장코드}
+            and CST_NO = #{cstNo}
+        );
+
+        insert into d04_카세트HISTORY
+        (공장코드, 종류, 타입, 모델, CST_NO, 위치, 카세트상태, 카세트상태값, 시작일자, 시작시간, 종료일자, 종료시간, 담당자)
+        select 공장코드, 종류, 타입, 모델, CST_NO,  위치, 카세트상태, 카세트상태값,
+        반입일자 시작일자, 반입시간 시작시간,
+        반입일자 종료일자, 반입시간 종료시간,
+        반입자 담당자
+        from d04_카세트마스터
+        where 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트상태 = '대기';
+    </update>
+
+</mapper>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- 콘솔 로그 출력 -->
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%logger] - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 롤링 파일 로그 -->
+    <appender name="rollingFile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/dowinsys_app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/dowinsys_app-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 로컬 환경: 콘솔만 출력 -->
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="console" />
+        </root>
+    </springProfile>
+
+    <!-- dev, dev1, prod1, prod2 환경: 콘솔 + 파일 모두 출력 -->
+    <springProfile name="dev,dev1,prod1,prod2">
+        <root level="INFO">
+            <appender-ref ref="rollingFile" />
+        </root>
+
+        <!-- P6Spy 로그도 파일에 기록 -->
+        <logger name="p6spy" level="INFO" additivity="false">
+            <appender-ref ref="rollingFile" />
+        </logger>
+    </springProfile>
+
+</configuration>

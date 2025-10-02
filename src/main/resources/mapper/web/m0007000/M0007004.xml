@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0007000.mapper.M0007004Mapper">
+    <select id="M0007004_Sch1" parameterType="Map" resultType="CamelMap">
+        select 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,반입일자,반입시간,반입자,반출일,반출시간,반출부서,반출자,반출사유
+        from d04_카세트마스터
+        where 1=1
+        and 카세트상태값 = '부적합'
+        and 카세트상태 in ('대기','반입','세척','점검','반출대기')
+        <if test="step != null and step != ''">
+            and upper(종류) like CONCAT('%',upper(#{step}),'%')
+        </if>
+        <if test="type != null and type != ''">
+            and upper(타입) like CONCAT('%',upper(#{type}),'%')
+        </if>
+        <if test="model != null and model != ''">
+            and upper(모델) like CONCAT('%',upper(#{model}),'%')
+        </if>
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) like CONCAT('%',upper(#{cstNo}),'%')
+        </if>
+        <if test="status != null and status != ''">
+            and upper(카세트상태) like CONCAT('%',upper(#{status}),'%')
+        </if>
+        order by 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,반입일자,반입시간,반입자,반출일,반출시간,반출부서,반출자,반출사유
+    </select>
+
+    <update id="M0007004_U_Inspection1" parameterType="Map">
+        update d04_카세트마스터
+        set 카세트상태 = '반출대기'
+        ,반출일 = #{반출일}
+        ,반출시간 = #{반출시간}
+        ,반출부서 = #{반출부서}
+        ,반출자 = #{반출자}
+        ,반출사유 = #{반출사유}
+        WHERE 1=1
+        and 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo};
+
+        insert into d04_카세트HISTORY
+        (공장코드, 종류, 타입, 모델, CST_NO, 위치, 카세트상태, 카세트상태값, 시작일자, 시작시간, 종료일자, 종료시간, 담당자, 비고)
+        select 공장코드, 종류, 타입, 모델, CST_NO, 위치, 카세트상태, 카세트상태값,
+        반출일 시작일자, 반출시간 시작시간,
+        반출일 종료일자, 반출시간 종료시간,
+        반출자 담당자,
+        반출사유 비고
+        from d04_카세트마스터
+        where 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트상태 = '반출대기';
+    </update>
+
+    <select id="M0007004_Sch2" parameterType="Map" resultType="CamelMap">
+        select 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,반출일,반출시간,반출부서,반출자,반출사유,회수일,회수시간,회수자부서,회수자
+        from d04_카세트마스터
+        where 1=1
+        and 카세트상태 in ('반출대기')
+        <if test="step != null and step != ''">
+            and upper(종류) like CONCAT('%',upper(#{step}),'%')
+        </if>
+        <if test="type != null and type != ''">
+            and upper(타입) like CONCAT('%',upper(#{type}),'%')
+        </if>
+        <if test="model != null and model != ''">
+            and upper(모델) like CONCAT('%',upper(#{model}),'%')
+        </if>
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) like CONCAT('%',upper(#{cstNo}),'%')
+        </if>
+        <if test="status != null and status != ''">
+            and upper(카세트상태) like CONCAT('%',upper(#{status}),'%')
+        </if>
+        order by 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,반출일,반출시간,반출부서,반출자,회수일,회수시간,회수자부서,회수자
+    </select>
+
+    <update id="M0007004_U_Inspection2" parameterType="Map">
+        update d04_카세트마스터
+        set 카세트상태 = '반출'
+        ,위치 = '카세트팀'
+        ,회수일 = #{회수일}
+        ,회수시간 = #{회수시간}
+        ,회수자부서 = #{회수자부서}
+        ,회수자 = #{회수자}
+        WHERE 1=1
+        and 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo};
+
+        insert into d04_카세트HISTORY
+        (공장코드, 종류, 타입, 모델, CST_NO, 위치, 카세트상태, 카세트상태값, 시작일자, 시작시간, 종료일자, 종료시간, 담당자)
+        select 공장코드, 종류, 타입, 모델, CST_NO, 위치, 카세트상태, 카세트상태값,
+        회수일 시작일자, 회수시간 시작시간,
+        회수일 종료일자, 회수시간 종료시간,
+        회수자 담당자
+        from d04_카세트마스터
+        where 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트상태 = '반출';
+    </update>
+</mapper>

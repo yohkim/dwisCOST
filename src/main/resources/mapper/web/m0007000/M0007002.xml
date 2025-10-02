@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0007000.mapper.M0007002Mapper">
+    <select id="M0007002_Sch1" parameterType="Map" resultType="CamelMap">
+        select A.*,
+        B.세정_외관,B.세정_Bar위치,B.세정_평탄도_바닥과_CST,B.세정_평탄도_앞면_옆면,B.세정_평탄도_뒷면_옆면,B.점검자,B.시작일자,B.시작시간,B.종료일자,B.종료시간,B.점검결과
+        from (
+        select 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,최근점검시작일,최근점검시작시간,최근점검종료일,최근점검종료시간,점검작업자 최근점검작업자,점검결과 최근점검결과
+        from d04_카세트마스터
+        where 1=1
+        and 종류 = '세정'
+        and 카세트상태 != '반출'
+        <if test="type != null and type != ''">
+            and upper(타입) like CONCAT('%',upper(#{type}),'%')
+        </if>
+        <if test="model != null and model != ''">
+            and upper(모델) like CONCAT('%',upper(#{model}),'%')
+        </if>
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) like CONCAT('%',upper(#{cstNo}),'%')
+        </if>
+        <if test="charger != null and charger != ''">
+            and upper(점검작업자) like CONCAT('%',upper(#{charger}),'%')
+        </if>
+        )A
+        left join (
+        select X.공장코드,X.종류,X.타입,X.모델,X.CST_NO
+        , json_value(점검항목, '$."세정_외관"') as 세정_외관
+        , json_value(점검항목, '$."세정_Bar위치"') as 세정_Bar위치
+        , json_value(점검항목, '$."세정_평탄도_바닥과_CST"') as 세정_평탄도_바닥과_CST
+        , json_value(점검항목, '$."세정_평탄도_앞면_옆면"') as 세정_평탄도_앞면_옆면
+        , json_value(점검항목, '$."세정_평탄도_뒷면_옆면"') as 세정_평탄도_뒷면_옆면
+        ,점검자
+        ,시작일자
+        ,시작시간
+        ,종료일자
+        ,종료시간
+        ,점검결과
+        from d04_카세트점검이력 X
+        join (
+        select 공장코드,종류,타입,모델,CST_NO
+        ,MAX(concat(시작일자, 시작시간)) max_date
+        from d04_카세트점검이력
+        where 1=1
+        and 종류 = '세정'
+        group by 공장코드, 종류, 타입, 모델, CST_NO
+        )Y
+        on X.공장코드 = Y.공장코드
+        and X.종류 = Y.종류
+        and X.타입 = Y.타입
+        and X.모델 = Y.모델
+        and X.CST_NO = Y.CST_NO
+        and concat(X.시작일자,X.시작시간) = Y.max_date
+        where 1=1
+        and X.종류 = '세정'
+        )B
+        on A.공장코드 = B.공장코드
+        and A.종류 = B.종류
+        and A.타입 = B.타입
+        and A.모델 = B.모델
+        and A.CST_NO = B.CST_NO
+        order by 공장코드, 종류, 타입, 모델, CST_NO, 카세트상태, 카세트상태값, 최근점검시작일, 최근점검시작시간, 최근점검종료일, 최근점검종료시간, 최근점검작업자
+    </select>
+
+    <select id="M0007002_Sch2" parameterType="Map" resultType="CamelMap">
+        select A.*,
+        B.강화_브라켓_지그일치유무,B.강화_슬롯상태,B.강화_MESH올상태,B.강화_Mesh들뜸,B.강화_볼트체결,B.강화_외관,B.점검자,B.시작일자,B.시작시간,B.종료일자,B.종료시간,B.점검결과
+        from (
+        select 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,최근점검시작일,최근점검시작시간,최근점검종료일,최근점검종료시간,점검작업자 최근점검작업자,점검결과 최근점검결과
+        from d04_카세트마스터
+        where 1=1
+        and 종류 = '강화'
+        and 카세트상태 != '반출'
+        <if test="type != null and type != ''">
+            and upper(타입) like CONCAT('%',upper(#{type}),'%')
+        </if>
+        <if test="model != null and model != ''">
+            and upper(모델) like CONCAT('%',upper(#{model}),'%')
+        </if>
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) like CONCAT('%',upper(#{cstNo}),'%')
+        </if>
+        <if test="charger != null and charger != ''">
+            and upper(점검작업자) like CONCAT('%',upper(#{charger}),'%')
+        </if>
+        )A
+        left join (
+        select X.공장코드,X.종류,X.타입,X.모델,X.CST_NO
+        , json_value(점검항목, '$."강화_브라켓_지그일치유무"') as 강화_브라켓_지그일치유무
+        , json_value(점검항목, '$."강화_슬롯상태"') as 강화_슬롯상태
+        , json_value(점검항목, '$."강화_MESH올상태"') as 강화_MESH올상태
+        , json_value(점검항목, '$."강화_Mesh들뜸"') as 강화_Mesh들뜸
+        , json_value(점검항목, '$."강화_볼트체결"') as 강화_볼트체결
+        , json_value(점검항목, '$."강화_외관"') as 강화_외관
+        ,점검자
+        ,시작일자
+        ,시작시간
+        ,종료일자
+        ,종료시간
+        ,점검결과
+        from d04_카세트점검이력 X
+        join (
+        select 공장코드,종류,타입,모델,CST_NO
+        ,MAX(concat(시작일자, 시작시간)) max_date
+        from d04_카세트점검이력
+        where 1=1
+        and 종류 = '강화'
+        group by 공장코드, 종류, 타입, 모델, CST_NO
+        )Y
+        on X.공장코드 = Y.공장코드
+        and X.종류 = Y.종류
+        and X.타입 = Y.타입
+        and X.모델 = Y.모델
+        and X.CST_NO = Y.CST_NO
+        and concat(X.시작일자,X.시작시간) = Y.max_date
+        where 1=1
+        and X.종류 = '강화'
+        )B
+        on A.공장코드 = B.공장코드
+        and A.종류 = B.종류
+        and A.타입 = B.타입
+        and A.모델 = B.모델
+        and A.CST_NO = B.CST_NO
+        order by 공장코드, 종류, 타입, 모델, CST_NO, 카세트상태, 카세트상태값, 최근점검시작일, 최근점검시작시간, 최근점검종료일, 최근점검종료시간, 최근점검작업자
+    </select>
+
+    <select id="M0007002_Sch1_Qr" parameterType="Map" resultType="CamelMap">
+        select A.*,
+        B.세정_외관,B.세정_Bar위치,B.세정_평탄도_바닥과_CST,B.세정_평탄도_앞면_옆면,B.세정_평탄도_뒷면_옆면,B.점검자,B.시작일자,B.시작시간,B.종료일자,B.종료시간,B.점검결과
+        from (
+        select 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,최근점검시작일,최근점검시작시간,최근점검종료일,최근점검종료시간,점검작업자 최근점검작업자,점검결과 최근점검결과
+        from d04_카세트마스터
+        where 1=1
+        and 종류 = '세정'
+        and 카세트상태 != '반출'
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) = upper(#{cstNo})
+        </if>
+        )A
+        left join (
+        select X.공장코드,X.종류,X.타입,X.모델,X.CST_NO
+        , json_value(점검항목, '$."세정_외관"') as 세정_외관
+        , json_value(점검항목, '$."세정_Bar위치"') as 세정_Bar위치
+        , json_value(점검항목, '$."세정_평탄도_바닥과_CST"') as 세정_평탄도_바닥과_CST
+        , json_value(점검항목, '$."세정_평탄도_앞면_옆면"') as 세정_평탄도_앞면_옆면
+        , json_value(점검항목, '$."세정_평탄도_뒷면_옆면"') as 세정_평탄도_뒷면_옆면
+        ,점검자
+        ,시작일자
+        ,시작시간
+        ,종료일자
+        ,종료시간
+        ,점검결과
+        from d04_카세트점검이력 X
+        join (
+        select 공장코드,종류,타입,모델,CST_NO
+        ,MAX(concat(시작일자, 시작시간)) max_date
+        from d04_카세트점검이력
+        where 1=1
+        and 종류 = '세정'
+        group by 공장코드, 종류, 타입, 모델, CST_NO
+        )Y
+        on X.공장코드 = Y.공장코드
+        and X.종류 = Y.종류
+        and X.타입 = Y.타입
+        and X.모델 = Y.모델
+        and X.CST_NO = Y.CST_NO
+        and concat(X.시작일자,X.시작시간) = Y.max_date
+        where 1=1
+        and X.종류 = '세정'
+        )B
+        on A.공장코드 = B.공장코드
+        and A.종류 = B.종류
+        and A.타입 = B.타입
+        and A.모델 = B.모델
+        and A.CST_NO = B.CST_NO
+        order by 공장코드, 종류, 타입, 모델, CST_NO, 카세트상태, 카세트상태값, 최근점검시작일, 최근점검시작시간, 최근점검종료일, 최근점검종료시간, 최근점검작업자
+    </select>
+
+    <select id="M0007002_Sch2_Qr" parameterType="Map" resultType="CamelMap">
+        select A.*,
+        B.강화_브라켓_지그일치유무,B.강화_슬롯상태,B.강화_MESH올상태,B.강화_Mesh들뜸,B.강화_볼트체결,B.강화_외관,B.점검자,B.시작일자,B.시작시간,B.종료일자,B.종료시간,B.점검결과
+        from (
+        select 공장코드,종류,타입,모델,CST_NO,열,행,위치,카세트상태,카세트상태값,최근점검시작일,최근점검시작시간,최근점검종료일,최근점검종료시간,점검작업자 최근점검작업자,점검결과 최근점검결과
+        from d04_카세트마스터
+        where 1=1
+        and 종류 = '강화'
+        and 카세트상태 != '반출'
+        <if test="cstNo != null and cstNo != ''">
+            and upper(CST_NO) = upper(#{cstNo})
+        </if>
+        )A
+        left join (
+        select X.공장코드,X.종류,X.타입,X.모델,X.CST_NO
+        , json_value(점검항목, '$."강화_브라켓_지그일치유무"') as 강화_브라켓_지그일치유무
+        , json_value(점검항목, '$."강화_슬롯상태"') as 강화_슬롯상태
+        , json_value(점검항목, '$."강화_MESH올상태"') as 강화_MESH올상태
+        , json_value(점검항목, '$."강화_Mesh들뜸"') as 강화_Mesh들뜸
+        , json_value(점검항목, '$."강화_볼트체결"') as 강화_볼트체결
+        , json_value(점검항목, '$."강화_외관"') as 강화_외관
+        ,점검자
+        ,시작일자
+        ,시작시간
+        ,종료일자
+        ,종료시간
+        ,점검결과
+        from d04_카세트점검이력 X
+        join (
+        select 공장코드,종류,타입,모델,CST_NO
+        ,MAX(concat(시작일자, 시작시간)) max_date
+        from d04_카세트점검이력
+        where 1=1
+        and 종류 = '강화'
+        group by 공장코드, 종류, 타입, 모델, CST_NO
+        )Y
+        on X.공장코드 = Y.공장코드
+        and X.종류 = Y.종류
+        and X.타입 = Y.타입
+        and X.모델 = Y.모델
+        and X.CST_NO = Y.CST_NO
+        and concat(X.시작일자,X.시작시간) = Y.max_date
+        where 1=1
+        and X.종류 = '강화'
+        )B
+        on A.공장코드 = B.공장코드
+        and A.종류 = B.종류
+        and A.타입 = B.타입
+        and A.모델 = B.모델
+        and A.CST_NO = B.CST_NO
+        order by 공장코드, 종류, 타입, 모델, CST_NO, 카세트상태, 카세트상태값, 최근점검시작일, 최근점검시작시간, 최근점검종료일, 최근점검종료시간, 최근점검작업자
+    </select>
+
+    <insert id="M0007002_TempSave1" parameterType="Map">
+        insert into d04_카세트점검이력
+        (공장코드,종류,타입,모델,CST_NO,위치,카세트상태,카세트상태값,시작일자,시작시간,종료일자,종료시간,점검자,점검결과,점검항목,비고)
+        values
+        (#{공장코드},#{종류},#{타입},#{모델},#{cstNo},#{위치},'점검',#{점검결과},#{시작일자},#{시작시간},#{종료일자},#{종료시간},#{점검자},#{점검결과},
+        JSON_OBJECT('세정_외관': #{세정외관},'세정_Bar위치': #{세정Bar위치},
+        '세정_평탄도_바닥과_CST': #{세정평탄도바닥과Cst},'세정_평탄도_앞면_옆면': #{세정평탄도앞면옆면},'세정_평탄도_뒷면_옆면': #{세정평탄도뒷면옆면}),
+        '')
+    </insert>
+
+    <insert id="M0007002_TempSave2" parameterType="Map">
+        insert into d04_카세트점검이력
+        (공장코드,종류,타입,모델,CST_NO,위치,카세트상태,카세트상태값,시작일자,시작시간,종료일자,종료시간,점검자,점검결과,점검항목,비고)
+        values
+        (#{공장코드},#{종류},#{타입},#{모델},#{cstNo},#{위치},'점검',#{점검결과},#{시작일자},#{시작시간},#{종료일자},#{종료시간},#{점검자},#{점검결과},
+        JSON_OBJECT('강화_브라켓_지그일치유무': #{강화브라켓지그일치유무},'강화_슬롯상태': #{강화슬롯상태},
+        '강화_MESH올상태': #{강화Mesh올상태},'강화_Mesh들뜸': #{강화Mesh들뜸},'강화_볼트체결': #{강화볼트체결},'강화_외관': #{강화외관}),
+        '')
+    </insert>
+
+    <delete id="M0007002_TempDelete1">
+        delete from d04_카세트점검이력
+        where 1=1
+        and 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 위치 = #{위치}
+        and 시작일자 = #{시작일자}
+        and 시작시간 = #{시작시간}
+    </delete>
+
+    <update id="M0007002_U_Inspection1" parameterType="Map">
+
+        <if test="'점검결과'!= null and '점검결과' !=''" >
+        UPDATE d04_카세트마스터
+        SET 카세트상태 = '대기'
+        ,카세트상태값 = #{점검결과}
+        ,최근점검시작일 = #{시작일자}
+        ,최근점검시작시간 = #{시작시간}
+        ,최근점검종료일 = #{종료일자}
+        ,최근점검종료시간 = #{종료시간}
+        ,점검작업자 = #{점검자}
+        ,점검결과 = #{점검결과}
+        WHERE 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo};
+
+        insert into d04_카세트HISTORY
+        (공장코드, 종류, 타입, 모델, CST_NO, 위치, 카세트상태, 카세트상태값, 시작일자, 시작시간, 종료일자, 종료시간, 담당자)
+        select 공장코드, 종류, 타입, 모델, CST_NO,  위치, 카세트상태, 카세트상태값,
+        최근점검시작일 시작일자, 최근점검시작시간 시작시간,
+        최근점검종료일 종료일자, 최근점검종료시간 종료시간,
+        점검작업자 담당자
+        from d04_카세트마스터
+        where 공장코드 = #{공장코드}
+        and 종류 = #{종류}
+        and 타입 = #{타입}
+        and 모델 = #{모델}
+        and CST_NO = #{cstNo}
+        and 카세트상태 = '대기';
+        </if>
+    </update>
+
+</mapper>

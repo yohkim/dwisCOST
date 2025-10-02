@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dowinsys.mes.web.m0003000.mapper.M0003007Mapper">
+	<select id="getModels" resultType="CamelMap">
+		select code_name 제품유형,code 코드 
+		from dw_common_code 
+		where maj_code='36'
+		order by code_name
+	</select>
+	<select id="getWorkTypes" resultType="CamelMap">
+		select 내용 작업구분, 코드  
+		from d02_일반코드파일 
+		where 대분류='31'
+		order by 내용
+	</select>
+	<select id="getStackEquip" resultType="CamelMap">
+		select 설비번호,설비약명 
+		from dw_equipment_mast 
+		where 공정코드='010';
+	</select>
+	<select id="getProcEquip" resultType="CamelMap">
+		select 설비번호,설비약명+' '+chamber 설비약명
+		from dw_equipment_mast 
+		where 공정코드='013';
+	</select>
+	<select id="getPoStatus" resultType="CamelMap">
+		select  PO_NO,FORMAT(convert(date,수주일자),'yyyy-MM-dd') PO_DATE,
+				거래처코드,제품코드,
+				수주수량 총수량,수주수량-(select ISNULL(SUM(CELL수),0) from d21_제조지시MST where po_no=#{poNo}) 잔량 
+		from  d33_제품수주서파일 a where po_no like #{poNo}  --PO_NO
+	</select>
+	<select id="getLotSize" resultType="CamelMap">
+		select b.Sheet*b.Block Cell,b.Block,b.Sheet
+		from d33_제품수주서파일 a
+			left  join dw_product_mast b on(a.제품코드=b.Prod_code)
+		where po_no like #{poNo}   --선택된 PO_NO
+	</select>
+	<select id="getProdStatus" resultType="CamelMap">
+		select c.name,b.Model 모델,b.Inch,b.Version 제품버젼 ,b.Spec 규격   --select c.* 
+		from d33_제품수주서파일 a
+			left join dw_product_mast b on(a.제품코드=b.Prod_code)
+			left join dw_vendor_mast c on (a.거래처코드 = c.code and trade_code=30)
+		where po_no like #{poNo}   --선택된 PO_NO
+	</select>
+	<select id="getLotStartLabel" resultType="CamelMap">
+		select #{workTypeChar}+FORMAT(CAST(COALESCE(max(substring(lot_no,CHARINDEX('-',lot_no,10)+2,4)),0) as INT)+1,'0000') lot_start_label
+		from d21_제조지시MST 
+		where lot_no like  #{selModel}+'F'+substring(CONVERT(VARCHAR(10), GETDATE(), 112),3,4)+'-'+#{workTypeChar}+'%'
+	</select>
+	<select id="getLotInfo" resultType="CamelMap">
+		SELECT  a.PO_NO,
+				FORMAT(convert(date,f.수주일자),'yyyy-MM-dd') po_date,
+				f.수주수량 총수량,
+				f.수주수량-SUM(a.cell수) OVER (PARTITION BY a.po_no) 잔량,
+				a.당일투입량 today_input,
+				시작LOT_NO start_label,
+				생성수량 create_qty,
+				잔여량 remain_qty,
+				a.작업지시일자 지시일자,
+				a.작업구분 작업구분코드,
+				g.거래처명,
+				e.Model 제품모델,
+				e.Inch 제품Inch,
+				e.Glass_thick GLASS두께,
+				e.Version 제품버젼,
+				e.Spec 제품규격,
+				e.Model+' '+CAST(e.Inch AS VARCHAR)+' '+CAST(e.GLASS_Thick AS varchar)+' '+e.Version+' '+CAST(e.sheet AS VARCHAR)+' '+CAST(Block AS VARCHAR)+' '+CAST(RUN_SIZE AS VARCHAR)+' ['+e.Spec+']' 제품품명,
+				a.제품코드,
+				SUBSTRING(LOT_NO,1,9) LOT,
+				SUBSTRING(LOT_NO,11,5) NO,
+				a.지시수량 cell,
+				'Cell' 단위,
+				a.Sheet,
+				a.block수 block,
+				발행자,
+				승인자,
+				FORMAT(convert(date,입고일자),'yyyy-MM-dd') 입고일자,
+				STUFF(STUFF(입고시각, 3, 0, ':'), 6, 0, ':') 입고시각,
+				FORMAT(convert(date,작업일자),'yyyy-MM-dd') 작업일자,
+				STUFF(STUFF(작업시각, 3, 0, ':'), 6, 0, ':') 작업시각,
+				c.자재품명,
+				c.자재재질,
+				c.자재두께,
+				c.자재규격,
+				h.거래처명 자재거래처명,
+				i.code_name 작업구분,--(select 내용 작업구분 from d02_일반코드파일 where 대분류='31' and 코드='18') 작업구분,
+				a.특기사항 특이사항,
+				a.출력횟수
+		from d21_제조지시MST a 
+			left join dw_product_mast e on (a.제품코드=e.Prod_code ) 
+			left join d04_자재마스터파일 C on(a.자재코드=c.자재코드)
+			left join d33_제품수주서파일 f on (a.po_no = f.po_no)
+			left join d03_거래처마스터파일 g on (e.customer_code=g.거래처코드)
+			left join d03_거래처마스터파일 h on (C.매입처=h.거래처코드 and h.거래처분류=10)
+			left join dw_common_code i on (i.maj_code='31' and i.code=a.작업구분)
+		WHERE a.제품유형 like coalesce(#{modelCode},'%') 
+		<if test="workCode != null and workCode != ''" >	
+		and a.작업구분 like  coalesce(#{workCode},'%')
+		</if>
+		AND a.작업지시일자 BETWEEN replace(#{startDate},'-','') AND replace(#{endDate},'-','')
+		ORDER BY PO_NO,LOT_NO;
+	</select>
+	<select id="getCreatedLotInfo" resultType="CamelMap">
+		BEGIN
+			DECLARE @PO_NO varchar(20) = #{poNo};
+			DECLARE @지시일자 DATE = CAST(FORMAT(GETDATE(), 'yyyy-MM-dd') AS DATE);
+			DECLARE @제품코드 VARCHAR(6) = (select 제품코드 from d33_제품수주서파일 where po_no =@PO_NO);
+			DECLARE @제품품명 varchar(70) = (SELECT e.제품모델+' '+CAST(e.제품Inch AS VARCHAR)+' '+e.GLASS두께+' '+e.제품버젼+' '+CAST(e.sheet AS VARCHAR)+' '+CAST(Block AS VARCHAR)+' '+CAST(RUN_SIZE AS VARCHAR)+' ['+제품규격+']' 제품품명
+				from  d05_제품마스터파일 e WHERE e.제품코드 =@제품코드); 
+			DECLARE @수량 INT = CAST(#{cell} as INT); -- LOT Size의 CELL 값
+			DECLARE @적층수 INT = CAST(#{sheet} as INT); -- LOT Size Sheet(층) 값
+			DECLARE @Block INT = CAST(#{block} as INT); -- LOT Size의 block 값
+			DECLARE @발행자 varchar(10) = #{publisher} --Fab#1 Schedule 발행 담당자
+			DECLARE @승인자 varchar(10) = #{approver} --Fab#1 Schedule 승인 담당자
+			DECLARE @작업구분 varchar(30) = #{workTypeLabel} -- 산택된 작업 구분
+			DECLARE @Model varchar(10) = #{modelLabel};
+			DECLARE @yymm varchar(6) = substring(CONVERT(VARCHAR(10), GETDATE(), 112),3,4);
+			DECLARE @Work_type varchar = substring(@작업구분,2,1);
+			DECLARE @Lot생성시작 VARCHAR(5) = #{startLabel};
+		    DECLARE @Lot_Seq int = CAST(COALESCE(max(substring(@Lot생성시작,2,4)),0) as INT);
+		    DECLARE @Lot생성수 int = CAST(#{createQty} as INT);
+		    DECLARE @특기사항 varchar(100) = #{remarks};
+			  WITH GenerateSeries AS (
+			    SELECT 0 AS seq
+			    UNION ALL
+			    SELECT seq + 1
+			    FROM GenerateSeries
+			    WHERE seq &lt; @Lot생성수-1 
+			  )  
+			  select
+				@PO_NO AS PO_NO,
+				@지시일자 AS 지시일자,
+				@제품품명 AS 제품품명,
+				@Model + 'F' + @yymm AS LOT,
+				@Work_type + FORMAT(@Lot_Seq + seq,'0000') AS NO,
+				@수량 AS cell,
+				'Cell' As 단위,
+				@적층수 AS sheet,
+				@Block AS block,
+				@발행자 AS 발행자,
+				@승인자 AS 승인자,
+				@작업구분 AS 작업구분,
+				@특기사항 AS 특이사항
+			from GenerateSeries 
+			order by NO
+			OPTION (MAXRECURSION 1000);
+		END	
+	</select>
+	<select id="saveLotInfo" resultType="CamelMap">
+	EXEC dbo.Lot_Create
+		@MODEL = #{modelLabel},
+		@PO_NO  = #{poNo}, 
+		@WORK_CODE  = #{workTypeCode}, --작업구분
+		@거래처코드 = #{customerCode},
+		@당일투입량  = #{todayInput},
+		@Lot_시작 = #{startLabel},
+		@생성수  = #{createQty},
+		@제품코드  = #{prodCode},
+		@자재코드  = #{matCode},
+		@발행자  = #{publisher},
+		@승인자  = #{approver},
+		@승인일자  = #{approvalDate}, 
+		@입고일자  = #{fabInDate}, --FAB_IN_DATE
+		@입고시각  = #{fabInTime},   --FAB_IN_TIME
+		@작업일자  = #{fabOutDate}, --FAB_OUT_DATE
+		@작업시각  = #{fabOutTime},   --FAB OUT TIME
+		@특기사항  = #{remarks};   --특이사항
+	</select>
+	
+	<select id="deleteLotInfo" resultType="CamelMap">
+		EXEC dbo.Lot_delete @lot_no = #{lotNumber} 
+	</select>
+	<update id="saveRemarks">
+	UPDATE d21_제조지시mst
+	SET 특기사항 = #{remarks}
+	WHERE lot_no = #{lotNo}
+	</update>
+	<update id="updatePrintCount">
+	UPDATE d21_제조지시MST
+	SET 출력횟수 = 1
+	WHERE lot_no = #{lotNo}
+	</update>
+	<!-- Run Card 생성분 -->
+	<select id="getRunCards" resultType="CamelMap">
+	BEGIN 
+	  DECLARE @제품유형  varchar(2) = #{modelCode}; 
+	  DECLARE @작업구분  varchar(2) = #{workCode}; --(P) Production Run_정규
+	    DECLARE @시작일 varchar(8) = #{startDate} ;
+	    DECLARE @종료일 varchar(8) = #{endDate};
+	    declare @적층설비 VARCHAR(3) = NULL; --'008'; --RL#A 가 선택된 경우 선택 안되었을때는 NULL
+	    declare @형상설비 VARCHAR(3) = NULL; --'021'; --CN#1 R 이 선택된 경우선택 안되었을때는 NULL
+	  with lot_run as (
+	select a.작업지시일자,a.run_no,a.특기사항,b.lot_no as lot_no,a.block수 block,b.run_cell1 cell
+	,case when @적층설비 is null then 1 when c.Machine_Code=@적층설비 then 1 else 0 end 적층
+	,case when @형상설비 is null then 1 when d.Machine_Code=@형상설비 then 1 else 0 end 형상
+	from d22_RUN제조MST a
+	   inner JOIN d21_제조지시MST b on (a.run_no=b.run_no1)
+	   left join d21_제조지시VLR c on (b.lot_no=c.lot_no and c.공정코드='010')
+	   left join d21_제조지시VLR d on (b.lot_no=d.lot_no and d.공정코드='013')
+	where  a.제품유형=@제품유형 and a.작업구분=@작업구분
+	<![CDATA[and a.작업지시일자 >= @시작일 and a.작업지시일자 <= @종료일]]>
+	UNION ALL 
+	select a.작업지시일자,a.run_no,a.특기사항,c.lot_no,a.block수 block,c.run_cell2 cell
+	,case when d.Machine_Code=@적층설비 then 1 else 0 end 
+	,case when e.Machine_Code=@형상설비 then 1 else 0 end 형상
+	from d22_RUN제조MST a
+	   inner JOIN d21_제조지시MST c on (a.run_no=c.run_no2)
+	   left join d21_제조지시VLR d on (c.lot_no=d.lot_no and d.공정코드='010')
+	   left join d21_제조지시VLR e on (c.lot_no=e.lot_no and e.공정코드='013')
+	where  a.제품유형=@제품유형 and a.작업구분=@작업구분
+	<![CDATA[and a.작업지시일자 >= @시작일 and a.작업지시일자 <= @종료일]]>
+	 ),sort_run_lot as (
+	   select *,row_number() over (partition by run_no order by lot_no) seq
+	   ,max(적층) over (partition by run_no) 적층통과
+	   ,max(형상) over (partition by run_no) 형상통과
+	   from lot_run where lot_no is not null
+	 )select CAST(작업지시일자 as DATE) 생성일자,run_no,특기사항 as 특이사항,sum(cell) run_cell,max(block) run_block,
+	  max(case when seq=1 then lot_no else null end) lot_no1, max(case when seq=1 then cell else null end) cell1,
+	  max(case when seq=2 then lot_no else null end) lot_no2,max(case when seq=2 then cell else null end) cell2,
+	  max(case when seq=3 then lot_no else null end) lot_no3,max(case when seq=3 then cell else null end) cell3,
+	  max(case when seq=4 then lot_no else null end) lot_no4,max(case when seq=4 then cell else null end) cell4,
+	  max(case when seq=5 then lot_no else null end) lot_no5,max(case when seq=5 then cell else null end) cell5,
+	  max(case when seq=6 then lot_no else null end )lot_no6,max(case when seq=6 then cell else null end) cell6,
+	  max(case when seq=7 then lot_no else null end )lot_no7,max(case when seq=7 then cell else null end) cell7,
+	  max(case when seq=8 then lot_no else null end )lot_no8,max(case when seq=8 then cell else null end) cell8,
+	  max(case when seq=9 then lot_no else null end )lot_no9,max(case when seq=9 then cell else null end) cell9,
+	  max(case when seq=10 then lot_no else null end )lot_no10,max(case when seq=10 then cell else null end) cell10
+	   from sort_run_lot 
+	   --where 적층통과 = 1 and 형상통과=1
+	   group by 작업지시일자,run_no,특기사항 order by run_no
+	 END
+	</select>
+	<select id="getLotInfoByRun" resultType="CamelMap">
+	select
+		b.lot_no,
+		b.Sheet,
+		b.BLOCK수 Block,
+		b.CELL수 cell,
+		a.run_no run_no1, 
+		case when a.run_no = b.run_no1 then b.run_cell1 else b.run_cell2 end run_cell1,
+		b.run_no2,
+		coalesce(b.run_cell2,0) run_cell2,
+		CAST(a.입고일자 AS DATE) 입고일자,
+		    STUFF(STUFF(a.입고시각, 5, 0, ':'), 3, 0, ':') 입고시각,
+		    CAST(a.작업일자 AS DATE) 작업일자,
+		    STUFF(STUFF(a.작업시각, 5, 0, ':'), 3, 0, ':') 작업시각,
+		   a.발행자,a.승인자,CAST(d.작업일자 AS DATE) 지시일자,e.설비약명 적층설비,f.설비약명 가공설비,d.특이사항
+		from d22_RUN제조MST a
+		LEFT JOIN d21_제조지시MST b on
+		(a.run_no = b.run_no1 OR a.run_no = b.run_no2 )
+		LEFT JOIN d21_제조지시VLR c on (b.lot_no=c.lot_no and c.공정코드 ='010')  --적층
+		LEFT JOIN d21_제조지시VLR d on (b.lot_no=d.lot_no and d.공정코드 ='013')  --형상가공
+		LEFT JOIN d29_공정별설비파일 e on (c.Machine_Code=e.설비번호 )
+		LEFT JOIN d29_공정별설비파일 f on (d.Machine_Code=f.설비번호 )
+		where a.run_no = #{runNo}
+		order by lot_no;
+	</select>
+	<select id="getLotInfoByRunAll" resultType="CamelMap">
+	select
+		b.lot_no,
+		b.Sheet,
+		b.BLOCK수 Block,
+		b.CELL수 cell,
+		b.run_no1, 
+		b.run_cell1,
+		b.run_no2,
+		b.run_cell2,
+		CAST(a.입고일자 AS DATE) 입고일자,
+		    STUFF(STUFF(a.입고시각, 5, 0, ':'), 3, 0, ':') 입고시각,
+		    CAST(nullif(a.작업일자,'-') AS DATE) 작업일자,
+		    STUFF(STUFF(a.작업시각, 5, 0, ':'), 3, 0, ':') 작업시각,
+		   a.발행자,a.승인자,CAST(d.작업일자 AS DATE) 지시일자,e.설비약명 적층설비,f.설비약명 가공설비,d.특이사항
+		from d22_RUN제조MST a
+		LEFT JOIN d21_제조지시MST b on
+		(a.run_no = b.run_no1)
+		LEFT JOIN d21_제조지시VLR c on (b.lot_no=c.lot_no and c.공정코드 ='010')  --적층
+		LEFT JOIN d21_제조지시VLR d on (b.lot_no=d.lot_no and d.공정코드 ='013')  --형상가공
+		LEFT JOIN d29_공정별설비파일 e on (c.Machine_Code=e.설비번호 )
+		LEFT JOIN d29_공정별설비파일 f on (d.Machine_Code=f.설비번호 )
+		where   a.제품유형=#{ modelCode} and a.작업구분=#{workCode}
+		<![CDATA[and a.작업지시일자 >= #{startDate} and a.작업지시일자 <=#{endDate}]]>
+		 and b.lot_no is not null
+		order by a.run_no,b.lot_no;
+	</select>
+	<select id="cancelRunCard" resultType="CamelMap">
+	EXEC dbo.RUN_Cancel
+	@RUN_NO = #{runNo};
+	</select>
+	<!-- Run Card 미생성분 -->
+	<select id="getLotInfoForRunCreate" resultType="CamelMap">
+		begin
+			declare @제품유형 varchar(2) = #{modelCode}; --7073
+			declare @작업구분 varchar (2) = #{workCode};  --(D) Development Run_개발
+			declare @시작일자 varchar (8) = #{startDate};
+			declare @종료일자 varchar (8) = #{endDate};
+			declare @적층설비 varchar(3) = #{stackCode};  --RL#1 미선택 NULL OR ''
+			declare @형상설비 varchar(3) = #{procCode}; --형상설비는 Default NULL
+		select a.작업지시일자,	a.lot_no,
+			a.Sheet,
+			a.BLOCK수 Block,
+			b.양품수량 * a.Sheet Cell,run_no1,run_cell1,run_no2,run_cell2,
+			CAST(b.작업종료 AS DATE) 지시일자,
+			FORMAT(convert(date,g.입고일자),'yyyy-MM-dd')+' '+STUFF(STUFF(g.입고시각, 3, 0, ':'), 6, 0, ':') 입고일자,
+			FORMAT(convert(date,nullif(g.작업일자,'-')),'yyyy-MM-dd')+' '+STUFF(STUFF(g.작업시각, 3, 0, ':'), 6, 0, ':') 작업일자,
+			g.발행자,g.발행자서명,g.승인자,g.승인자서명,
+			e.설비약명 적층설비,	f.설비약명 + ' '+f.chamber 가공설비,a.특기사항 특이사항
+			from d21_제조지시MST a
+		   inner join d21_제조지시VLR b on (a.lot_no=b.lot_no and b.공정코드='020' AND nullif(b.작업종료,'') IS NOT NULL  )
+		   inner JOIN d21_제조지시VLR c on (a.lot_no=c.lot_no and c.공정코드 ='010' and (NULLIF(@적층설비,'') is null or c.Machine_Code=@적층설비))  --적층
+			inner JOIN d21_제조지시VLR d on (a.lot_no=d.lot_no and d.공정코드 ='013'and (NULLIF(@형상설비,'') is null or d.Machine_Code=@형상설비))  --형상가공
+			left JOIN dw_equipment_mast  e on (c.Machine_Code=e.설비번호)
+			left JOIN dw_equipment_mast  f on (d.Machine_Code=f.설비번호)
+			left join d22_RUN제조MST g  on (nullif(a.run_no1,'')=g.run_no)
+		  where 1=1 /*(nullif(a.run_no1,'') is null and nullif(a.run_no2,'') is null */ 
+		  and 	(b.양품수량 * a.Sheet) != coalesce(run_cell1,0)+coalesce(run_cell2,0)
+		  and a.작업구분=@작업구분
+		  and a.제품유형=@제품유형 
+		  and a.작업지시일자 BETWEEN @시작일자 and @종료일자
+		  order by a.LOT_NO
+		END
+	</select>
+	<select id="getRunNo" resultType="CamelMap">
+		begin
+		declare @제품모델 varchar(4) = #{modelLabel}; --MODEL 7073
+		declare @작업타입 varchar (1) = #{workTypeChar};  --(D) Development Run_개발 D
+		declare @LAST_LOT_NO varchar (24) = #{lastLotNo};  --조회결과 마지막 LOT_NO '7073F2305-D0030'
+		select	@제품모델 + 'B' 
+				+ substring(@LAST_LOT_NO, 6, 4)
+				+ '-' + @작업타입 
+				+ FORMAT(CAST(COALESCE(max(substring(run_no, CHARINDEX('-', run_no, 10)+ 2, 4)),0) as INT)+ 1,'0000') run_no
+		from d22_RUN제조MST
+		where run_no like @제품모델 + 'B' + FORMAT(getdate(),'yyMM') + '-' + @작업타입 + '%';
+		END 
+	</select>
+	<select id="getProcessPlan" resultType="CamelMap">
+	SELECT
+		C.공정코드,
+		C.공정명
+	FROM  d21_제조지시MST A
+	INNER JOIN dw_product_process B ON	(A.제품코드 = B.PROD_CODE)
+	INNER JOIN DW_PROCESS_PLAN C ON	(B.PROCESS_ID = C.PROCESS_ID AND C.공정구분 = '11')
+	WHERE	LOT_NO = #{lotNo}
+	ORDER BY C.공정코드;
+	</select>
+	<select id="runLotGenerate" resultType="CamelMap">
+	EXEC Run_Lot_cell 
+	@LOT_LIST = #{lotList}, @run_size=#{runSize};
+	</select>
+	<select id="getRunCreatePreview" resultType="CamelMap">
+		begin
+		DECLARE @LOT_LIST VARCHAR(5000) 
+		= #{lotList};
+		
+		DECLARE @TMP_RUN_CELL TABLE  (
+		RUN_NO	 varchar(40),			
+		lot_no	 varchar(26),
+		run_no1	 varchar(7),
+		in_cell	 real,
+		cell	 real,
+		cum_cell real
+		);
+		
+		INSERT INTO @TMP_RUN_CELL
+		 EXEC Run_Lot_cell @lot_list=@LOT_LIST, @run_size=#{runSize};
+	 		
+		select a.작업지시일자,	a.lot_no,
+			a.Sheet,
+			a.BLOCK수 Block,
+			b.양품수량 * a.Sheet Cell,
+			CASE WHEN t.run_no1='RUN_NO1' then t.RUN_NO else null end run_no1,
+			CASE WHEN t.run_no1='RUN_NO1' then t.in_cell else 0 end Run_Cell1,
+			CASE WHEN t.run_no1='RUN_NO2' then t.RUN_NO else null end Run_no2,
+			CASE WHEN t.run_no1='RUN_NO2' then t.in_cell else 0 end Run_Cell2,
+			 #{fabInDate} 입고일자,
+			 #{fabOutDate} 작업일자,
+			 #{publisher} 발행자,
+			 #{approver} 승인자,
+			CAST(b.작업종료 AS DATE) 지시일자,
+			e.설비약명 적층설비,	f.설비약명 가공설비
+			from d21_제조지시MST a
+			inner join @TMP_RUN_CELL t on (a.lot_no=t.lot_no)
+		   inner join d21_제조지시VLR b on (a.lot_no=b.lot_no and b.공정코드='020' AND b.작업종료 IS NOT NULL  )
+		   inner JOIN d21_제조지시VLR c on (a.lot_no=c.lot_no and c.공정코드 ='010')  --적층
+			inner JOIN d21_제조지시VLR d on (a.lot_no=d.lot_no and d.공정코드 ='013')  --형상가공
+			left JOIN dw_equipment_mast e on (c.Machine_Code=e.설비번호)
+			left JOIN dw_equipment_mast f on (d.Machine_Code=f.설비번호)
+		  WHERE a.LOT_NO in (SELECT value  from STRING_SPLIT(@LOT_LIST, ','));
+		end
+	</select>
+	<select id="getRunCreateList" resultType="CamelMap">
+		begin
+			DECLARE @LOT_LIST VARCHAR(5000) 
+			= #{lotList};
+			
+			DECLARE @TMP_RUN_CELL TABLE  (
+				RUN_NO	 varchar(40),			
+				lot_no	 varchar(26),
+				run_no1	 varchar(7),
+				in_cell	 real,
+				cell	 real,
+				cum_cell real
+			);
+
+			INSERT INTO @TMP_RUN_CELL
+			 EXEC Run_Lot_cell @lot_list=@LOT_LIST, @run_size=#{runSize}; 
+			
+			select *from ( 
+				SELECT 
+				FORMAT(getdate(),'yyyy-MM-dd') 생성일자,
+				run_no,
+				sum(in_cell) over (partition by run_no) run_cell,
+				'lot_no'+cast(row_number() over (partition by run_no order by lot_no) as varchar) as 구분,
+				lot_no
+				FROM @TMP_RUN_CELL
+				union all
+				SELECT 
+				FORMAT(getdate(),'yyyy-MM-dd') 생성일자,
+				run_no,
+				sum(in_cell) over (partition by run_no) run_cell,
+				'cell'+cast(row_number() over (partition by run_no order by lot_no) as varchar) as 구분,
+				cast(in_cell as varchar)
+				FROM @TMP_RUN_CELL 
+				)S
+				PIVOT
+				(   max(lot_no)
+					FOR 구분 IN ([lot_no1],[cell1],[lot_no2],[cell2],[lot_no3],[cell3],[lot_no4],[cell4],[lot_no5],[cell5],[lot_no6],[cell6],[lot_no7],[cell7],[lot_no8],[cell8],[lot_no9],[cell9],[lot_no10],[cell10])
+				)T
+			order by 1 
+			OPTION (MAXRECURSION 0);
+		end
+	</select>
+	<select id="runLotUpdate" resultType="CamelMap">
+	EXEC Run_lot_gen_update
+	@RUN_LIST = #{runList};
+	</select>
+	<select id="saveRunCard" resultType="CamelMap">
+		EXEC dbo.Run_Create
+		@LOT_LIST = #{lotList},
+		@발행자     = #{publisher},
+		@발행자서명 = 1,
+		@승인자     = #{approver},
+		@승인자서명 = 1,
+		@입고일자   = #{fabInDate},
+		@입고시각   = #{fabInTime},
+		@작업일자   = #{fabOutDate},
+		@작업시각   = #{fabOutTime},
+		@RUN_SIZE = #{runSize};
+	</select>
+	<select id="getPrintRunCard1Info1" resultType="CamelMap">
+		select FORMAT(convert(date,작업지시일자),'yyyy-MM-dd') 작업지시일자,run_no,b.내용 작업구분,거래처명,제품Inch,자재재질,자재두께,a.특기사항,
+         FORMAT(cast(자재두께 as INT),
+			'000')+ '-' + f.code as 'Glass BCR'
+		FROM d22_RUN제조MST a
+		left join d02_일반코드파일 b on (a.작업구분 = b.코드 and b.대분류='31')
+		left join d03_거래처마스터파일 c on (a.거래처코드=c.거래처코드)
+		left join d05_제품마스터파일 d on (a.제품코드=d.제품코드 )
+		left join d04_자재마스터파일 e on(a.자재코드=e.자재코드)
+		left join dw_common_code f on (f.maj_code = '09' and e.자재재질 = f.code_name)
+		where run_no = #{runNo}
+	</select>
+	<select id="getPrintRunCard1Info2" resultType="CamelMap">
+		select lot_no,run_cell2 as run_cell, run_cell2/(cell수/block수) block, cell수 lot_cell,'#2' run_part
+		FROM d21_제조지시MST
+		where run_no2 = #{runNo}
+		union all 
+		select lot_no,run_cell1 as run_cell, run_cell1/(cell수/block수) block, cell수 lot_cell,'#1' run_part
+		FROM d21_제조지시MST
+		where run_no1 = #{runNo}
+		order by lot_no
+	</select>
+	<select id="getPrintRunCard2Info" resultType="CamelMap">
+		SELECT
+			A.RUN_NO,a.CELL수,
+			e.code_name 작업구분,
+			d.customer_name 고객명,
+			CAST(d.Inch as varchar) 모델명,
+			b.자재두께 두께,
+			b.자재재질 Glass재질,
+			FORMAT(cast(b.자재두께 as INT),
+			'000')+ '-' + c.code as 'Glass BCR',
+			STUFF(STUFF(작업지시일자,5,	0,	'-'),	8,	0,	'-') as 발행일,
+			a.특기사항 특이사항,
+			FILM_전면색_1,
+			FILM_전면색_2,
+			FILM_전면색_3,
+			FILM_전면색_4,
+			FILM_배면색_1,
+			FILM_배면색_2,
+			FILM_배면색_3,
+			FILM_배면색_4
+		FROM
+			d22_RUN제조MST a
+		left join d04_자재마스터파일 b on
+			(a.자재코드 = b.자재코드)
+		left join dw_common_code c on
+			(c.maj_code = '09'	and b.자재재질 = c.code_name)
+		left join dw_product_mast d on
+			( a.제품코드 = d.prod_code)
+		left join dw_common_code e on 
+			(e.maj_code = '31' and A.작업구분 = e.code)
+		left join (
+			select  model,code 제품유형,
+					FILM_전면색_1,
+					FILM_전면색_2,
+					FILM_전면색_3,
+					FILM_전면색_4,
+					FILM_배면색_1,
+					FILM_배면색_2,
+					FILM_배면색_3,
+					FILM_배면색_4
+			FROM dw_모델기본정보 a 
+			left join dw_common_code b on 
+				(b.maj_code = '36' and A.model = b.code_name)
+		)f on (a.제품유형 = f.제품유형) 
+		where run_no = #{runNo};
+	</select>
+	
+	<select id="getRunSize" resultType="CamelMap">
+		select dbo.MODEL_RunSize(#{modelLabel}) as run_size;
+	</select>
+	
+	<select id="getFilmImage" resultType="CamelMap">
+		select image_data FROM dw_model_image
+		where model = #{model}
+	</select>
+	<update id="saveRunRemarks">
+		UPDATE d22_RUN제조MST
+		SET 특기사항=#{특이사항}
+		WHERE run_no = #{runNo}
+	</update>
+</mapper>

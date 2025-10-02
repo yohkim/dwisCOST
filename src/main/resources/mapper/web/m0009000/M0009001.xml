@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0009000.mapper.M0009001Mapper">
+
+	<select id="selectEquipListInSteps" resultType="CamelMap">
+		SELECT distinct 
+		   	   a.line
+		   	 , case when a.chamber is not null and trim(a.chamber) != '' then '*'
+		   	        else a.설비번호
+		   	   end as 설비번호
+		   	 , a.설비약명
+		   	 , a.공정코드
+		   	 , b.공정약어 as 공정명
+		  FROM dw_equipment_mast a
+		  LEFT OUTER JOIN dw_step_mast b 
+			ON ( a.line = b.line and a.공정코드 = b.공정코드 )
+		where 1 = 1 
+		<if test="line != null and line.trim() != ''" >	
+			and a.line = #{line}
+		</if>
+		    and a.사용여부 = '1'
+		    and a.설비번호 != '505'		
+		    and a.공정코드 != '077'
+		<if test="stepCode != null and stepCode != ''" >
+			and   a.공정코드 = #{stepCode}
+		</if>
+		order by a.공정코드, a.설비약명
+	</select>	
+
+	<select id="selectModelList" resultType="com.dowinsys.mes.common.CamelMap">
+		select line, model, inch, glass_thick, spec
+		from 
+		( 
+			select line, model, inch, glass_thick, spec,
+					row_number() over (partition by model order by version desc ) rnk	 
+			from dw_product_mast a 
+			where 1 = 1 
+			  and model != ''
+			<if test="searchKeyword != null and searchKeyword != ''" >
+			  AND a.model like #{searchKeyword} + '%'
+			</if>			  
+		) a 	
+		where a.rnk = 1
+		order by a.line, a.model
+	</select>
+
+	<select id="selectEquipProdBaseList" resultType="com.dowinsys.mes.common.CamelMap">
+		SELECT
+			line,
+			step_code,
+			equip_no,
+			equip_name,
+			apply_date,
+			step_name,			
+			use_category,
+			model,
+			mst,
+			worker_name,
+			comments,
+			create_date,
+			create_user,
+			update_date,
+			update_user,
+			'Y' as editable
+		FROM dw_equip_prod_base a 
+		WHERE 1 = 1
+		<if test="stepCode != null and stepCode != ''" >
+		  AND step_code = #{stepCode}
+		</if>
+		<if test="equipName != null and equipName != ''" >
+		  AND equip_name = #{equipName}
+		</if>
+		order by a.apply_date desc, a.step_code, a.equip_name, a.model		
+	</select>
+	
+	<select id="checkApplyDate" resultType="com.dowinsys.mes.common.CamelMap">
+		select b.line, b.step_code, b.equip_no, b.equip_name, b.model, b.apply_date
+		from 
+		(
+			<foreach item="item" collection="vo" open="" separator="union all" close="" > 
+				select #{item.line} as line, #{item.stepCode} as step_code,
+				 		#{item.equipNo} as equip_no,  #{item.equipName} as equip_name,
+				 		 #{item.model} as model,
+				 		#{item.applyDate} as apply_date
+			</foreach>			    
+		) a 
+		left outer join 
+		(	
+			select line, step_code, equip_no, equip_name, model, max(apply_date) apply_date
+			  from dw_equip_prod_base
+			 where ( line + step_code + equip_no + equip_name + model ) in 
+			<foreach item="item" collection="vo" open="(" separator="," close=")" > 
+					#{item.line} + #{item.stepCode} + #{item.equipNo}  + #{item.equipName}  + #{item.model}
+			</foreach>	
+			group by line, step_code, equip_no, equip_name, model
+		) b 
+		on ( a.line = b.line 
+		     and a.step_code = b.step_code 
+		     and a.equip_no = b.equip_no 
+		     and a.equip_name = b.equip_name 
+		     and a.model = b.model )
+		where a.apply_date <![CDATA[ <= ]]> b.apply_date
+	</select>	
+	
+			
+<!--	<select id="checkApplyDateForUpdate" resultType="com.dowinsys.mes.common.CamelMap">
+		select a.line, a.step_code, a.equip_no, a.version, a.equip_name,a.apply_date
+		from dw_equip_prod_base a 
+		where a.line = #{line}
+		  and a.step_code = #{stepCode}
+		  and a.equip_no = #{equipNo}
+		  and a.equip_name = #{equipName}
+		  and ( ( a.version <![CDATA[ > ]]> #{version} and a.apply_date <![CDATA[ <= ]]> #{applyDate} ) or 
+		        ( a.version <![CDATA[ < ]]> #{version} and a.apply_date <![CDATA[ >= ]]> #{applyDate} ) )
+	</select>	-->	
+	
+	<insert id = "insertEquipProdBase" parameterType = "Map">
+		INSERT INTO dw_equip_prod_base
+		(	
+			line,
+			step_code,
+			equip_no,
+			equip_name,
+			apply_date,
+			model,
+			step_name,			
+			use_category,
+			mst,
+			worker_name,
+			comments,
+			create_date,
+			create_user,
+			update_date,
+			update_user
+		)
+		VALUES(
+			#{line},
+			#{stepCode},
+			#{equipNo},
+			#{equipName},
+			#{applyDate},
+			#{model},
+			#{stepName},			
+			#{useCategory},			
+			#{mst},
+			#{workerName},
+			#{comments},
+			getdate(),
+			#{workerId},
+			getdate(),
+			#{workerId}
+		)
+	</insert>
+	
+	<update id="updateEquipProdBase" parameterType="Map">
+		UPDATE
+			dw_equip_prod_base
+		SET 
+			use_category = #{useCategory},
+			mst = #{mst},
+			worker_name = #{workerName}, 
+			comments = #{comments},
+			update_date = getdate(),
+			update_user = #{workerId}
+		WHERE
+			line = #{line}
+			AND step_code = #{stepCode}
+			AND equip_no = #{equipNo}
+			AND equip_name = #{equipName}
+			AND apply_date = #{applyDate}
+			AND model = #{model}
+	</update>
+	
+	<delete id="deleteEquipProdBase" parameterType="Map">
+		DELETE
+		FROM
+			dw_equip_prod_base
+		WHERE
+			line = #{line}
+			AND step_code = #{stepCode}
+			AND equip_no = #{equipNo}
+			AND equip_name = #{equipName}
+			AND apply_date = #{applyDate}
+			AND model = #{model}
+	</delete>
+	
+	<select id="selectSubCategoryList" resultType="com.dowinsys.mes.common.CamelMap">	
+		select a.code as off_category_code,
+			   a.code_name as off_category_name,
+			   b.code as sub_category_code,
+			   b.code_name as sub_category_name	   
+		from dw_common_code_input a
+		left outer join 
+		( 
+			select code, code_name from dw_common_code_input where maj_code='102' and use_yn = '1'
+		) b
+		on( SUBSTRING(a.code,1,2) = SUBSTRING(b.code,1,2) )
+		where a.maj_code='97'
+		  and a.code != 'D0000'
+		  and a.use_yn = '1'
+	</select>
+	
+	<select id="selectEquipOffCodeList" resultType="com.dowinsys.mes.common.CamelMap">
+		SELECT
+			a.off_category_code as display_off_category_code,
+			a.off_category_code,
+			b.code_name as off_category_name,
+			a.sub_category_code as display_sub_category_code,
+			a.sub_category_code,
+			d.code_name as sub_category_name,			
+			a.off_code,			
+			a.off_name,
+			a.off_gubun_code,
+			c.code_name as off_gubun_name,
+			a.item_order,
+			a.use_yn,
+			a.comments,
+			a.create_date,
+			a.create_user,
+			a.update_date,
+			a.update_user,
+			'Y' as editable
+		FROM dw_equip_off_code a
+		join ( select * from dw_common_code where maj_code='97') b
+		on ( a.off_category_code = b.code )		
+		join ( select * from dw_common_code where maj_code='98') c
+		on ( a.off_gubun_code = c.code )	
+		join ( select * from dw_common_code where maj_code='102') d
+		on ( a.sub_category_code = d.code )	
+		WHERE 1 = 1
+		<if test="offGubunCode != null and offGubunCode != ''" >
+		  AND off_gubun_code = #{offGubunCode}
+		</if>			
+		ORDER BY a.item_order
+	</select>
+	
+	<select id="checkExistsOffCode" resultType="com.dowinsys.mes.common.CamelMap">
+		select COALESCE(STRING_AGG(a.off_code, '/'), 'NoData') AS off_code
+		from dw_equip_off_code a
+		where ( upper(a.off_code) ) in
+		<foreach item="item" collection="vo" open="(" separator="," close=")" > 
+			upper(#{item.offCode})
+		</foreach>
+	</select>	
+	
+	<select id="checkUsedOffCode" resultType="com.dowinsys.mes.common.CamelMap">
+		select COALESCE(STRING_AGG(a.off_code, '/'), 'NoData') AS off_code
+		from dw_equip_off_log a
+		where ( upper(a.off_code) ) in
+		<foreach item="item" collection="vo" open="(" separator="," close=")" > 
+			upper(#{item.offCode})
+		</foreach>
+	</select>	
+	
+	<insert id = "insertEquipOffCode" parameterType = "Map">
+		INSERT INTO dw_equip_off_code
+		(	
+			off_category_code,
+			sub_category_code,
+			off_code,			
+			off_name,
+			off_gubun_code,
+			item_order,
+			use_yn,
+			comments,
+			create_date,
+			create_user,
+			update_date,
+			update_user
+		)
+		VALUES(
+			#{offCategoryCode},
+			#{subCategoryCode},
+			#{offCode},			
+			#{offName},
+			#{offGubunCode},
+			#{itemOrder},
+			#{useYn},
+			#{comments},
+			getdate(),
+			#{workerId},
+			getdate(),
+			#{workerId}
+		)
+	</insert>
+	
+	<update id="updateEquipOffCode" parameterType="Map">
+		UPDATE
+			dw_equip_off_code
+		SET 			
+			off_name = #{offName},
+			off_gubun_code = #{offGubunCode},
+			item_order = #{itemOrder},
+			use_yn = #{useYn},
+			comments = #{comments},
+			update_date = getdate(),
+			update_user = #{workerId}
+		WHERE
+			off_category_code = #{offCategoryCode}
+			and sub_category_code = #{subCategoryCode}
+			AND off_code = #{offCode}
+	</update>
+	
+	<delete id="deleteEquipOffCode" parameterType="Map">
+		DELETE
+		FROM
+			dw_equip_off_code
+		WHERE
+			off_category_code = #{offCategoryCode}
+			and sub_category_code = #{subCategoryCode}
+			AND off_code = #{offCode}
+	</delete>	
+
+</mapper>

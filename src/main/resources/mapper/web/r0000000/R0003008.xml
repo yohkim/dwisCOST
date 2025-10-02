@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.r0000000.mapper.R0003008Mapper">
+    <select id="R0003008_Sch1" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+        from (
+            select *
+            from d84_DPFBFL_CELL파일
+            where 1=1
+                and 작업구분 = '1'
+            <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+                and 시작시각  between #{startDate} and #{endDate}
+            </if>
+            <if test="runNo != null and runNo != ''">
+                and RUN_NO like CONCAT('%',#{runNo},'%')
+            </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by A.run_no,설비호기,근무조,작업자,시작시각,종료시각,seq_id desc
+    </select>
+
+    <select id="R0003008_Sch2" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+        from (
+        select *
+        from d75_강화후환적LOG파일
+        where 1=1
+            and 작업구분 = '2'
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and start_time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_NO like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by A.run_no, 설비호기,근무조,작업자,start_time,end_time,seq_id desc;
+    </select>
+
+    <update id="R0003008_Update1" parameterType="Map">
+        UPDATE d84_DPFBFL_CELL파일
+        SET 시작시각 = #{시작시각}
+        ,종료시각 = #{종료시각}
+        ,CST_NO = #{cstNo}
+        ,CELL_NO = #{cellNo}
+        WHERE SEQ_ID = #{seqId}
+        AND 작업구분 = '1'
+        AND 공장코드 = #{공장코드}
+        AND 공정코드 = #{공정코드}
+        AND RUN_NO = #{runNo}
+    </update>
+
+    <update id="R0003008_Update2" parameterType="Map">
+        UPDATE d75_강화후환적LOG파일
+        SET CELL_NO = #{cellNo}
+        ,start_time = #{startTime}
+        ,end_time = #{endTime}
+        ,IN_CSTNO = #{inCstno}
+        ,OUT_CSTNO = #{outCstno}
+        WHERE SEQ_ID = #{seqId}
+        AND 작업구분 = '2'
+        AND 공장코드 = #{공장코드}
+        AND 공정코드 = #{공정코드}
+        AND RUN_NO = #{runNo}
+    </update>
+</mapper>

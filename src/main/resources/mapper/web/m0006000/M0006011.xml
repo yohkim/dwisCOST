@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0006000.mapper.M0006011Mapper">
+	<select id="getGridData1" resultType="CamelMap">
+		SELECT  공장코드,
+				seq_no,
+				공정,
+				설비명,
+				제어_Base,
+				PLC_Base,
+				여유슬롯,
+				PLC_CPU_MAKER,
+				PLC_CPU_모델,
+				HMI_TOUCH,
+				HMI_SCADA,
+				SCADA,
+				Windows_Version,
+				PLC_Comment,
+				외산설비_Lock_유무,
+				비고
+		FROM dw_설비현황
+		order by seq_no
+	</select>
+	
+	<select id="getGridData2" resultType="CamelMap">
+		SELECT  공장코드,
+				seq_no,
+				설비유형,
+				설비호기,
+				이력관리여부,
+				DB연계여부,
+				DB테이블유무,
+				업체명,
+				관리IP,
+				비고
+		FROM dw_설비호기이력관리내역
+		order by seq_no
+	</select>
+	
+	<insert id="insertData1">
+		INSERT INTO dw_설비현황
+		(
+			공장코드,
+			seq_no,
+			공정,
+			설비명,
+			제어_Base,
+			PLC_Base,
+			여유슬롯,
+			PLC_CPU_MAKER,
+			PLC_CPU_모델,
+			HMI_TOUCH,
+			HMI_SCADA,
+			SCADA,
+			Windows_Version,
+			PLC_Comment,
+			외산설비_Lock_유무,
+			비고
+		)
+		VALUES
+		(
+			#{공장코드},
+			#{seqNo},
+			#{공정},
+			#{설비명},
+			#{제어Base},
+			#{plcBase},
+			#{여유슬롯},
+			#{plcCpuMaker},
+			#{plcCpu모델},
+			#{hmiTouch},
+			#{hmiScada},
+			#{scada},
+			#{windowsVersion},
+			#{plcComment},
+			#{외산설비Lock유무},
+			#{비고}
+		);
+	</insert>
+	
+	<insert id="insertData2">
+		INSERT INTO dw_설비호기이력관리내역
+		(
+			공장코드,
+			seq_no,
+			설비유형,
+			설비호기,
+			이력관리여부,
+			DB연계여부,
+			DB테이블유무,
+			업체명,
+			관리IP,
+			비고
+		)
+		VALUES
+		(
+			#{공장코드},
+			#{seqNo},
+			#{설비유형},
+			#{설비호기},
+			#{이력관리여부},
+			#{db연계여부},
+			#{db테이블유무},
+			#{업체명},
+			#{관리ip},
+			#{비고}
+		);
+	</insert>
+	
+	<delete id="deleteData1">
+		DELETE FROM dw_설비현황
+		WHERE 공장코드 = #{공장코드}
+		AND	seq_no = #{seqNo}
+		AND	공정 = #{공정}
+		AND	설비명 = #{설비명}
+	</delete>
+	
+	<delete id="deleteData2">
+		DELETE FROM dw_설비호기이력관리내역
+		WHERE 공장코드 = #{공장코드}
+	    AND seq_no = #{seqNo}
+	    AND 설비유형 = #{설비유형}
+	    AND 설비호기 = #{설비호기}
+	</delete>
+	
+	<update id="updateData1">
+	   UPDATE dw_설비현황
+	   SET  제어_Base = #{제어Base},
+			PLC_Base = #{plcBase},
+			여유슬롯 = #{여유슬롯},
+			PLC_CPU_MAKER = #{plcCpuMaker},
+			PLC_CPU_모델 = #{plcCpu모델},
+			HMI_TOUCH = #{hmiTouch},
+			HMI_SCADA = #{hmiScada},
+			SCADA = #{scada},
+			Windows_Version = #{windowsVersion},
+			PLC_Comment = #{plcComment},
+			외산설비_Lock_유무 = #{외산설비Lock유무},
+			비고 = #{비고}
+		WHERE 공장코드 = #{공장코드}
+		AND	seq_no = #{seqNo}
+		AND	공정 = #{공정}
+		AND	설비명 = #{설비명}
+	</update>
+	
+	<update id="updateData2">
+	   UPDATE dw_설비호기이력관리내역
+	   SET  이력관리여부 = #{이력관리여부},
+	        DB연계여부 = #{db연계여부},
+	        DB테이블유무 = #{db테이블유무},
+	        업체명 = #{업체명},
+	        관리IP = #{관리ip},
+	        비고 = #{비고}
+		WHERE 공장코드 = #{공장코드}
+	    AND seq_no = #{seqNo}
+	    AND 설비유형 = #{설비유형}
+	    AND 설비호기 = #{설비호기}
+	</update>
+</mapper>

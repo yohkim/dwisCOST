@@ -1,0 +1,103 @@
+/*
+ * 제조 실적 입력 > Back#1 > 설비 로그 조회 > 후환적
+ */
+const { ValueType } = require('realgrid');
+const { rgDisplayDateTime } = require('@/utils/dateUtils');
+
+const grid = {
+  options: {
+    checkBar: { visible: false },
+    copy: { enabled: true, singleMode: true },
+    display: {
+      columnMovable: false,
+      emptyMessage: '조회된 데이터가 없습니다.',
+      fitStyle: 'NONE',
+      hscrollBar: true,
+      showEmptyMessage: true,
+    },
+    edit: { editable: false },
+    footers: { visible: false },
+    paste: { enabled: false },
+    rowIndicator: { visible: true },
+    sorting: { enabled: true },
+    stateBar: { visible: false },
+    filtering: { enabled: true },
+    fixed: { colBarWidth: 1, colCount: 6 },
+  },
+
+  fields: [
+    { fieldName: 'seqId', dataType: ValueType.NUMBER },
+    { fieldName: '공장코드', dataType: ValueType.TEXT },
+    { fieldName: '공정코드', dataType: ValueType.TEXT },
+    { fieldName: '작업구분', dataType: ValueType.TEXT },
+    //{ fieldName: '설비호기', dataType: ValueType.TEXT },
+    { fieldName: '설비약명', dataType: ValueType.TEXT },
+    { fieldName: 'runNo', dataType: ValueType.TEXT },
+    { fieldName: 'cellNo', dataType: ValueType.TEXT },
+    { fieldName: '근무조', dataType: ValueType.TEXT },
+    { fieldName: '작업자', dataType: ValueType.TEXT },
+    { fieldName: 'startTime', dataType: ValueType.TEXT },
+    { fieldName: 'endTime', dataType: ValueType.TEXT },
+    { fieldName: 'inCstno', dataType: ValueType.TEXT },
+    { fieldName: 'inCstsu', dataType: ValueType.NUMBER },
+    { fieldName: 'inCst행열', dataType: ValueType.TEXT },
+    { fieldName: 'outCstno', dataType: ValueType.TEXT },
+    { fieldName: 'outCstsu', dataType: ValueType.NUMBER },
+    { fieldName: 'outCst행열', dataType: ValueType.TEXT },
+    { fieldName: '삭제위치', dataType: ValueType.TEXT },
+    { fieldName: '불량명', dataType: ValueType.TEXT },
+    { fieldName: 'recipeParameter', dataType: ValueType.TEXT },
+    { fieldName: '진공압', dataType: ValueType.NUMBER },
+    { fieldName: '퍼지압', dataType: ValueType.NUMBER },
+  ],
+
+  columns: [
+    { name: 'seqId', fieldName: 'seqId', width: '80', header: { text: 'SEQ_ID' }, autoFilter: true, numberFormat: '####', styleName: 'tr' },
+    { name: '공장코드', fieldName: '공장코드', width: '80', header: { text: '공장코드' }, autoFilter: true, styleName: 'tl' },
+    { name: '공정코드', fieldName: '공정코드', width: '80', header: { text: '공정코드' }, autoFilter: true, styleName: 'tl' },
+    { name: '작업구분', fieldName: '작업구분', width: '80', header: { text: '작업구분' }, autoFilter: true, styleName: 'tl' },
+    //{ name: '설비호기', fieldName: '설비호기', width: '80', header: { text: '설비호기' }, autoFilter: true, styleName: 'tl' },
+    {
+      name: '설비약명',
+      fieldName: '설비약명',
+      header: { text: '호기' },
+      autoFilter: true,
+      styleName: 'tl',
+    },
+    { name: 'runNo', fieldName: 'runNo', width: '150', header: { text: 'RUN_NO' }, autoFilter: true, styleName: 'tl' },
+    { name: 'cellNo', fieldName: 'cellNo', width: '220', header: { text: 'CELL_NO' }, autoFilter: true, styleName: 'tl' },
+    { name: '근무조', fieldName: '근무조', width: '80', header: { text: '근무조' }, autoFilter: true, styleName: 'tl' },
+    { name: '작업자', fieldName: '작업자', width: '80', header: { text: '작업자' }, autoFilter: true, styleName: 'tl' },
+    {
+      name: 'startTime',
+      fieldName: 'startTime',
+      width: '120',
+      header: { text: '작업시작시간' },
+      autoFilter: true,
+      styleName: 'tl',
+      displayCallback: rgDisplayDateTime,
+    },
+    {
+      name: 'endTime',
+      fieldName: 'endTime',
+      width: '120',
+      header: { text: '작업종료시간' },
+      autoFilter: true,
+      styleName: 'tl',
+      displayCallback: rgDisplayDateTime,
+    },
+    { name: 'inCstno', fieldName: 'inCstno', width: '80', header: { text: 'IN_CSTNO' }, autoFilter: true, styleName: 'tl' },
+    { name: 'inCstsu', fieldName: 'inCstsu', width: '80', header: { text: 'IN_CSTSU' }, autoFilter: true, numberFormat: '#,###.###', styleName: 'tr' },
+    { name: 'inCst행열', fieldName: 'inCst행열', width: '100', header: { text: 'IN_CST행열' }, autoFilter: true, styleName: 'tl' },
+    { name: 'outCstno', fieldName: 'outCstno', width: '100', header: { text: 'OUT_CSTNO' }, autoFilter: true, styleName: 'tl' },
+    { name: 'outCstsu', fieldName: 'outCstsu', width: '90', header: { text: 'OUT_CSTSU' }, autoFilter: true, numberFormat: '#,###.###', styleName: 'tr' },
+    { name: 'outCst행열', fieldName: 'outCst행열', width: '110', header: { text: 'OUT_CST행열' }, autoFilter: true, styleName: 'tl' },
+    { name: '삭제위치', fieldName: '삭제위치', width: '80', header: { text: '삭제위치' }, autoFilter: true, styleName: 'tl' },
+    { name: '불량명', fieldName: '불량명', width: '80', header: { text: '불량명' }, autoFilter: true, styleName: 'tl' },
+    { name: 'recipeParameter', fieldName: 'recipeParameter', width: '130', header: { text: 'Recipe_Parameter' }, autoFilter: true, styleName: 'tl' },
+    { name: '진공압', fieldName: '진공압', width: '80', header: { text: '진공압' }, autoFilter: true, numberFormat: '#,###.###', styleName: 'tr' },
+    { name: '퍼지압', fieldName: '퍼지압', width: '80', header: { text: '퍼지압' }, autoFilter: true, numberFormat: '#,###.###', styleName: 'tr' },
+  ],
+};
+
+module.exports = grid;

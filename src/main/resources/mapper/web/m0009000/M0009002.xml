@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0009000.mapper.M0009002Mapper">
+	
+	<select id="selectEquipOffLogList" resultType="com.dowinsys.mes.common.CamelMap">
+		SELECT
+			a.line,
+			a.step_code,
+			a.equip_no,
+			a.equip_name,
+			a.off_start_time,			
+			a.off_end_time,			
+			a.off_time,
+			a.finish_yn,					
+			a.off_category_code,
+			d.off_category_name,
+			a.sub_category_code,
+			d.sub_category_name,			
+			a.off_code,
+			d.off_name,
+			p.공정약어 as step_name,
+			a.worker_name,
+			a.comments,
+			a.create_date,
+			a.create_user,
+			a.update_date,
+			a.update_user,
+			'Y' as editable
+		FROM dw_equip_off_log a 
+		left outer join dw_step_mast p 
+		on ( p.line = a.line 
+		     and p.공정코드 = a.step_code )
+		left outer join 
+		(
+			select a.off_category_code,
+				   b.code_name as off_category_name,
+				   a.sub_category_code,
+				   c.code_name as sub_category_name,
+				   a.off_code,
+				   a.off_name,
+				   a.off_gubun_code
+			from dw_equip_off_code a 
+			left outer join  ( select * from dw_common_code where maj_code='97') b 
+			on ( a.off_category_code = b.code )
+			left outer join  ( select * from dw_common_code where maj_code='102') c 
+			on ( a.sub_category_code = c.code )			
+		) d
+		on ( a.off_category_code = d.off_category_code 
+		     and a.sub_category_code = d.sub_category_code 
+		     and a.off_code = d.off_code )
+		WHERE 1 = 1
+			<if test="stepCode != null and stepCode != ''" >
+			  AND a.step_code = #{stepCode}
+			</if>
+			<if test="equipName != null and equipName != ''" >
+			  AND a.equip_name = #{equipName}
+			</if>			
+		<if test="useCategory != null and useCategory != ''" >
+		  AND p.use_category = #{useCategory}
+		</if>	
+		order by a.off_start_time desc, a.equip_name
+	</select>
+	
+	<select id="selectEquipOffProdBaseList" resultType="com.dowinsys.mes.common.CamelMap">
+		select b.line, b.step_code, b.equip_no, b.equip_name,
+			  b.apply_date,
+			  b.step_name,			  
+			  b.use_category,
+			  c.code_name as use_category_name,
+			  b.model,
+			  b.mst,
+			  b.worker_name,
+			  b.comments	  
+		from 
+		( 
+			select line, step_code, equip_no, equip_name, max(apply_date) apply_date 
+			from dw_equip_prod_base
+			where apply_date <![CDATA[ <= ]]> FORMAT(GETDATE(), 'yyyy-MM-dd HH:mm')
+			group by line, step_code, equip_no, equip_name
+		) a 
+		join dw_equip_prod_base b 
+		on ( a.line = b.line 
+		     and a.step_code = b.step_code
+		     and a.equip_no = b.equip_no
+		     and a.equip_name = b.equip_name
+		     and a.apply_date = b.apply_date )     
+		join ( select * from dw_common_code where maj_code='74') c
+		on ( b.use_category = c.code )
+	</select>
+	
+	<select id="checkEndOffDate" resultType="com.dowinsys.mes.common.CamelMap">
+		SELECT  a.equip_name, 
+				c.off_name,
+				a.off_start_time,
+				a.off_end_time
+		from dw_equip_off_log a 
+		LEFT OUTER JOIN  dw_equip_off_code c
+		ON ( a.off_category_code = c.off_category_code 
+		     and a.off_code = c.off_code )
+		where a.line = #{line}
+		 AND a.equip_no = #{equipNo}
+		 AND a.equip_name = #{equipName}
+		 AND a.finish_yn ='N'
+	</select>	
+	
+	<select id="checkDupOffDate" resultType="com.dowinsys.mes.common.CamelMap">
+		SELECT  a.equip_name, 
+				c.off_name,
+				a.off_start_time,
+				a.off_end_time
+		from dw_equip_off_log a 
+		LEFT OUTER JOIN  dw_equip_off_code c
+		ON ( a.off_category_code = c.off_category_code 
+			 and a.sub_category_code = c.sub_category_code
+		     and a.off_code = c.off_code )
+		where a.line = #{line}
+		 AND a.equip_no = #{equipNo}
+		 AND a.equip_name = #{equipName}
+		 AND ( (  #{offStartTime} <![CDATA[ >= ]]>  a.off_start_time AND #{offStartTime} <![CDATA[ < ]]>  a.off_end_time  )
+		 <if test="offEndTime != null and offEndTime != ''" >
+		      OR (  #{offStartTime}  <![CDATA[ < ]]> a.off_start_time AND  #{offEndTime}  <![CDATA[ > ]]> a.off_start_time )
+		 </if>
+		     )
+	</select>
+	
+	<select id="checkDupOffDateForUpdate" resultType="com.dowinsys.mes.common.CamelMap">
+		SELECT  a.equip_name, 
+				c.off_name,
+				a.off_start_time,
+				a.off_end_time
+		from dw_equip_off_log a 
+		LEFT OUTER JOIN  dw_equip_off_code c
+		ON ( a.off_category_code = c.off_category_code 
+			 and a.sub_category_code = c.sub_category_code
+		     and a.off_code = c.off_code )
+		where a.line = #{line}
+		 AND a.equip_no = #{equipNo}
+		 AND a.equip_name = #{equipName}
+		 and a.off_start_time != #{offStartTime}
+		 AND ( (  #{offStartTime} <![CDATA[ >= ]]>  a.off_start_time AND #{offStartTime} <![CDATA[ < ]]>  a.off_end_time  )
+		 <if test="offEndTime != null and offEndTime != ''" >
+		      OR (  #{offStartTime}  <![CDATA[ < ]]> a.off_start_time AND  #{offEndTime}  <![CDATA[ > ]]> a.off_start_time )
+		 </if>
+		     )
+	</select>	
+	
+	<insert id = "insertEquipOffLog" parameterType = "Map">
+		INSERT INTO dw_equip_off_log
+		(	
+			line,
+			step_code,
+			equip_no,
+			equip_name,
+			off_start_time,
+			off_end_time,			
+			off_time,
+			finish_yn,			
+			off_category_code,
+			sub_category_code,
+			off_code,
+			worker_name,
+			comments,
+			create_date,
+			create_user,
+			update_date,
+			update_user
+		)
+		VALUES(
+			#{line},
+			#{stepCode},
+			#{equipNo},
+			#{equipName},	
+			#{offStartTime},
+			#{offEndTime},			
+			#{offTime},
+			case when #{offEndTime} is null or #{offEndTime} = '' then 'N'
+			     else 'Y'
+			end,
+			#{offCategoryCode},
+			#{subCategoryCode},
+			#{offCode},
+			#{workerName},
+			#{comments},
+			getdate(),
+			#{workerId},
+			getdate(),
+			#{workerId}
+		)
+	</insert>
+	
+	<update id="updateEquipOffLog" parameterType="Map">
+		UPDATE dw_equip_off_log
+		SET 
+			off_end_time = #{offEndTime},
+			off_time = #{offTime},
+			finish_yn = case when #{offEndTime} is null or #{offEndTime} = '' then 'N'
+			     			else 'Y'
+						end,
+			off_category_code = #{offCategoryCode},
+			sub_category_code = #{subCategoryCode},
+			off_code = #{offCode},
+			worker_name = #{workerName},
+			comments = #{comments},
+			update_date = getdate(),
+			update_user = #{workerId}
+		WHERE
+			line = #{line}
+			AND step_code = #{stepCode}
+			AND equip_no = #{equipNo}
+			AND equip_name = #{equipName}
+			AND off_start_time = #{offStartTime}
+	</update>
+	
+	<delete id="deleteEquipOffLog" parameterType="Map">
+		DELETE
+		  FROM dw_equip_off_log
+		 WHERE
+			line = #{line}
+			AND step_code = #{stepCode}
+			AND equip_no = #{equipNo}
+			AND equip_name = #{equipName}
+			AND off_start_time = #{offStartTime}
+	</delete>		
+	
+
+</mapper>

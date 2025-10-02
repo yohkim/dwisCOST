@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: dwisMES_prod1
+
+  security:
+    user:
+      name: dowinsysMES
+      password: Loved1113
+
+  datasource:
+    url: jdbc:p6spy:sqlserver://172.16.0.208;databaseName=도우제조MES시스템DB;encrypt=true;trustServerCertificate=true
+    username: bs
+    password: ehdndlstltm1!
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+    hikari:
+      minimum-idle: 30 # 최소 유휴 커넥션 수 (풀에서 항상 유지)
+      maximum-pool-size: 60 # 최대 커넥션 수
+      idle-timeout: 600000 # 유휴 상태로 유지되는 최대 시간(ms) - 기본은 600초 (10분)
+      max-lifetime: 1800000 # 커넥션의 최대 수명(ms) - 기본 30분
+      connection-timeout: 30000 # 커넥션 요청 최대 대기 시간(ms)
+      keepalive-time: 300000 # 사용하지 않아도 커넥션을 5분마다 ping (유휴 상태 유지)
+  
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 3600
+          no-transform: true
+          must-revalidate: true
+      chain:
+        enabled: true
+        strategy:
+          content:
+            enabled: true
+            paths: "/**"
+
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+
+cors:
+  allowed:
+    origin: http://172.16.182.2,http://172.16.185.7
+
+file:
+  upload:
+    dir: attach
+
+pdf:
+  base-uri: http://172.16.185.7:8080
+
+batch:
+  scheduler:
+    enabled: true
+  matScheduler:
+    enabled: true		

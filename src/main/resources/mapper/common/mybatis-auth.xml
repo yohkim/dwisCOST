@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dowinsys.mes.common.auth.mapper.AuthMapper">
+	<select id="selectCheckUser" parameterType="com.dowinsys.mes.common.auth.LoginReq" resultType="com.dowinsys.mes.common.auth.UserInfo">
+	select 
+		USER_ID
+		,user_name
+		,dept_name
+		,dept_code
+		,position_name
+		,position_code
+		,UTG
+		,ITG
+		,INIT_DT
+		,INIT_USER
+		,MODI_DT
+		,MODI_USER
+		,DEL_YN
+	from dw_cm_user
+	where user_id = #{userId}
+	and password = #{password}
+	</select>
+	<select id="selectAuthMenuTabList" parameterType="com.dowinsys.mes.common.auth.LoginReq" resultType="com.dowinsys.mes.common.auth.SysResource">
+	with auth_sys_resc as (
+		select UPPER_SYS_RESOURCE_ID,SYS_RESOURCE_ID
+		from dw_cm_role_sys_resource a
+		inner join DW_CM_USER_ROLE b on (a.ROLE_ID = b.ROLE_ID)
+		where b.user_id = #{userId}
+		and a.prod_category = #{prodCategory}
+		group by UPPER_SYS_RESOURCE_ID,SYS_RESOURCE_ID
+	) 
+	,mt as (
+		select
+			a.prod_category 
+			,a.sys_resource_id 
+			,a.upper_sys_resource_id
+			,a.description
+			,cast(a.SYS_RESOURCE_NAME as nvarchar(max)) as full_path
+			,a.SYS_RESOURCE_NAME 
+			,a.seq 	
+			,1 as level		
+			,a.sys_resource_type_code_id			
+			,cast(a.seq as nvarchar(max)) as full_seq
+			,a.url
+		from DW_CM_SYS_RESOURCE a
+		inner join auth_sys_resc b on (a.UPPER_SYS_RESOURCE_ID = b.UPPER_SYS_RESOURCE_ID and a.sys_resource_id = b.sys_resource_id)
+		where a.upper_sys_resource_id = 'ROOT_MENU'
+		and a.prod_category = #{prodCategory}
+		and a.del_yn = 'N' 	
+		union all
+		select
+			a.prod_category 
+			,a.sys_resource_id
+			,a.upper_sys_resource_id
+			,a.description
+			,cast(c.full_path + ' > ' + a.SYS_RESOURCE_NAME as nvarchar(max)) as full_path
+			,a.SYS_RESOURCE_NAME
+			,a.seq 
+			,c.level + 1 as level 
+			,a.sys_resource_type_code_id				
+			,cast(c.full_seq + ' > ' + cast(a.seq as nvarchar(max)) as nvarchar(max)) as full_seq
+			,a.url
+		from DW_CM_SYS_RESOURCE a	
+		inner join auth_sys_resc b on (a.UPPER_SYS_RESOURCE_ID = b.UPPER_SYS_RESOURCE_ID and a.sys_resource_id = b.sys_resource_id)
+		inner join mt c on a.upper_sys_resource_id = c.sys_resource_id
+		where a.prod_category = #{prodCategory}
+		and a.del_yn = 'N' 		
+	)
+	select *
+	from mt
+	order by full_seq
+	</select>
+	
+	<select id="selectProdCtgByUser" parameterType="com.dowinsys.mes.common.auth.LoginReq" resultType="CamelMap">
+	SELECT 
+		a.prod_category
+		,a.process_id
+		,a.revision
+		,b.UTG 
+		,b.ITG	
+		,c.line
+	FROM DW_PROD_IN_MENU a
+	left outer join dw_cm_user b on (b.USER_ID = #{userId})
+	left outer join dw_process_mast c on (a.process_id = c.process_id)
+	where case when a.prod_category = 'UTG' then b.utg
+			when a.prod_category = 'ITG' then b.ITG end = 'Y'
+	ORDER BY case when prod_category = 'UTG' then 1 when prod_category = 'ITG' then 2 else 99 end
+	</select>
+	
+	<select id="selectProdCtg"  resultType="CamelMap">
+	SELECT 
+		prod_category
+		,process_id
+		,revision
+	FROM DW_PROD_IN_MENU
+	ORDER BY case when prod_category = 'UTG' then 1 when prod_category = 'ITG' then 2 else 99 end
+	</select>
+	
+	<select id="selectHasWorkStatusYn" parameterType="com.dowinsys.mes.common.auth.LoginReq" resultType="String">
+	select case when count(role_id) > 0 then 'Y' else 'N' end has_ws_role 
+	from DW_CM_USER_ROLE a
+	inner join dw_common_code b on (a.ROLE_ID = b.code and b.maj_code = 94 and b.use_yn = 1)
+	where a.user_id = #{userId}
+	</select>
+	
+	<select id="selectPwByUserId" parameterType="Map" resultType="String">
+	select password
+	from dw_cm_user
+	where user_id = #{userId}
+	</select>
+	
+	<update id="updateUserPw" parameterType="Map">
+	update dw_cm_user
+	set password = #{newPassword}
+	where user_id = #{userId}
+	</update>
+	
+	<select id="selectUserRoleList" parameterType="com.dowinsys.mes.common.auth.LoginReq" resultType="String">
+	select 
+		a.ROLE_ID
+	from DW_CM_USER_ROLE a 
+	inner join DW_CM_ROLE b on (a.ROLE_ID = b.ROLE_ID)
+	where a.user_id = #{userId}
+	and b.del_yn = 'N'
+	</select>
+</mapper>

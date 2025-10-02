@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.r0000000.mapper.R0003003Mapper">
+    <select id="R0003003_Sch1" parameterType="Map" resultType="CamelMap">
+        select *
+        from d24_Edge검사VLR
+        where 1=1
+        <if test="evId != null and evId != ''">
+            and EV_ID = #{evId}
+        </if>
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and Start_Time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_ID like CONCAT('%',#{runNo},'%')
+        </if>
+        order by Start_Time, RUN_ID, CELL_ID;
+    </select>
+
+    <select id="R0003003_Sch2" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명 from (
+        select *
+        from d25_PFL외관검사파일
+        where 1=1
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and Start_Time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_ID like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by Start_Time, RUN_ID, CELL_ID;
+    </select>
+
+    <select id="R0003003_Sch3" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+            ,convert(varchar(10), REG_DATE, 120) CONVERT_REG_DATE
+            ,convert(varchar(8), REG_DATE, 108) CONVERT_REG_TIME
+            ,convert(varchar(10), UPD_DATE, 120) CONVERT_UPD_DATE
+            ,convert(varchar(8), UPD_DATE, 108) CONVERT_UPD_TIME
+        from (
+            select *
+            from d26_FMRMachine_CellVaildInfo
+            where 1=1
+        <if test="startDateType != null and startDateType != '' and endDateType != null and endDateType != ''">
+            and REG_DATE between #{startDateType} and #{endDateType}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_NO like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.EQP_ID = C.설비번호
+        order by REG_DATE, RUN_NO, CELL_ID;
+    </select>
+
+    <select id="R0003003_Sch4" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+            ,convert(varchar(10), REG_DATE, 120) CONVERT_REG_DATE
+            ,convert(varchar(8), REG_DATE, 108) CONVERT_REG_TIME
+            ,convert(varchar(10), UPD_DATE, 120) CONVERT_UPD_DATE
+            ,convert(varchar(8), UPD_DATE, 108) CONVERT_UPD_TIME
+        from (
+            select *
+            from d26_FMRMachine_CellInspInfo
+            where 1=1
+        <if test="startDateType != null and startDateType != '' and endDateType != null and endDateType != ''">
+            and REG_DATE between #{startDateType} and #{endDateType}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_NO like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.EQP_ID = C.설비번호
+        order by REG_DATE, RUN_NO, CELL_ID;
+    </select>
+
+    <select id="R0003003_Sch5" parameterType="Map" resultType="CamelMap">
+        select A.*
+        ,convert(varchar(10), REG_DATE, 120) CONVERT_REG_DATE
+        ,convert(varchar(8), REG_DATE, 108) CONVERT_REG_TIME
+        from (
+        select *
+        from d26_FMRMachine_CellTrackInfo
+        where 1=1
+        <if test="startDateType != null and startDateType != '' and endDateType != null and endDateType != ''">
+            and REG_DATE between #{startDateType} and #{endDateType}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and CELL_ID in (select CELL_ID
+                from d26_FMRMachine_CellInspInfo
+                where 1=1
+                and RUN_NO like CONCAT('%',#{runNo},'%')
+            )
+        </if>
+        ) A
+        order by REG_DATE, CELL_ID;
+    </select>
+
+    <select id="R0003003_Sch6" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+        ,convert(varchar(10), REG_DATE, 120) CONVERT_REG_DATE
+        ,convert(varchar(8), REG_DATE, 108) CONVERT_REG_TIME
+        ,convert(varchar(10), UPD_DATE, 120) CONVERT_UPD_DATE
+        ,convert(varchar(8), UPD_DATE, 108) CONVERT_UPD_TIME
+        from (
+        select *
+        from d26_FMRMachine_PackInfo
+        where 1=1
+        <if test="startDateType != null and startDateType != '' and endDateType != null and endDateType != ''">
+            and REG_DATE between #{startDateType} and #{endDateType}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_ID like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.EQP_ID = C.설비번호
+        order by REG_DATE, RUN_ID, PACK_NO;
+    </select>
+
+    <select id="R0003003_Sch7" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+        ,convert(varchar(10), REG_DATE, 120) CONVERT_REG_DATE
+        ,convert(varchar(8), REG_DATE, 108) CONVERT_REG_TIME
+        from (
+        select *
+        from d26_FMRMachine_TrayDetailInfo
+        where 1=1
+        <if test="startDateType != null and startDateType != '' and endDateType != null and endDateType != ''">
+            and REG_DATE between #{startDateType} and #{endDateType}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_NO like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.EQP_ID = C.설비번호
+        order by REG_DATE, RUN_NO, CELL_ID;
+    </select>
+
+    <select id="R0003003_Sch8" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+        ,convert(varchar(10), REG_DATE, 120) CONVERT_REG_DATE
+        ,convert(varchar(8), REG_DATE, 108) CONVERT_REG_TIME
+        from (
+        select *
+        from d26_FMRMachine_TrayInfo
+        where 1=1
+        <if test="startDateType != null and startDateType != '' and endDateType != null and endDateType != ''">
+            and REG_DATE between #{startDateType} and #{endDateType}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and SEQ_NO in (select TRAY_SEQ
+            from d26_FMRMachine_TrayDetailInfo
+            where 1=1
+            and RUN_NO like CONCAT('%',#{runNo},'%')
+            )
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.EQP_ID = C.설비번호
+        order by REG_DATE, PACK_SEQ;
+    </select>
+
+    <select id="R0003003_Sch9" parameterType="Map" resultType="CamelMap">
+        select *
+        from d26_이물제거벨트전파일
+        where 1=1
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and Start_Time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_ID like CONCAT('%',#{runNo},'%')
+        </if>
+        order by Start_Time, SEQ_ID, RUN_ID;
+    </select>
+
+    <select id="R0003003_Sch10" parameterType="Map" resultType="CamelMap">
+        select *
+        from d26_이물제거Packing파일
+        where 1=1
+        <if test="startDateOnly != null and startDateOnly != '' and endDateOnly != null and endDateOnly != ''">
+            and 제조일자 between #{startDateOnly} and #{endDateOnly}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_ID like CONCAT('%',#{runNo},'%')
+        </if>
+        order by 제조일자, 일일생산번호, RUN_ID;
+    </select>
+
+    <select id="R0003003_Sch11" parameterType="Map" resultType="CamelMap">
+        select *
+        from d26_이물제거파일
+        where 1=1
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and Start_Time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_ID like CONCAT('%',#{runNo},'%')
+        </if>
+        order by Start_Time, SEQ_ID, RUN_ID;
+    </select>
+
+    <update id="R0003003_Delete1" parameterType="Map">
+        DELETE FROM d24_Edge검사VLR
+        WHERE SEQ_ID = #{seqId}
+        AND EV_ID = #{evId}
+        AND RUN_ID = #{runId}
+        AND Start_time = #{startTime}
+        AND End_time = #{endTime}
+    </update>
+
+    <update id="R0003003_Update1" parameterType="Map">
+        UPDATE d24_Edge검사VLR
+        SET CELL_ID = #{cellId}
+        WHERE SEQ_ID = #{seqId}
+        AND EV_ID = #{evId}
+        AND RUN_ID = #{runId}
+        AND Start_time = #{startTime}
+        AND End_time = #{endTime}
+    </update>
+
+</mapper>

@@ -1,0 +1,112 @@
+/*
+* 기준정보 > 거래처 마스터
+*/
+const { ValueType, SelectionStyle, SelectionMode, GridFitStyle} = require('realgrid');
+
+const grid = {
+	dataProvider: null,
+	gridView: null,
+	options: {
+		checkBar: { visible: true },
+		copy: { enabled: true, singleMode: true },
+		//dataDrop: {},
+		display: {
+			columnMovable: false,
+			editItemMerging: false,
+			selectionStyle: SelectionStyle.ROWS,
+			selectionMode: SelectionMode.SINGLE,
+			fitStyle: GridFitStyle.NONE,
+		},
+		edit: { editable: true },
+		//editor: {},
+		//filtering: {},
+		//filterMode: {},
+		//filterPanel: {},
+		//fixed: {},
+		footer: { visible: false },
+		//footers: {},
+		//format: {},
+		header: { height: 40 },
+		//headerSummaries: {},
+		//headerSummary: {},
+		//hideDeletedRows: {},
+		paste: { enabled: false },
+		rowIndicator: { visible: true },
+		sorting: { enabled: true },
+		//sortMode: {},
+		stateBar: { visible: true },
+		//summaryMode: {},
+	},
+
+	fields: [
+		{ fieldName: '거래처코드', dataType: ValueType.TEXT },
+		{ fieldName: '거래처명', dataType: ValueType.TEXT },
+		{ fieldName: '거래처약명', dataType: ValueType.TEXT },
+		{ fieldName: '대표자', dataType: ValueType.TEXT },
+		{ fieldName: '사업자등록번호', dataType: ValueType.TEXT },
+		{ fieldName: '업태', dataType: ValueType.TEXT },
+		{ fieldName: '종목', dataType: ValueType.TEXT },
+		{ fieldName: '전화번호', dataType: ValueType.TEXT },
+		{ fieldName: '담당자', dataType: ValueType.TEXT },
+		{ fieldName: '담당자연락처', dataType: ValueType.TEXT },
+		{ fieldName: '메일주소', dataType: ValueType.TEXT },
+		{ fieldName: '우편번호', dataType: ValueType.TEXT },
+		{ fieldName: '주소', dataType: ValueType.TEXT },
+		{ fieldName: '거래처분류', dataType: ValueType.TEXT },
+		{ fieldName: '개업일자', dataType: ValueType.TEXT },
+		{ fieldName: '거래여부', dataType: ValueType.BOOLEAN },
+		{ fieldName: '거래개시일자', dataType: ValueType.TEXT },
+		{ fieldName: '부가세적용여부', dataType: ValueType.BOOLEAN },
+		{ fieldName: '금액표기여부', dataType: ValueType.BOOLEAN },
+		{ fieldName: '팩스번호', dataType: ValueType.TEXT },
+	],
+
+	columns: [
+		{ name: '거래처코드', fieldName: '거래처코드', width: '80', header: { text: '코드' }, editable: false, sortable: true, editor: {maxLength: 5} },
+		{ name: '거래처명', fieldName: '거래처명', width: '180', header: { text: '거래처명' }, editable: true, sortable: true, styleName:'edit', editor: {maxLength: 40} },
+		{ name: '거래처약명', fieldName: '거래처약명', width: '120', header: { text: '약명' }, editable: true, sortable: true, styleName:'edit', editor: {maxLength: 20} },
+		{ name: '대표자', fieldName: '대표자', width: '70', header: { text: '대표자' }, editable: true, styleName:'edit', editor: {maxLength: 14} },
+		{ name: '사업자등록번호', fieldName: '사업자등록번호', width: '100', header: { text: '사업자번호' }, editable: true, styleName:'edit', editor: {maxLength: 10} },
+		{ name: '업태', fieldName: '업태', width: '80', header: { text: '업태' }, editable: true, styleName:'edit', editor: {maxLength: 20} },
+		{ name: '종목', fieldName: '종목', width: '150', header: { text: '종목' }, editable: true, styleName:'edit', editor: {maxLength: 20} },
+		{ name: '전화번호', fieldName: '전화번호', width: '100', header: { text: '전화번호' }, editable: true, styleName:'edit', editor: {maxLength: 30} },
+		{ name: '담당자', fieldName: '담당자', width: '80', header: { text: '업체담당자' }, editable: true, styleName:'edit', editor: {maxLength: 15} },
+		{ name: '담당자연락처', fieldName: '담당자연락처', width: '100', header: { text: '휴대전화번호' }, editable: true, styleName:'edit', editor: {maxLength: 20} },
+		{ name: '메일주소', fieldName: '메일주소', width: '150', header: { text: '이메일' }, editable: true, styleName:'edit', editor: {maxLength: 30} },
+		{ name: '우편번호', fieldName: '우편번호', width: '80', header: { text: '우편번호' }, editable: true, styleName:'edit', editor: {maxLength: 6} },
+		{ name: '주소', fieldName: '주소', width: '360', header: { text: '주소' }, editable: true, styleName:'edit' },
+		{ name: '거래처분류', fieldName: '거래처분류', width: '80', header: { text: '거래처분류' }, editable: true, styleName:'edit', sortable: false, lookupDisplay:true, editor: { type:"dropdown", textReadOnly:true } },
+		{ name: '개업일자', fieldName: '개업일자', width: '100', header: { text: '개업일자' }, editable: true, styleName:'edit', sortable: false, editor: {mask:{editMask:"0000-00-00"}}, "textFormat": "([0-9]{4})([0-9]{2})([0-9]{2});$1-$2-$3" },
+		{
+			name: '거래여부', fieldName: '거래여부', width: '40', header: { text: '거래여부' }, editable: false, styleName:'edit', sortable: false,
+			renderer: {
+				type: "check",
+				editable: true,
+				trueValues: "1",
+				falseValues: "0",
+			},
+		},
+		{ name: '거래개시일자', fieldName: '거래개시일자', width: '100', header: { text: '거래일자' }, editable: true, styleName:'edit', sortable: false, editor: {mask:{editMask:"0000-00-00"}}, "textFormat": "([0-9]{4})([0-9]{2})([0-9]{2});$1-$2-$3", },
+		{
+			name: '부가세적용여부', fieldName: '부가세적용여부', width: '50', header: { text: '부가세적용' }, editable: false, styleName:'edit', sortable: false,
+			renderer: {
+				type: "check",
+				editable: true,
+				trueValues: "1",
+				falseValues: "0",
+			},
+		},
+		{
+			name: '금액표기여부', fieldName: '금액표기여부', width: '40', header: { text: '금액표시' }, editable: false, styleName:'edit', sortable: false,
+			renderer: {
+				type: "check",
+				editable: true,
+				trueValues: "1",
+				falseValues: "0",
+			},
+		},
+		{ name: '팩스번호', fieldName: '팩스번호', width: '110', header: { text: '팩스번호' }, editable: true, styleName:'edit', sortable: false, editor: {maxLength: 20} },
+	],
+}
+
+module.exports = grid;

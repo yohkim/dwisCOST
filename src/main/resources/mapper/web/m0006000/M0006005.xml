@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0006000.mapper.M0006005Mapper">
+
+	<select id="getDefectCdList" resultType="CamelMap">
+		SELECT 불량코드
+			 , 불량명
+			 , 불량약명
+			 , 검사불량
+			 , 일반불량
+			 , 사용여부
+			 , 특기사항
+		  FROM d14_불량사유코드파일
+		 WHERE 1 = 1
+		<if test="defectNm != null and defectNm != ''" >
+	  	   AND 불량명 LIKE '%'+#{defectNm}+'%'
+		</if> 
+		 ORDER BY 불량코드
+	</select>
+	
+	<select id="checkInsertDefectCd" resultType="map">
+		SELECT 불량코드
+		  FROM d14_불량사유코드파일
+		 WHERE 불량코드 IN
+		<foreach item="item" collection="vo" open="(" separator="," close=")" >
+			#{item.불량코드}
+		</foreach>
+	</select>
+	
+	<insert id="insertDefectCd">
+		INSERT INTO d14_불량사유코드파일
+		(
+			   불량코드
+			 , 불량명
+			 , 불량약명
+			 , 검사불량
+			 , 일반불량
+			 , 사용여부
+			 , 특기사항
+		)
+		VALUES
+		(
+			   #{불량코드}
+			 , #{불량명}
+			 , #{불량약명}
+			 , #{검사불량}
+			 , #{일반불량}
+			 , #{사용여부}
+			 , #{특기사항}
+		)
+	</insert>
+	
+	<delete id="deleteDefectCd">
+		DELETE FROM d14_불량사유코드파일
+		 WHERE 불량코드 = #{불량코드}
+	</delete>
+	
+	<update id="updateDefectCd">
+		UPDATE d14_불량사유코드파일
+		   SET 불량명 = #{불량명}
+		   	 , 불량약명 = #{불량약명}
+		   	 , 검사불량 = #{검사불량}
+		   	 , 일반불량 = #{일반불량}
+		   	 , 사용여부 = #{사용여부}
+		   	 , 특기사항 = #{특기사항}
+		 WHERE 불량코드 = #{불량코드}
+	</update>
+	
+</mapper>

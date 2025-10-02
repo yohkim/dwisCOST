@@ -1,0 +1,107 @@
+-- select * from Get_내포장실적_설비이물제거_통합PackSummaryCell수량조회(from_yyyymmdd, to_yyyymmdd, run_id_list)
+-- select * from Get_내포장실적_설비이물제거_통합PackSummaryCell수량조회(from_yyyymmdd, to_yyyymmdd, null)
+CREATE FUNCTION Get_내포장실적_설비이물제거_통합PackSummaryCell수량조회
+(
+    @from_yyyymmdd varchar(10),
+    @to_yyyymmdd varchar(10),
+    @run_id_list varchar(255)
+)
+RETURNS TABLE
+AS
+RETURN
+(
+	--A1	
+	--A1	폐기
+	--A1	SI 대기
+	--A2	SI LIST
+	--A3	SI 의뢰
+	--A3	소포장 반출
+	--B1	반출 대기
+	--B1	SI 의뢰
+	--B2	반출 대기
+	--B2	소포장 반출
+	--C1	창고 재고
+	--C2	출하 완료
+	--Z1	폐기
+	select
+			구분,
+		    sum(SI_대기) AS SI_대기,
+		    sum(SI_LIST) AS SI_LIST,
+		    sum(SI_의뢰) AS SI_의뢰,
+		    sum(소포장_반출) AS 소포장_반출,
+		    sum(창고_재고) AS 창고_재고,
+		    sum(출하_완료) AS 출하_완료,
+		    sum(폐기) AS 폐기
+	from
+	(
+		select 
+		    run_id, 
+		    구분,
+		    sum(SI_대기) AS SI_대기,
+		    sum(SI_LIST) AS SI_LIST,
+		    sum(SI_의뢰) AS SI_의뢰,
+		    sum(소포장_반출) AS 소포장_반출,
+		    sum(창고_재고) AS 창고_재고,
+		    sum(출하_완료) AS 출하_완료,
+		    sum(폐기) AS 폐기
+		from
+		(
+			select 
+			       run_id, 
+			       case when no = 1 then 'Pack' 
+			            when no = 2 then 'Cell'
+			       end 구분,
+			       case when no = 1 and pack상태 = 'SI 대기' then pack수량
+			            when no = 2 and pack상태 = 'SI 대기' then cell수량 
+			            else 0
+			       end SI_대기,
+			       case when no = 1 and pack상태 = 'SI LIST' then pack수량
+			            when no = 2 and pack상태 = 'SI LIST' then cell수량 
+			            else 0
+			       end SI_LIST,
+			       case when no = 1 and pack상태 = 'SI 의뢰' then pack수량
+			            when no = 2 and pack상태 = 'SI 의뢰' then cell수량 
+			            else 0
+			       end SI_의뢰,
+			       case when no = 1 and pack상태 = '소포장 반출' then pack수량
+			            when no = 2 and pack상태 = '소포장 반출' then cell수량 
+			            else 0
+			       end 소포장_반출,
+			       case when no = 1 and pack상태 = '창고 재고' then pack수량
+			            when no = 2 and pack상태 = '창고 재고' then cell수량 
+			            else 0
+			       end 창고_재고,
+			       case when no = 1 and pack상태 = '출하 완료' then pack수량
+			            when no = 2 and pack상태 = '출하 완료' then cell수량 
+			            else 0
+			       end 출하_완료,
+			       case when no = 1 and pack상태 = '폐기' then pack수량
+			            when no = 2 and pack상태 = '폐기' then cell수량 
+			            else 0
+			       end 폐기
+			FROM 
+			(
+				select 발행구분, pack상태, 처리일시, run_id, origin_no, pack_no, box_no, cell수량, 
+				       svi, agb, pfl, pallet_no, 특이사항, cell수량 / nullif(sum_cell수량,0) pack수량
+				from
+				(
+					select 발행구분, pack상태, 처리일시, run_id, origin_no, pack_no, box_no, cell수량, svi, agb, pfl, pallet_no, 특이사항, 
+					       cell수량/nullif(cell수량x,0) pack수량_cnt, pack수량,  
+					       cell수량x, 		      
+					       sum(cell수량) over (partition by pack_no) sum_cell수량,				      
+					       count(*) over (partition by pack_no) run_id_cnt				      
+					from Get_내포장실적_설비이물제거_통합Pack상세조회(@from_yyyymmdd, @to_yyyymmdd, null ) a
+				) x
+			) y	
+			left join 
+			(
+				select 1 no union all
+				select 2 no 
+			) z
+			on 1=1
+		) a
+		group by run_id, 
+		         구분
+	) b
+	group by 구분
+)

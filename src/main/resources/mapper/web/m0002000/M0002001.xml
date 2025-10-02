@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0002000.mapper.M0002001Mapper">
+	<select id="selectLineList" resultType="com.dowinsys.mes.common.CamelMap">
+	SELECT
+		line,
+		line_decs,
+		site,
+		use_yn,
+		create_date,
+		create_name
+	FROM dw_line_mast
+	</select>
+	
+	<insert id = "insertLine" parameterType = "Map">	
+	INSERT INTO dw_line_mast
+	(
+		line,
+		line_decs,
+		site,
+		use_yn,
+		create_date,
+		create_name
+	)
+	VALUES
+	(
+		#{line},
+		#{lineDecs},
+		#{site},
+		#{useYn},
+		GETDATE(),
+		#{createName}
+	)
+	</insert>	
+	
+	<update id="updateLine" parameterType="Map">
+	UPDATE dw_line_mast
+	SET	line = #{line},
+		line_decs = #{lineDecs},
+		site = #{site},
+		use_yn = #{useYn}
+	WHERE line = #{line}
+	</update>
+	
+	<delete id="deleteLine" parameterType="Map">
+	DELETE FROM dw_line_mast
+	WHERE line = #{line}
+	</delete>	
+	
+	<select id="selectAreaList" resultType="com.dowinsys.mes.common.CamelMap">
+	SELECT
+		LINE,
+		AREA,
+		공정구분,
+		AREA_ORD,
+		use_yn,
+		create_date,
+		create_name
+	FROM dw_area_mast
+	WHERE 1 = 1
+	<if test="line != null and line != ''" >
+	  AND LINE = #{line}
+	</if>	
+	order by line, AREA_ORD
+	</select>
+	
+	<select id="checkDeleteArea" resultType="Map">
+	select COALESCE(STRING_AGG(공정구분+'-'+area, '/'), 'NoData') AS area
+	from dw_area_mast a
+	where (line + '-' +  공정구분 ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + #{item.공정구분}
+	</foreach>
+	  and exists ( select 1 
+				   from dw_step_mast  b 
+				   where a.line = b.line
+				     and a.공정구분 = b.공정구분  )
+	</select>
+	
+	<select id="checkInsertArea" resultType="Map">
+	select COALESCE(STRING_AGG(line+'-'+공정구분, '/'), 'NoData') AS area
+	from dw_area_mast a
+	where (line + '-' +  공정구분 ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + #{item.공정구분}
+	</foreach>
+	</select>
+	
+	<insert id = "insertArea" parameterType = "CamelMap">
+	INSERT INTO dw_area_mast
+	(
+		LINE,
+		AREA,
+		공정구분,
+		AREA_ORD,
+		use_yn,
+		create_date,
+		create_name
+	)
+	VALUES
+	(
+		#{line},
+		#{area},
+		#{공정구분},
+		#{areaOrd},
+		#{useYn},
+		GETDATE(),
+		#{createName}
+	)
+	</insert>	
+	
+	<update id="updateArea" parameterType="CamelMap">
+	UPDATE dw_area_mast
+	SET	AREA = #{area},
+		AREA_ORD = #{areaOrd},
+	    use_yn = #{useYn}
+	WHERE LINE = #{line}
+	  AND 공정구분 = #{공정구분}
+	</update>
+	
+	<delete id="deleteArea" parameterType="CamelMap">
+	DELETE FROM dw_area_mast
+	WHERE LINE = #{line}
+	  AND 공정구분 = #{공정구분}
+	</delete>		
+	
+	<select id="selectEquipList" resultType="com.dowinsys.mes.common.CamelMap">
+	SELECT
+		a.line,
+		a.설비번호,
+		a.설비명,
+		a.설비약명,
+		a.chamber,
+		a.공정코드,
+		b.공정명,
+		a.공정구분 as area_code,
+		a.area,
+		case when a.사용여부 = 1 then 'Y'
+		     else 'N'
+		end as 사용여부,	
+		a.비고,
+		a.생성일,
+		a.생성자
+	FROM dw_equipment_mast a
+	left outer join dw_step_mast b 
+	on ( a.line = b.line and a.공정코드 = b.공정코드 )
+	WHERE 1 = 1
+	<if test="line != null and line != ''" >
+	  AND a.LINE = #{line}
+	</if>	
+	</select>
+	
+	<select id="checkInsertEquip" resultType="Map">
+	select COALESCE(STRING_AGG(line+'-'+설비번호, '/'), 'NoData') AS equip
+	from dw_equipment_mast a
+	where (line + '-' +  설비번호 ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + #{item.설비번호}
+	</foreach>
+	</select>
+	
+	<insert id = "insertEquip" parameterType = "Map">	
+	INSERT INTO dw_equipment_mast
+	(
+		line,
+		설비번호,
+		설비명,
+		설비약명,
+		chamber,
+		공정코드,
+		공정구분,
+		area,
+		사용여부,
+		비고,
+		생성일,
+		생성자
+	)
+	VALUES
+	(
+		#{line},
+		#{설비번호},
+		#{설비명},
+		#{설비약명},
+		#{chamber},
+		#{공정코드},
+		#{areaCode},
+		#{area},
+		case when #{사용여부} = 'Y' then 1
+		     else 0
+		end,
+		#{비고},
+		GETDATE(),
+		#{생성자}
+	)
+	</insert>	
+	
+	<update id="updateEquip" parameterType="Map">
+	UPDATE dw_equipment_mast
+	SET	설비명 = #{설비명},
+		설비약명 = #{설비약명},
+		chamber = #{chamber},
+		공정코드 = #{공정코드},
+		공정구분 = #{areaCode},
+		area = #{area},
+		사용여부 = 	case when #{사용여부} = 'Y' then 1
+		     			 else 0
+					end,
+		비고 = #{비고}
+	WHERE line = #{line}
+	  AND 설비번호 = #{설비번호}
+	</update>
+	
+	<delete id="deleteEquip" parameterType="Map">
+	DELETE FROM dw_equipment_mast
+	WHERE line = #{line}
+	  AND 설비번호 = #{설비번호}
+	</delete>			
+
+	<select id="selectEquipPmVsAct" parameterType="Map" resultType="CamelMap">
+	select 
+		a.*
+		<foreach item="day" collection="days" index="index" open="" separator="" close="" >
+		,case when CONVERT(VARCHAR(8), 날짜, 112) = #{day} then 'Y' else null end as day${index + 1}
+		</foreach>
+	from (
+		select 
+			a.공장코드
+			,a.seq_no
+			,a.공정
+			,a.설비명
+			,a.pm_기준
+			,a.누적실적
+			,a.pm_최근실행일
+			,seq
+		   	,case when seq = 0 then '예정일' when seq = 1 then '계획일' when seq = 2 then '실행일' end 구분 
+		   	,case when seq = 0 then a.pm_예정일 when seq = 1 then b.pm_계획일 when seq = 2 then b.pm_실행일 end 날짜 
+		from dw_설비관리_PM계획실적 a
+		left outer join dw_설비관리_PM계획실적내역 b on (a.공장코드 = b.공장코드 and a.공정 = b.공정 and a.설비명 = b.설비명 and (b.pm_계획일 like #{yyyymm}+'%' or b.pm_실행일 like #{yyyymm}+'%'))
+		left join dw_copy c on (1=1)	
+		and seq <![CDATA[ <  ]]> 3	
+		<if test="eqSumNm != null and eqSumNm != ''" >
+		and a.설비명 like '%'+#{eqSumNm}+'%'
+		</if>
+	) a 
+	order by 1,2,3,seq, 구분
+	</select>
+	<update id="updateEquipPmVsAct" parameterType="Map">
+	MERGE INTO dw_설비관리_PM계획실적내역 tg
+	USING (
+		select
+			#{공장코드} as 공장코드
+			,#{seqNo} as seqNo
+			,#{공정} as 공정
+			,#{설비명} as 설비명
+			,#{pm기준} as pm_기준
+			,#{누적실적} as 누적실적
+			,#{pm최근실행일} as pm_최근실행일
+	) AS src
+	ON tg.공장코드 = src.공장코드 and tg.공정 = src.공정 and tg.설비명 = src.설비명 
+	WHEN MATCHED THEN
+		UPDATE SET
+			pm_기준 = #{pm기준}
+			,누적실적 = #{누적실적}
+			,pm_최근실행일 = cast(#{pm최근실행일} as date)
+			<if test="div == '예정일'" >
+			,pm_예정일 = cast(#{date} as date)
+			</if>
+			<if test="div == '계획일'" >
+			,pm_계획일 = cast(#{date} as date)
+			</if>  
+			<if test="div == '실행일'" >
+			,pm_실행일 = cast(#{date} as date)
+			</if>    
+	WHEN NOT MATCHED THEN
+	INSERT (
+		공장코드
+		,seq_no
+		,공정
+		,설비명
+		,pm_기준
+		,누적실적
+		,pm_최근실행일
+		<if test="div == '예정일'" >
+		,pm_예정일
+		</if>
+		<if test="div == '계획일'" >
+		,pm_계획일
+		</if>  
+		<if test="div == '실행일'" >
+		,pm_실행일
+		</if>
+	) VALUES (
+		#{공장코드}
+		,#{seqNo}
+		,#{공정}
+		,#{설비명}
+		,#{pm기준}
+		,#{누적실적}
+		,cast(#{pm최근실행일} as date)
+		,cast(#{date} as date)
+	);					
+	</update>
+	<update id="updateEquipCumulPerf" parameterType="Map">
+	update dw_설비관리_PM계획실적 set
+		누적실적 = #{누적실적}
+	where 공장코드 = #{공장코드}
+	and 공정 = #{공정}
+	and 설비명 = #{설비명};	
+	
+	update dw_설비관리_PM계획실적내역 set
+		누적실적 = #{누적실적}
+	where 공장코드 = #{공장코드}
+	and 공정 = #{공정}
+	and 설비명 = #{설비명};
+	</update>
+</mapper>

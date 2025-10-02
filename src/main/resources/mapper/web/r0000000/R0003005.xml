@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.r0000000.mapper.R0003005Mapper">
+    <select id="getFacility" resultType="CamelMap">
+        select 설비약명, 설비번호
+        from dw_equipment_mast
+        where 1=1
+        <if test="code != null and code != ''">
+            and 공정코드 = #{code}
+        </if>
+        order by 설비약명
+    </select>
+
+    <select id="R0003005_Sch1" parameterType="Map" resultType="CamelMap">
+        select A.*, B.lot_no, C.설비약명 from (
+        select *
+        from d71_적층공정LOG파일
+        where 1=1
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and start_time between #{startDate} and #{endDate}
+        </if>
+        <if test="facilityCode != null and facilityCode != ''">
+            and 설비호기 = #{facilityCode}
+        </if>
+        <if test="glassId != null and glassId != ''">
+            and GLASS_ID like CONCAT(#{glassId},'%')
+        </if>
+        <if test="(modelCode != null and modelCode != '')
+         or (workCode != null and workCode != '')
+         or (poNo != null and poNo != '')
+         or (lotNo != null and lotNo != '')
+         or (runNo != null and runNo != '')
+         or (panelId != null and panelId != '')
+        ">
+            and panel_id in (select panel_id
+            from d21_제조지시MST
+            where 1=1
+            <if test="modelCode != null and modelCode != ''">
+                and  제품유형=#{modelCode}
+            </if>
+            <if test="workCode != null and workCode != ''">
+                and 작업구분=#{workCode}
+            </if>
+            <if test="poNo != null and poNo != ''">
+                and PO_NO like CONCAT('%',#{poNo},'%')
+            </if>
+            <if test="lotNo != null and lotNo != ''">
+                and LOT_NO like CONCAT('%',#{lotNo},'%')
+            </if>
+            <if test="runNo != null and runNo != ''">
+                and (RUN_NO1 like CONCAT('%',#{runNo},'%') or RUN_NO2 like CONCAT('%',#{runNo},'%'))
+            </if>
+            <if test="panelId != null and panelId != ''">
+                and PANEL_ID like CONCAT('%',#{panelId},'%')
+            </if>
+            )
+            and nullif(panel_id,'') is not null
+
+        </if>
+        ) A
+        left join d21_제조지시MST B
+        on A.panel_id = B.panel_id
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by SEQ_ID desc, 설비호기,근무조,작업자,start_time,end_time,panel_id,B.lot_no,box_no,glass_id;
+    </select>
+
+
+</mapper>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dowinsys.mes.common.batch.mapper.BatchSchedulerMapper">
+	<select id="execCalcWip" parameterType="Map">
+	exec Get_재공재고_집계 #{calcDate};
+	</select>
+	
+	<select id="execCalcDpr" parameterType="Map">
+	exec Get_dw_일별_공정별_생산집계 #{calcDate},#{calcDate},null,'ACTUAL';
+	</select>
+	
+	<select id="execCreatedFrontData" parameterType="Map">
+	EXEC Get_일별_공정별_불량현황_MODEL_작업구분_상세_FRONT_DATA생성 @시작일자 = #{calcDate}, @종료일자 = #{calcDate}, @공정코드 = null, @불량코드 = null;
+	</select>
+	
+	<select id="execCreatedBackData" parameterType="Map">
+	EXEC Get_일별_공정별_불량현황_MODEL_작업구분_상세_BACK_DATA생성 @시작일자 = #{calcDate}, @종료일자 = #{calcDate}, @공정코드 = null, @불량코드 = null;
+	</select>
+</mapper>

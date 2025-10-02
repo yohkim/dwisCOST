@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0009000.mapper.M0009003Mapper">
+
+	<select id="selectCheckMstInform" resultType="CamelMap">
+		select distinct a.equip_no, a.equip_name, a.model
+		from 
+		(
+		    select 설비번호 equip_no, 
+		    		설비약명 equip_name,
+		    		model,
+		    		substring(집계일자,1,4) + '-' + substring(집계일자,5,2) + '-' + substring(집계일자,7,2) as work_date,
+		    		생산수 as prod_cnt
+		    from fn_Get_설비생산수_PFL( replace(#{fromDate} ,'-',''), replace(#{toDate} ,'-',''), '061')  
+		) a 
+		left outer join dw_equip_prod_base b
+		on ( a.equip_no = b.equip_no
+		     and a.equip_name = b.equip_name
+		     and a.model = b.model
+		     and a.work_date >= b.apply_date
+		)
+		where b.apply_date is null
+	</select>	
+
+	<select id="selectEquipEffDailyReport" resultType="CamelMap">
+
+		WITH BASE_DATES AS (
+		    SELECT CAST(#{fromDate} AS DATE) AS base_date
+		    UNION ALL
+		    SELECT DATEADD(DAY, 1, base_date)
+		    FROM BASE_DATES
+		    WHERE base_date <![CDATA[ < ]]> #{toDate} 
+		),
+		EQUIP as ( 			
+		     select a.base_date,
+		     	   b.line, 
+		     	   b.step_code, 
+		     	   b.equip_no, 
+		     	   b.equip_name,
+		     	   b.step_name,
+		     	   24*60 as tot_work_time
+		     from BASE_DATES a 
+		     cross join 
+		     (
+		     	select a.line, 
+		     		   a.공정코드 as step_code, 
+		     		   b.공정약어 as step_name,
+		     		   case when a.chamber is not null and a.chamber != '' then '*'
+		   	                else a.설비번호
+		   	           end as equip_no,
+		     		   a.설비약명 as equip_name
+		     	  from dw_equipment_mast a
+		     	  left outer join dw_step_mast b
+		     	  on ( a.line = b.line and a.공정코드 = b.공정코드)
+		     	where 1=1
+		     	and a.line = 'DFB1'
+		     	and a.사용여부 = '1'		     	
+		     	and a.설비번호 != '505'
+		     	and a.공정코드 != '077'
+				<if test="stepCode != null and stepCode.trim() != ''" >	
+					and a.공정코드 = #{stepCode}
+				</if>
+				<if test="equipName != null and equipName.trim() != ''" >	
+					and a.설비약명 = #{equipName}
+				</if>			     	
+		     )b		
+		),
+		PROD_LOG AS 
+		(
+			select a.line,
+				   a.step_code,
+				   a.equip_no,
+				   a.equip_name,
+				   a.work_date,
+        		   --STRING_AGG(a.model, ',') WITHIN GROUP (ORDER BY a.model) AS model,
+        		   --STRING_AGG(a.mst, ',') WITHIN GROUP (ORDER BY a.model) AS mst,
+                   --STRING_AGG(CAST(a.prod_cnt AS VARCHAR), ',') WITHIN GROUP (ORDER BY a.model) AS prod_cnt,	
+                   avg(a.mst) as mst,			   
+				   sum(a.prod_cnt) as tot_prod_cnt,
+				   sum(( isnull(a.mst,0) * isnull(a.prod_cnt, 0) ) / 60) as tot_run_time				   
+			from
+			( 
+				select b.line,
+						   b.step_code,
+						   a.equip_no,
+						   a.equip_name,
+						   a.model,
+						   a.work_date,
+						   a.prod_cnt,
+						   a.apply_date,
+						   isnull(b.mst, 0) mst
+				from 
+				( 
+					select a.equip_no,
+						   a.equip_name,
+						   a.model,
+						   a.work_date,
+						   isnull(a.prod_cnt,0) prod_cnt ,
+						   max(b.apply_date) apply_date
+					from 
+					( 
+						select 설비번호 equip_no, 
+								설비약명 equip_name,
+								model,
+								substring(집계일자,1,4) + '-' + substring(집계일자,5,2) + '-' + substring(집계일자,7,2) as work_date,
+								생산수 as prod_cnt
+						from fn_Get_설비생산수_PFL( replace(#{fromDate} ,'-',''), replace(#{toDate} ,'-',''), '061')   
+					) a 	
+					left outer join dw_equip_prod_base b
+					on ( a.equip_no = b.equip_no
+					     and a.equip_name = b.equip_name
+					     and a.model = b.model
+					     and a.work_date >= b.apply_date
+					)
+					group by a.equip_no,
+						   a.equip_name,
+						   a.model,
+						   a.work_date,
+						   a.prod_cnt
+				) a 
+				join dw_equip_prod_base b 
+				on ( a.equip_no = b.equip_no
+					 and a.equip_name = b.equip_name
+					 and a.model = b.model
+					 and a.apply_date =  b.apply_date
+				)
+			) a
+			group by a.line,
+				   a.step_code,
+				   a.equip_no,
+				   a.equip_name,
+				   a.work_date
+		),			
+		OFF_LOG AS (
+		    SELECT
+		        a.line,
+		        a.step_code,
+		        a.equip_no,
+		        a.equip_name,
+		        a.off_start_time,
+		        isnull(a.off_end_time, '2099-12-31 08:00') off_end_time,
+		        a.off_category_code,
+		        a.sub_category_code,
+		        a.off_code
+		    FROM dw_equip_off_log a
+		    WHERE ( ( a.off_start_time <![CDATA[ >= ]]> #{fromDateTime} AND a.off_start_time <![CDATA[ < ]]> #{toDateTime})
+		          or ( a.off_start_time <![CDATA[ < ]]> #{fromDateTime} and ( a.off_end_time <![CDATA[ > ]]> #{fromDateTime} or a.off_end_time is null ) ) )   
+			 <if test="stepCode != null and stepCode.trim() != ''" >	
+			 	and a.step_code = #{stepCode}
+			 </if>			      
+			 <if test="equipName != null and equipName.trim() != ''" >	
+			 	and a.equip_name = #{equipName}
+			 </if>
+		),
+		OFF_DATA AS (
+		    SELECT
+		        a.base_date,
+		        b.line,
+		        b.step_code,
+		        b.equip_no,
+		        b.equip_name,
+		        b.off_code,
+		        b.sub_category_code,
+		        b.off_category_code,		        
+		        ( format(a.base_date, 'yyyy-MM-dd') + ' 08:00' ) base_start_time,
+		        ( FORMAT(DATEADD(DAY, 1, a.base_date), 'yyyy-MM-dd') + ' 08:00' ) base_end_time,
+		        b.off_start_time,
+		        b.off_end_time
+		    FROM BASE_DATES a
+		    JOIN OFF_LOG b
+		      ON ( b.off_start_time <![CDATA[ < ]]> FORMAT(DATEADD(DAY, 1, a.base_date), 'yyyy-MM-dd') + ' 08:00' 
+				     AND b.off_end_time <![CDATA[ > ]]> format(a.base_date, 'yyyy-MM-dd') + ' 08:00' )
+		),
+		OFF_TIME AS (
+		    SELECT
+		        base_date,
+		        line,
+		        step_code,
+		        equip_no,
+		        equip_name,
+		        off_code,
+		        sub_category_code,
+		        off_category_code,		        
+		        base_start_time,
+		        base_end_time,        
+		        off_start_time,
+		        off_end_time,
+		        IIF(off_start_time <![CDATA[ > ]]> base_start_time, off_start_time, base_start_time) as start_time,
+		        IIF(off_end_time <![CDATA[ < ]]> base_end_time, off_end_time,   base_end_time) as end_time,
+		        DATEDIFF(MINUTE,
+		            convert(datetime, IIF(off_start_time <![CDATA[ > ]]> base_start_time, off_start_time, base_start_time), 120),
+		            convert(datetime, IIF(off_end_time <![CDATA[ < ]]> base_end_time, off_end_time,   base_end_time), 120)
+		        ) AS off_time
+		    FROM OFF_DATA
+		),
+		BASE_DATA as ( 
+			select v.base_date,		
+					v.line, 
+					v.step_code, 
+					v.equip_no, 
+					v.step_name,
+					v.equip_name,
+					v.item,
+					case when item = 'tot_work_time' then '근무시간'
+					 	when item = 'plan_off_time' then '비가동 실적'
+					 	when item = 'load_time' then '부하시간'
+					 	--when item = 'model' then 'model'
+					 	when item = 'mst' then 's/t(MST)'					 	
+					 	when item = 'tot_prod_cnt' then '생산수'
+					 	when item = 'tot_run_time' then '가동시간(분)'
+					 	when item = 'equip_efficiency' then '설비종합효율'
+					 	when item = 'perform_efficiency' then '성능가동율'
+					 	when item = 'time_efficiency' then '시간가동율'
+					 	when item = 'tact' then '실제 Tact'					 	
+					 	when item = 'loss_off_time' then 'LOSS'
+					 end as item_name,
+					 case when item in ( 'plan_off_time', 'loss_off_time') then 'Total'
+					      else ''
+					 end sub_name,
+					v.value,			
+					case when item = 'tot_work_time' then 10
+					 	when item = 'plan_off_time' then 20
+					 	when item = 'load_time' then 30
+					 	--when item = 'model' then 35
+					 	when item = 'mst' then 40
+					 	when item = 'tot_prod_cnt' then 50
+					 	when item = 'tot_run_time' then 60
+					 	when item = 'equip_efficiency' then 70
+					 	when item = 'perform_efficiency' then 80
+					 	when item = 'time_efficiency' then 90
+					 	when item = 'tact' then 100
+					 	when item = 'loss_off_time' then 110
+					 end as item_order
+			from 
+			( 
+					select a.base_date,		
+							a.line, 
+							a.step_code, 
+							a.equip_no, 
+							a.step_name,
+							a.equip_name,
+							cast(a.tot_work_time as float) tot_work_time, -- 근무시간
+							--a.model,
+							cast(a.mst as float) mst,					
+							cast(a.loss_off_time as float) loss_off_time,
+							cast(a.plan_off_time as float) plan_off_time,
+							cast(a.load_time as float) load_time, -- 부하시간
+							cast(a.tot_prod_cnt as float) tot_prod_cnt,
+							cast(a.tot_run_time as float) tot_run_time, -- 가동시간
+							case when a.load_time = 0 then 0
+							     else cast(round(( a.tot_run_time * 100.0 / a.load_time ),2) as float)
+							end as equip_efficiency, -- 설비종합효율
+							case when ( a.load_time - a.loss_off_time ) = 0 then 0
+							     else cast(round(( a.tot_run_time * 100.0 / ( a.load_time - a.loss_off_time )),2) as float)
+							end as perform_efficiency, -- 성능가동률
+							case when a.load_time = 0 then 0
+							     else cast(round( ( ( a.load_time - a.loss_off_time ) * 100.0 / a.load_time ),2) as float)
+							end as time_efficiency, -- 시간가동률,
+							case when a.tot_prod_cnt = 0 then 0
+							     else cast(round( a.load_time * 60.0 / a.tot_prod_cnt,1 ) as float)
+							end as tact
+					from 
+					( 
+						select  a.base_date,		
+								a.line, 
+								a.step_code, 
+								a.equip_no, 
+								a.step_name,
+								a.equip_name,
+								a.tot_work_time, -- 근무시간
+								isnull(p.mst,0) mst,
+								--p.model,
+								isnull(b.plan_off_time,0) plan_off_time,
+								isnull(b.loss_off_time,0) loss_off_time,
+								( a.tot_work_time - isnull(b.plan_off_time,0) ) as load_time, -- 부하시간
+								isnull(p.tot_prod_cnt, 0) tot_prod_cnt,
+								isnull(p.tot_run_time, 0) tot_run_time -- 가동시간			
+						from EQUIP a
+						left outer join PROD_LOG p
+						on ( a.line = p.line 
+						     and a.step_code = p.step_code 
+						     and a.equip_no = p.equip_no
+						     and a.equip_name = p.equip_name
+						     and a.base_date = p.work_date					
+						)
+						left outer join
+						(
+							SELECT a.base_date, 
+								   a.line, a.step_code, a.equip_no, a.equip_name,
+							       SUM(CASE WHEN b.off_gubun_code = 'LOSS' THEN off_time ELSE 0 END) AS loss_off_time,
+								   SUM(CASE WHEN b.off_gubun_code = 'PLAN' THEN off_time ELSE 0 END) AS plan_off_time
+							FROM OFF_TIME a 
+							join dw_equip_off_code b 
+							on ( a.off_category_code = b.off_category_code 
+							     and a.sub_category_code = b.sub_category_code 
+							     and a.off_code = b.off_code )
+							GROUP BY a.base_date, 
+									 a.line, a.step_code, a.equip_no, equip_name
+						) b
+						on ( a.base_date = b.base_date 
+						     and a.line = b.line 
+						     and a.step_code = b.step_code
+						     and a.equip_no = b.equip_no
+						     and a.equip_name = b.equip_name )
+					) a 
+				) a	
+			unpivot ( value for item in 
+						( tot_work_time, plan_off_time, load_time,  mst, tot_prod_cnt, tot_run_time, 
+						 equip_efficiency, perform_efficiency, time_efficiency, tact, loss_off_time
+						 )
+			 ) as v
+		)
+		SELECT line, 
+					step_code, 
+					equip_no, 
+					equip_name,
+					step_name,					
+					item, 
+					item_name,
+					sub_name,			
+					item_order,
+					sub_order,
+		            <foreach collection="days" item="item" separator=",">
+		            	ISNULL([${item.day}], 0) as D_${item.column}
+		            </foreach>
+		from 
+		( 
+			select a.base_date,		
+					a.line, 
+					a.step_code, 
+					a.equip_no, 
+					a.step_name,
+					a.equip_name,
+					a.item, 
+					a.item_name,
+					a.sub_name,
+					a.value,
+					a.item_order,
+					1 as sub_order
+			from BASE_DATA a
+			union all  
+			SELECT a.base_date, 
+				   a.line,
+				   a.step_code, 
+				   a.equip_no,
+				   c.공정약어 as step_name,					   
+				   a.equip_name,
+				   a.off_code as item,
+				   case when b.off_gubun_code = 'PLAN' then '비가동 실적'
+				        else 'LOSS'
+				   end as item_name,
+				   b.off_name as sub_name,	
+				   cast(sum(isnull(a.off_time,0)) as varchar) as value,
+				   case when b.off_gubun_code = 'PLAN' then 25
+				        else 120
+				   end as item_order,
+				   b.item_order as sub_order
+			FROM OFF_TIME a 
+			join dw_equip_off_code b 
+			on ( a.off_category_code = b.off_category_code 
+			     and a.sub_category_code = b.sub_category_code
+			     and a.off_code = b.off_code )	
+			left outer join dw_step_mast c 
+			on ( a.line = c.line 
+			    and a.step_code = c.공정코드)
+			where 1 =1 
+			<if test="stepCode != null and stepCode.trim() != ''" >				
+		      and a.step_code = #{stepCode}
+		     </if>
+			 <if test="equipName != null and equipName.trim() != ''" >	
+			 	and a.equip_name = #{equipName}
+			 </if>	
+			 group by a.base_date, 
+				   a.line,
+				   a.step_code, 
+				   a.equip_no,
+				   c.공정약어,					   
+				   a.equip_name,
+				   a.off_code,
+				   b.off_gubun_code,
+				   b.off_name,
+				   b.item_order
+		) a
+		pivot ( 
+				max(value)  for base_date in 
+				( <foreach collection="days" item="item" separator=",">[${item.day}]</foreach> )
+		) as v 
+		order by line, step_code, equip_no, equip_name, item_order, sub_order	
+
+	</select>
+
+</mapper>

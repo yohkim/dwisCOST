@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.r0000000.mapper.R0003002Mapper">
+    <select id="getFacility" resultType="CamelMap">
+        select 설비약명, 설비번호
+        from dw_equipment_mast
+        where 1=1
+        <if test="code != null and code != ''">
+            and 공정코드 = #{code}
+        </if>
+        order by 설비약명
+    </select>
+
+    <select id="R0003002_Sch1" parameterType="Map" resultType="CamelMap">
+    </select>
+
+    <select id="R0003002_Sch2" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명 from (
+            select *
+            from d84_ISM검사LOG파일
+            where 1=1
+            <if test="processCode != null and processCode != ''">
+                and 공정코드 = #{processCode}
+            </if>
+            <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+                and 시작시간 between #{startDate} and #{endDate}
+            </if>
+            <if test="runNo != null and runNo != ''">
+                and RUN_NO like CONCAT('%',#{runNo},'%')
+            </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by run_no, 공정코드, 설비호기, 시작시간, 종료시간, INCST_NO, INCST_SU;
+    </select>
+
+    <select id="R0003002_Sch3" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명 from (
+        select *
+        from d85_AGB공정LOG파일
+        where 1=1
+        <if test="processCode != null and processCode != ''">
+            and 공정코드 = #{processCode}
+        </if>
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and Start_time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_NO like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by run_no, 공정코드, 설비호기, Start_time, End_time, 근무조, 작업자, CASSETTE_LD;
+    </select>
+
+    <select id="R0003002_Sch4" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명 from (
+        select *
+        from d88_PFL공정LOG파일
+        where 1=1
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and Start_time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_ID like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by run_id, 설비호기, Start_time, End_time, 근무조, 작업자, recipeID;
+    </select>
+
+    <select id="R0003002_Sch5" resultType="CamelMap">
+        exec GetDPFBFL_LOG
+        @제품구분 = #{modelCode},
+        @작업구분 = #{workCode},
+        @시작일 = #{startDate},
+        @종료일 = #{endDate},
+        @설비=#{facilityCode},
+        @RUN_NO  = #{runNo},
+        @구분 = #{logGubun},
+        @DPFBFL = '2';
+    </select>
+
+    <select id="R0003002_Sch5_2" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+        from (
+            select *
+            from d84_DPFBFL_CELL파일
+            where 1=1
+            and 작업구분 = '2'
+            and 공장코드 = '2'
+            and 공정코드 = '067'
+            <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+                and 시작시각  between #{startDate} and #{endDate}
+            </if>
+            <if test="runNo != null and runNo != ''">
+                and RUN_NO like CONCAT('%',#{runNo},'%')
+            </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by A.run_no,설비호기,근무조,작업자,시작시각,종료시각,seq_id desc
+    </select>
+
+    <update id="R0003002_Update2" parameterType="Map">
+        UPDATE d84_ISM검사LOG파일
+        SET 시작시간 = #{시작시간}
+        ,종료시간 = #{종료시간}
+        ,설비호기 = #{설비호기}
+        ,근무조 = #{근무조}
+        ,INCST_NO = #{incstNo}
+        ,OUTCST_NO = #{outcstNo}
+        ,RESULT = #{result}
+        ,SCRAP = #{scrap}
+        WHERE SEQ_ID = #{seqId}
+        AND 공장코드 = #{공장코드}
+        AND 공정코드 = #{공정코드}
+        AND RUN_NO = #{runNo}
+    </update>
+
+    <update id="R0003002_Update3" parameterType="Map">
+        UPDATE d85_AGB공정LOG파일
+        SET start_time = #{startTime}
+        ,end_time = #{endTime}
+        ,CASSETTE_LD = #{cassetteLd}
+        ,CASSETTE_ULD = #{cassetteUld}
+        ,삭제위치 = #{삭제위치}
+        ,불량명 = #{불량명}
+        WHERE SEQ_ID = #{seqId}
+        AND 공장코드 = #{공장코드}
+        AND 공정코드 = #{공정코드}
+        AND RUN_NO = #{runNo}
+    </update>
+
+    <update id="R0003002_Update4" parameterType="Map">
+        UPDATE d88_PFL공정LOG파일
+        SET RUN_ID = #{runId}
+        ,Start_time = #{startTime}
+        ,End_time = #{endTime}
+        ,설비호기 = #{설비호기}
+        ,근무조 = #{근무조}
+        ,작업자 = #{작업자}
+        ,CST_NO = #{cstNo}
+        ,CST_SU = #{cstSu}
+        ,CST_행열 = #{cst행열}
+        ,CST_행 = #{cst행}
+        ,CST_열 =  #{cst열}
+        ,CELL_ID = #{cellId}
+        ,TABLE_NO상 = #{tableNo상}
+        ,TABLE_NO하 = #{tableNo하}
+        ,Tray_ID = #{trayId}
+        ,Tray_Poket_No = #{trayPoketNo}
+        WHERE SEQ_ID = #{seqId}
+        AND 공장코드 = #{공장코드}
+    </update>
+
+    <update id="R0003002_Update5" parameterType="Map">
+        UPDATE d84_DPFBFL_CELL파일
+        SET RUN_NO = #{runNo}
+        ,시작시각 = #{시작시각}
+        ,종료시각 = #{종료시각}
+        ,설비호기 = #{설비호기}
+        ,근무조 = #{근무조}
+        ,작업자 = #{작업자}
+        ,CELL_NO = #{cellNo}
+        ,CST_NO = #{cstNo}
+        ,CST_SU = #{cstSu}
+        ,CST_행 = #{cst행}
+        ,CST_열 = #{cst열}
+        ,SCRAP위치 = #{scrap위치}
+        ,SCRAP = #{scrap}
+        ,FILM_QR = #{filmQr}
+        WHERE SEQ_ID = #{seqId}
+        and 작업구분 = '2'
+        and 공장코드 = '2'
+        and 공정코드 = '067'
+    </update>
+
+    <insert id="R0003002_Insert4" parameterType="Map">
+    insert into d88_PFL공정LOG파일
+    (
+        공장코드,가동여부,정지사유,RUN_ID,Start_time,End_time,설비호기,근무조
+        ,작업자,RecipeID,CST_NO,CST_SU,CST_행열,CST_행,CST_열,CELL_ID,TABLE_NO상,Film_ID_상부
+        ,상부부착_SPEED,상부부착_압력1,상부부착_압력2,상부부착_압력3,상부롤러_정공1,상부롤러_정공2,상부롤러_정공3,상부부착_Tilt_각도1
+        ,상부부착_Gap1,상부Film_Vaccum_압력1,상부UTG_Vaccum_압력1,Loading_STG_Vaccum_상,상부_Pre_Align_X
+        ,상부_Pre_Align_Y,상부_Pre_Align_TH,상부_Main_Align_X,상부_Main_Align_Y,상부_Main_Align_TH,상부_Film_Align_X
+        ,상부_Film_Align_Y,상부_Film_Align_TH,상부_Reserve,TABLE_NO하,Film_ID_하부,하부부착_SPEED,하부부착_압력1
+        ,하부부착_압력2,하부부착_압력3,하부롤러_정공1,하부롤러_정공2,하부롤러_정공3,하부부착_Tilt_각도1,하부부착_Gap1
+        ,하부Film_Vaccum_압력1,하부UTG_Vaccum_압력1,Loading_STG_Vaccum_하,하부_Pre_Align_X,하부_Pre_Align_Y
+        ,하부_Pre_Align_TH,하부_Main_Align_X,하부_Main_Align_Y,하부_Main_Align_TH,하부_Film_Align_X,하부_Film_Align_Y
+        ,하부_Film_Align_TH,하부_Reserve,Insp_Result,Insp_DATA,Insp_Code,INSP_사용_미사용,MCR_사용_미사용,MCR_reading_ID
+        ,MCR_Write,Tray_ID,Tray_Poket_No,SCRAP,RESULT,CELL_DEL위치,CELL_DEL사유,PORT_NO
+        )
+    values
+    (
+        #{공장코드},#{가동여부},#{정지사유},#{runId},#{startTime},#{endTime},#{설비호기},#{근무조}
+        ,#{작업자},#{recipeid},#{cstNo},#{cstSu},#{cst행열},#{cst행},#{cst열},#{cellId},#{tableNo상},#{filmId상부}
+        ,#{상부부착Speed},#{상부부착압력1},#{상부부착압력2},#{상부부착압력3},#{상부롤러정공1},#{상부롤러정공2},#{상부롤러정공3},#{상부부착Tilt각도1}
+        ,#{상부부착Gap1},#{상부filmVaccum압력1},#{상부utgVaccum압력1},#{loadingStgVaccum상},#{상부PreAlignX}
+        ,#{상부PreAlignY},#{상부PreAlignTh},#{상부MainAlignX},#{상부MainAlignY},#{상부MainAlignTh},#{상부FilmAlignX}
+        ,#{상부FilmAlignY},#{상부FilmAlignTh},#{상부Reserve},#{tableNo하},#{filmId하부},#{하부부착Speed},#{하부부착압력1}
+        ,#{하부부착압력2},#{하부부착압력3},#{하부롤러정공1},#{하부롤러정공2},#{하부롤러정공3},#{하부부착Tilt각도1},#{하부부착Gap1}
+        ,#{하부filmVaccum압력1},#{하부utgVaccum압력1},#{loadingStgVaccum하},#{하부PreAlignX},#{하부PreAlignY}
+        ,#{하부PreAlignTh},#{하부MainAlignX},#{하부MainAlignY},#{하부MainAlignTh},#{하부FilmAlignX},#{하부FilmAlignY}
+        ,#{하부FilmAlignTh},#{하부Reserve},#{inspResult},#{inspData},#{inspCode},#{insp사용미사용},#{mcr사용미사용},#{mcrReadingId}
+        ,#{mcrWrite},#{trayId},#{trayPoketNo},#{scrap},#{result},#{cellDel위치},#{cellDel사유},#{portNo}
+    )
+    </insert>
+
+    <insert id="R0003002_Insert5" parameterType="Map">
+        insert into d84_DPFBFL_CELL파일
+        (
+            공장코드, 공정코드, 작업구분, RUN_NO, 시작시각, 종료시각, 설비호기, 근무조, 작업자, CELL_NO, CST_NO, CST_SU, CST_행, CST_열, SCRAP위치, SCRAP, FILM_QR, PORT_NO
+        )
+        values
+        (
+            #{공장코드},#{공정코드},#{작업구분},#{runNo},#{시작시각},#{종료시각},#{설비호기},#{근무조},#{작업자},#{cellNo}
+            ,#{cstNo},#{cstSu},#{cst행},#{cst열},#{scrap위치},#{scrap},#{filmQr},#{portNo}
+        )
+    </insert>
+
+    <update id="R0003002_Delete2" parameterType="Map">
+        DELETE FROM d84_ISM검사LOG파일
+        WHERE SEQ_ID = #{seqId}
+        AND 공장코드 = #{공장코드}
+        AND 공정코드 = #{공정코드}
+        AND RUN_NO = #{runNo}
+        AND 시작시간 = #{시작시간}
+        AND 종료시간 = #{종료시간}
+    </update>
+
+    <delete id="R0003002_Delete3" parameterType="CamelMap">
+        DELETE FROM d85_AGB공정LOG파일
+        WHERE SEQ_ID = #{seqId}
+        AND 공장코드 = #{공장코드}
+        AND 공정코드 = #{공정코드}
+        AND RUN_NO = #{runNo}
+        AND start_time = #{startTime}
+        AND end_time = #{endTime}
+    </delete>
+
+    <delete id="R0003002_Delete4" parameterType="CamelMap">
+        DELETE FROM d88_PFL공정LOG파일
+        WHERE SEQ_ID = #{seqId}
+        AND 공장코드 = #{공장코드}
+    </delete>
+
+    <delete id="R0003002_Delete5" parameterType="CamelMap">
+        DELETE FROM d84_DPFBFL_CELL파일
+        WHERE SEQ_ID = #{seqId}
+        and 작업구분 = '2'
+        and 공장코드 = '2'
+        and 공정코드 = '067'
+    </delete>
+
+</mapper>

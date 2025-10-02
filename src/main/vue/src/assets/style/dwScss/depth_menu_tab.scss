@@ -1,0 +1,186 @@
+
+/************************************
+*            depth_menu_tab            *
+/************************************/
+    .tabs{
+    &.two_depth_tab{
+        height: 26px;
+        width:100%;
+        background: url('@assets/images/bg_2depth.png') repeat-x;
+            .nav{
+                background: url('@assets/images/bg_2depth.png') repeat-x;
+                display: flex;
+                flex-wrap: nowrap;
+                overflow: hidden;
+                .nav-item{
+                    position: relative;
+                    height: 26px;
+                    border-radius: 3px 0 0 0;
+                    box-shadow: -3px -2px 3px rgba(0, 0, 0, 0.3);
+                    padding-right: 15px;
+                    white-space: nowrap;
+                    .nav-link{
+                            padding: 0 ;
+                            position: relative;
+                            display: flex;
+                            align-items: center;
+                            border:0;
+                            &::after{
+                                content: "";
+                                width: 26px;
+                                height: 26px;
+                                transform: skew(40deg, 0deg);
+                                background: #232f4e;
+                                position: absolute;
+                                top: 0;
+                                right: -10px;
+                                    }
+                                .path{
+                                    background:#232f4e url('@assets/images/gps_off.png') no-repeat center;
+                                    width:25px;
+                                    height: 26px;
+                                    border-radius: 3px 0 0 0;
+                                }
+                                .menu{
+                                    color:#7087ab;
+                                    height: 26px;
+                                    line-height: 26px;
+                                    background: #232f4e;
+                                    padding-right: 20px;
+                                }
+                                .btn_close{
+                                    position: absolute;
+                                    right:-4px;
+                                    z-index: 1;
+                                    width: 16px;
+                                    height: 16px;
+                                    border:0;
+                                    background: url('@assets/images/btn_close_normal.png') no-repeat center;
+                                    background-size: 12px;
+                                }
+                            &.active{
+                                z-index: 10;
+                                &::after{
+                                    content: "";
+                                    width: 26px;
+                                    height: 26px;
+                                    transform: skew(40deg, 0deg);
+                                    background: #fbfff2;
+                                    position: absolute;
+                                    top: 0;
+                                    right: -10px;
+                                        }
+                                    .path{
+                                        background:#fff url('@assets/images/gps.png') no-repeat center;
+                                        width:25px;
+                                        height: 26px;
+                                        border-radius: 3px 0 0 0;
+                                    }
+                                    .menu{
+                                        color: #457070;
+                                        height: 26px;
+                                        line-height: 26px;
+                                        background: #fff;
+                                        padding-right: 20px;
+                                    }
+                                    .btn_close{
+                                        position: absolute;
+                                        right:-4px;
+                                        z-index: 1;
+                                        width: 16px;
+                                        height: 16px;
+                                        border:0;
+                                        background: url('@assets/images/btn_close_select.png') no-repeat center;
+                                        background-size: 12px;
+                                    }
+                            }
+                }
+                }
+            }
+        }
+        &.three_depth_tab{
+            box-shadow: none;
+            height: 100%;
+            .nav{
+                height: 30px;
+                display: flex;
+                &.nav-tabs{
+                    background-color:#232f4e ;
+                    padding: 4px 5px 0;
+                    border-radius: 3px;
+                    border-color: #fff;
+                    .nav-link{
+                        background-color: #606d90;
+                        color: #fff;
+                        font-size: 14px;
+                        padding:  0px 15px;
+                        margin-right: 2px;
+                        border:0;
+                        border-radius: 7px 7px 0 0 !important;
+                        height: 25px;
+                    &.active{
+                            background: #fff!important;
+                            color: #232f4e;
+                            font-size: 14px;
+                            border:0;
+                            }
+                        }
+                    }
+
+            }
+            .tab-content{
+                padding-top: 10px;
+                height: calc(100% - 30px);
+                overflow-y: auto;
+                overflow-x: hidden;
+                >.tab-pane {
+                    height: 100%;
+                    >div{
+                        height: 100%;
+                    }
+                }
+            }
+        }
+        &.four_depth_tab{
+            box-shadow: none;
+            .nav{
+                height: 30px;
+                display: flex;
+                &.nav-tabs{
+                    background-color: #ffffff  ;
+                    border-bottom: 1px solid #adadad;
+                    padding: 0;
+                    .nav-item {   
+                        border:1px solid #adadad;   
+                        &:not(:first-child)   {
+                            margin-left: -1px;
+                        }    
+                        .nav-link{
+                                background-color: #fff;
+                                border:0;
+                                color: #585858;
+                                font-size: 16px;
+                                padding:  0px 30px;
+                                margin-right: 0;
+                                height: 29px;
+                                font-size: 14px;
+                                border-bottom: 1px solid #adadad;
+                                &:hover{
+                                    color: #232f4e;
+                                    font-weight: 600;
+                                    border-bottom: 1px solid #fff;
+                                }
+                                &.active{
+                                    border-top: 4px solid #2dc1dd;
+                                    border-bottom: 1px solid #fff;
+                                    color: #232f4e;
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    border-radius: 0!important;
+                                    }
+                                }
+                        }
+                    }
+                }
+        }
+    }

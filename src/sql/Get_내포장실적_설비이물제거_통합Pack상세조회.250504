@@ -1,0 +1,207 @@
+CREATE FUNCTION Get_내포장실적_설비이물제거_통합Pack상세조회
+(
+    @from_yyyymmdd varchar(10),
+    @to_yyyymmdd  varchar(10),
+    @pack상태 varchar(30),
+    @AdjustMonth_from_yyyymmdd varchar(10),
+    @Adjust_to_yyyymmdd  varchar(10)
+)
+RETURNS TABLE
+AS
+RETURN
+(
+
+    WITH  base_data AS
+    (
+        SELECT 
+            발행구분, 
+            y.pack상태, 
+            CASE 
+                WHEN y.pack상태 = '폐기' THEN y.폐기시각
+                WHEN y.pack상태 = '출하 완료' THEN y.출하작업시각
+                WHEN y.pack상태 = '창고 재고' THEN y.대기작업시각     
+                WHEN y.pack상태 = '소포장 반출' THEN y.반출시각                
+                WHEN y.pack상태 = 'SI 의뢰' THEN y.SI_의뢰시각    
+                WHEN y.pack상태 = 'SI LIST' THEN y.SI_등록일자 + ' ' + y.SI_등록시각                
+                WHEN y.pack상태 = 'SI 대기' THEN y.처리시각
+            END AS 처리일시,
+            CASE WHEN z.run_no IS NULL THEN y.run_id ELSE z.run_no END AS run_id, 
+            CASE WHEN z.origin_no IS NULL THEN '' ELSE z.origin_no END AS origin_no, 
+            CASE WHEN z.pack_no IS NULL THEN y.pack_qrno ELSE z.pack_no END AS pack_no,
+            y.대포장_qrno AS box_no,
+            CASE WHEN z.cell수량 IS NOT NULL THEN z.cell수량 ELSE cell수량x END AS cell수량,
+            z.svi, z.agb, z.pfl, y.pallet_no, y.특이사항,
+            pack수량x AS pack수량, cell수량x, run_id_cnt
+        FROM
+        (
+            SELECT 
+                x.*,
+                COUNT(pack_qrno) OVER (PARTITION BY run_id, pack_qrno, Pack상태) AS pack수량x, 
+--                SUM(Cell수량) OVER (PARTITION BY run_id, pack_qrno, Pack상태) AS cell수량x,
+                SUM(Cell수량) OVER (PARTITION BY pack_qrno, Pack상태) AS cell수량x,
+                COUNT(*) OVER (PARTITION BY pack_qrno) AS run_id_cnt
+            FROM d27_내포장MST x 
+            WHERE 1=1
+              AND ( 
+                    run_id IN 
+                    ( 
+                        SELECT value 
+                        FROM STRING_SPLIT(NULL, ';')
+                    ) 
+                    OR NULL IS NULL
+                 )
+              AND (
+                    (폐기시각 BETWEEN @from_yyyymmdd + ' 000000' AND @to_yyyymmdd + ' 235959' AND @pack상태 = '폐기') 
+                    OR (출하작업시각 BETWEEN @from_yyyymmdd + ' 000000' AND @to_yyyymmdd + ' 235959' AND @pack상태 = '출하 완료') 
+                    OR (대기작업시각 BETWEEN @from_yyyymmdd + ' 000000' AND @to_yyyymmdd + ' 235959' AND @pack상태 = '창고 재고') 
+                    OR (반출시각 BETWEEN @from_yyyymmdd + ' 000000' AND @to_yyyymmdd + ' 235959' AND @pack상태 = '소포장 반출') 
+                    OR (SI_의뢰시각 BETWEEN @from_yyyymmdd + ' 000000' AND @to_yyyymmdd + ' 235959' AND @pack상태 = 'SI 의뢰') 
+                    OR (SI_등록일자 BETWEEN @from_yyyymmdd  AND @to_yyyymmdd  AND @pack상태 = 'SI LIST') 
+                    OR (처리시각 BETWEEN @from_yyyymmdd + ' 080000' AND dbo.AddOneDayAndTime(@to_yyyymmdd) AND @pack상태 = 'SI 대기')
+              )
+--			and (   (substring(폐기시각,1,8)   between @from_yyyymmdd  and @to_yyyymmdd  and pack상태 = '폐기' ) -- ok
+--			     or (substring(출하작업시각,1,8) between @from_yyyymmdd  and @to_yyyymmdd  and pack상태 = '출하 완료' ) -- ok
+--			     or (substring(대기작업시각,1,8) between @from_yyyymmdd  and @to_yyyymmdd  and  pack상태 = '창고 재고' ) -- ok
+--				 or (substring(반출시각,1,8)    between @from_yyyymmdd  and @to_yyyymmdd  and pack상태 = '소포장 반출' ) -- ???
+--				 or (substring(SI_의뢰시각,1,8) between @from_yyyymmdd  and @to_yyyymmdd  and pack상태 = 'SI 의뢰' ) -- ok
+--				 or (substring(SI_등록일자,1,8) between @from_yyyymmdd  and @to_yyyymmdd  and pack상태 = 'SI LIST' ) -- ok
+--				 or (처리시각  between @from_yyyymmdd  + ' 080000' and dbo.AddOneDayAndTime(@to_yyyymmdd ) and pack상태 = 'SI 대기' ) -- ok
+--			)                 
+        ) y
+        LEFT JOIN 
+        (	select null as run_no,null as origin_no,null as pack_no,null as cell수량,'' as svi,'' as agb,'' as pfl
+            /*SELECT 
+                'AUTO' AS 작업구분, 구분, run_no, '' AS origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+            FROM Get_내포장실적_설비이물제거Auto(@AdjustMonth_from_yyyymmdd, @Adjust_to_yyyymmdd, '생성분',NULL)
+            WHERE @PACK상태 <> '폐기'
+            UNION ALL
+            SELECT 
+                'MANUAL' AS 작업구분, 구분, run_no, origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+            FROM Get_내포장실적_설비이물제거Manual(@AdjustMonth_from_yyyymmdd, @Adjust_to_yyyymmdd, '생성분')
+            WHERE @PACK상태 <> '폐기'
+            UNION ALL
+            SELECT 
+                'AUTO' AS 작업구분, 구분, run_no, '' AS origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+            FROM Get_내포장실적_설비이물제거Auto(@AdjustMonth_from_yyyymmdd, @Adjust_to_yyyymmdd, '폐기분',NULL)
+            WHERE @PACK상태 = '폐기'
+            UNION ALL
+            SELECT 
+                'MANUAL' AS 작업구분, 구분, run_no, origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+            FROM Get_내포장실적_설비이물제거Manual(@AdjustMonth_from_yyyymmdd, @Adjust_to_yyyymmdd, '폐기분')
+            WHERE @PACK상태 = '폐기'    */ 
+        ) z
+        ON 1=1
+--        and y.run_id = z.run_no 
+        AND y.pack_qrno = z.pack_no
+    )
+    SELECT distinct *
+    FROM base_data
+    WHERE (pack상태 = @pack상태 OR @pack상태 IS NULL)
+	--A1	
+	--A1	폐기
+	--A1	SI 대기
+	--A2	SI LIST
+	--A3	SI 의뢰
+	--A3	소포장 반출
+	--B1	반출 대기
+	--B1	SI 의뢰
+	--B2	반출 대기
+	--B2	소포장 반출
+	--C1	창고 재고
+	--C2	출하 완료
+	--Z1	폐기
+/*
+	with base_data as
+	(
+		select 발행구분, y.pack상태, 
+				case when y.pack상태 = '폐기'      then  y.폐기시각
+				     when y.pack상태 = '출하 완료'  then  y.출하작업시각
+				     when y.pack상태 = '창고 재고'  then  y.대기작업시각	     
+				     when y.pack상태 = '소포장 반출' then  y.반출시각	    	     
+				     when y.pack상태 = 'SI 의뢰'   then  y.SI_의뢰시각	    
+				     when y.pack상태 = 'SI LIST'  then  y.SI_등록일자 + ' ' +   y.SI_등록시각		    	    
+				     when y.pack상태 = 'SI 대기'   then y.처리시각
+	--			     when y.pack상태 = '반출 대기'   then  y.반출시각
+			   end 처리일시,
+		       case when z.run_no is null       then y.run_id    else z.run_no end run_id, 
+		       case when z.origin_no is null    then ''  else z.origin_no  end origin_no, 
+		       case when z.pack_no is null    then y.pack_qrno else z.pack_no end pack_no,
+		       y.대포장_qrno box_no,
+		       case when z.cell수량 is not null then z.cell수량 else cell수량x end cell수량,
+		       z.svi, z.agb, z.pfl, y.pallet_no, y.특이사항,
+		       pack수량x pack수량, cell수량x, run_id_cnt
+		from
+		(
+		--
+			select x.*,
+			      -- 발행구분, 발행일자, SI_등록일자,
+			      -- run_id,
+			      -- pack상태, 
+			       count(pack_qrno) over (partition by run_id, pack_qrno, Pack상태) pack수량x, 
+			       sum(Cell수량) over (partition by run_id, pack_qrno, Pack상태) cell수량x,
+			       count(pack_qrno) over (partition by run_id, pack_qrno) run_id_cnt
+			from d27_내포장MST x 
+			where 1=1
+			and 
+			(
+				 run_id in 
+						( 
+							SELECT value 
+				    		FROM STRING_SPLIT(null, ';')
+			--				    '810PB2501-P0016', '810PB2501-P0015'
+						)
+				 or null is null
+			 )
+	--		 and pack상태 = '반출 대기'
+			and (   (폐기시각    between @from_yyyymmdd + ' 000000'   and @to_yyyymmdd  + ' 235959' and pack상태 = '폐기' ) -- ok
+			     or (출하작업시각  between @from_yyyymmdd + ' 000000'  and @to_yyyymmdd  + ' 235959'  and pack상태 = '출하 완료' ) -- ok
+			     or (대기작업시각  between @from_yyyymmdd + ' 000000'  and @to_yyyymmdd  + ' 235959'  and  pack상태 = '창고 재고' ) -- ok
+				 or (반출시각     between @from_yyyymmdd + ' 000000'  and @to_yyyymmdd  + ' 235959'  and pack상태 = '소포장 반출' ) -- ???
+				 or (SI_의뢰시각  between @from_yyyymmdd + ' 000000'  and @to_yyyymmdd  + ' 235959'  and pack상태 = 'SI 의뢰' ) -- ok
+				 or (SI_등록일자  between @from_yyyymmdd + ' 000000'  and @to_yyyymmdd  + ' 235959'  and pack상태 = 'SI LIST' ) -- ok
+				 or (처리시각  between @from_yyyymmdd  + ' 080000' and dbo.AddOneDayAndTime(@to_yyyymmdd ) and pack상태 = 'SI 대기' ) -- ok
+			)
+--			and (   (substring(폐기시각,1,8)   between @from_yyyymmdd and @to_yyyymmdd  and pack상태 = '폐기' ) -- ok
+--			     or (substring(출하작업시각,1,8) between @from_yyyymmdd  and @to_yyyymmdd  and pack상태 = '출하 완료' ) -- ok
+--			     or (substring(대기작업시각,1,8) between @from_yyyymmdd  and @to_yyyymmdd  and  pack상태 = '창고 재고' ) -- ok
+--				 or (substring(반출시각,1,8)    between @from_yyyymmdd  and @to_yyyymmdd  and pack상태 = '소포장 반출' ) -- ???
+--				 or (substring(SI_의뢰시각,1,8) between @from_yyyymmdd  and @to_yyyymmdd  and pack상태 = 'SI 의뢰' ) -- ok
+--				 or (substring(SI_등록일자,1,8) between @from_yyyymmdd  and @to_yyyymmdd  and pack상태 = 'SI LIST' ) -- ok
+--				 or (처리시각  between @from_yyyymmdd  + ' 080000' and dbo.AddOneDayAndTime(@to_yyyymmdd ) and pack상태 = 'SI 대기' ) -- ok
+--			)
+		--	and  pack상태 = 'SI 의뢰'
+		--	and 상태코드 = 'C2'23
+		--	and run_id = '810PB2501-P0010'
+		--	and pack_qrno = 'LJ9708021GE1DLD3N0P1O000718060'
+		--	
+		) y
+		left join 
+		(
+			select 'AUTO' 작업구분, 구분, run_no, '' origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+			from Get_내포장실적_설비이물제거Auto(dbo.AdjustMonth(@from_yyyymmdd, -1),dbo.AddOneDay(@to_yyyymmdd ),'생성분')
+			union all
+			select 'MANUAL' 작업구분,구분, run_no, origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+			from Get_내포장실적_설비이물제거Manual(dbo.AdjustMonth(@from_yyyymmdd, -1),dbo.AddOneDay(@to_yyyymmdd ),'생성분')
+--			union all
+--			select 'AUTO' 작업구분, 구분, run_no, '' origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+--			from Get_내포장실적_설비이물제거Auto(dbo.AdjustMonth(@from_yyyymmdd, -1),dbo.AddOneDay(@to_yyyymmdd ),'미생성분')
+--			union all
+--			select 'MANUAL' 작업구분,구분, run_no, origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+--			from Get_내포장실적_설비이물제거Manual(dbo.AdjustMonth(@from_yyyymmdd, -1),dbo.AddOneDay(@to_yyyymmdd ),'미생성분')	
+			union all
+			select 'AUTO' 작업구분, 구분, run_no, '' origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+			from Get_내포장실적_설비이물제거Auto(dbo.AdjustMonth(@from_yyyymmdd, -1),dbo.AddOneDay(@to_yyyymmdd ),'폐기분')
+			union all
+			select 'MANUAL' 작업구분,구분, run_no, origin_no, pack_no, cell수량, 작업일자, 작업자, 설비, shift, svi, agb, pfl, 처리시각, 발행자, 발행자서명, 승인자, 승인자서명, 특이사항, PACK상태 
+			from Get_내포장실적_설비이물제거Manual(dbo.AdjustMonth(@from_yyyymmdd, -1),dbo.AddOneDay(@to_yyyymmdd ),'폐기분')		
+		) z
+		on y.run_id = z.run_no and y.pack_qrno = z.pack_no
+		--and y.run_id = z.run_no
+		--order by 3
+	)
+	select *
+	from base_data
+	where 1=1
+	and (pack상태 = @pack상태 or @pack상태 is null)
+	*/
+)

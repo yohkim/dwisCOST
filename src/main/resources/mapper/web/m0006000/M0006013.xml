@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0006000.mapper.M0006013Mapper">
+	<select id="M0006013_Sch1" resultType="CamelMap">
+		select 
+			area, 공정코드, 공정명 
+		from vw_process_plan
+		where line = 'DFB1'
+		and process_id = 'D1UT'
+		order by 공정순서
+	</select>	
+	
+	<select id="M0006013_Sch2" resultType="CamelMap">
+		select 
+			area, 설비번호, 설비명, 설비약명 
+		from dw_equipment_mast
+		where line = 'DFB1'
+		and 공정코드 = #{공정코드}
+	</select>
+	
+	<select id="M0006013_Sch3" resultType="CamelMap">
+		select
+			model,
+			code,
+			description,
+			tray_cell,
+			use_yn
+		from dw_model_mast
+		where 1 = 1
+	</select>
+	
+	<select id="M0006013_Sch4" resultType="CamelMap">
+		select
+			a.seq_id, a.line, a.process_id, a.공정코드, b.공정명, a.설비번호, 
+			c.설비명, c.설비약명, a.model_code, a.shift, a.code, 
+			a.qr, format(a.init_dt, 'yyyy-MM-dd HH:mm') init_dt, a.init_user, isNull(d.user_name, a.init_user) init_user_nm, 
+			format(a.modi_dt, 'yyyy-MM-dd HH:mm') modi_dt, a.modi_user, isNull(e.user_name, a.modi_user) modi_user_nm 
+		from dw_cm_qr_info a
+		left join vw_process_plan b
+		on (a.line = b.line and a.process_id = b.process_id and a.공정코드 = b.공정코드)
+		left join dw_equipment_mast c
+		on (a.line = c.line and a.설비번호 = c.설비번호)
+		left join dw_cm_user d
+		on (a.init_user = d.user_id)
+		left join dw_cm_user e
+		on (a.modi_user = e.user_id)
+		where 1 = 1
+		order by b.공정순서, a.설비번호, a.model_code, a.shift
+	</select>
+	
+	<insert id="M0006013_Insert1" parameterType="Map">
+    	insert into dw_cm_qr_info(line,process_id,공정코드,설비번호,model_code,shift,code,qr,init_dt,init_user)
+    	values (#{line}, #{processId}, #{공정코드}, #{설비번호}, #{modelCode}, #{shift}, #{code}, #{qr}, GETDATE(),#{initUser})    	
+	</insert>
+	
+	<update id="M0006013_Update1" parameterType="Map">
+    	update dw_cm_qr_info
+    	set code = #{code}
+    		,qr = #{qr}
+    		,modi_dt = GETDATE()
+    		,modi_user = #{modiUser}
+    	where seq_id = #{seqId}    	
+	</update>
+	
+	<delete id="M0006013_Delete1" parameterType="Map">
+    	delete from dw_cm_qr_info where seq_id = #{seqId}
+	</delete>
+	
+</mapper>

@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dowinsys.mes.web.m0006000.mapper.M0006001Mapper">
+	<select id="getModels" resultType="CamelMap">
+		select code_name 제품유형,code 코드 
+		from dw_common_code 
+		where maj_code='36'
+		order by code_name
+	</select>
+	<select id="getWorkTypes" resultType="CamelMap">
+		select code_name 작업구분,code 코드 
+		from dw_common_code 
+		where maj_code='31'
+		order by code_name
+	</select>
+	<select id="getPoNo" resultType="CamelMap">
+		select coalesce(#{model},'')+'-'+FORMAT(getdate(),'yyMMdd')+'-'+coalesce(#{workTypeChar},'')+'-'+
+		(
+			select FORMAT(COALESCE(max(substring(po_no,CHARINDEX('-',po_no,14)+1,3))+1,1),'00')
+			from d33_제품수주서파일 
+			where po_no like  '%'+FORMAT(getdate(),'yyMMdd')+'%'
+		)as po_no
+	</select>
+	<select id="getPurchaseOrders" resultType="CamelMap">
+		select  CONVERT(DATE,a.수주일자) 수주일자,a.수주번호,c.code_name 제품유형라벨,a.제품유형,d.code_name 작업구분라벨,a.작업구분,b.name 거래처명,b.code 거래처코드,
+				e.model+' '+convert(varchar,e.Inch)+' '+convert(varchar,e.Glass_thick)+' '+e.Version+' '+convert(varchar,e.sheet)+' '+convert(varchar,Block)+' '+convert(varchar,RUN_SIZE) +' ['+e.spec+']' 제품명,
+				e.Prod_code 제품코드,a.PO_NO,a.수주수량,a.수주단위,a.수주구분,a.수율,a.필요자재량,
+				coalesce(f.지시수량,0) 투입수량,
+				(a.수주수량 -coalesce(f.지시수량,0)) 잔량,
+				STUFF(STUFF(substring(납품요망일, 1, 8),5,0,'-'),8,0,'-') as 납기일,a.비고
+		from d33_제품수주서파일 a
+		  left join dw_vendor_mast b on (a.거래처코드 = b.code and trade_code=30)
+		  left join dw_common_code c on (a.제품유형=c.code and c.maj_code='36' )
+		  left join dw_common_code d on (a.작업구분=d.code and d.maj_code='31' )
+		  left join dw_product_mast e on (a.제품코드=e.prod_code )
+		  left join (
+		  	select po_no,sum(지시수량) 지시수량
+		  	from d21_제조지시MST
+		  	group by po_no
+		  )f on (a.po_no = f.po_no)
+		where 제품유형 like coalesce(#{modelCode},'%') 
+		<if test="workCode != null and workCode != ''" >	
+		and 작업구분 like  coalesce(#{workCode},'%')
+		</if>
+		and 수주일자 between replace(#{startDate},'-','') and replace(#{endDate},'-','')
+		<if test="poNo != null and poNo != ''">
+			and a.po_no = #{poNo}
+		</if>
+		ORDER BY 수주일자,제품유형라벨
+	</select>
+	<select id="checkPoNoDeletable" resultType="CamelMap">
+		SELECT CASE 
+		    WHEN EXISTS (SELECT 1 FROM d21_제조지시MST WHERE po_no = #{poNo}) THEN 0
+		    ELSE 1
+		END AS result
+	</select>
+	<insert id="insertPurchaseOrder">
+	INSERT INTO d33_제품수주서파일
+	(
+		공장코드,
+		수주일자,
+		수주번호,
+		거래처코드,
+		제품코드,
+		PO_NO,
+		수주수량,
+		수주단위,
+		수율,
+		필요자재량,
+		제품유형,
+		작업구분,
+		수주구분,
+		납품요망일,
+		비고,
+		입력시각,
+		입력자,
+		수주단가,
+		수주금액,
+		수주부가세,
+		외화금액,
+		발행여부,
+		취소여부,
+		생산지시여부,
+		생산완료여부,
+		납품완료여부,
+		입금완료여부,
+		입금금액
+	)
+	SELECT
+		'2',
+		FORMAT(convert(date,#{수주일자}),'yyyyMMdd'),
+		(select format(coalesce(max(수주번호),0)+1 ,'0000') from d33_제품수주서파일 where 수주일자 like format(getdate(),'yyyyMM')+'%'),
+		#{거래처코드},
+		REPLACE(#{제품코드}, '-', ''),
+		#{poNo},
+		#{수주수량},
+		#{수주단위},
+		#{수율},
+		#{필요자재량},
+		#{제품유형},
+		#{작업구분},
+		#{수주구분},
+		FORMAT(convert(date,#{납기일}),'yyyyMMdd'),
+		#{비고},
+		getdate(),
+		#{dowInsysUserId},0,0,0,0,0,0,0,0,0,0,0
+	</insert>
+	<delete id="deletePurchaseOrder">
+		DELETE FROM d33_제품수주서파일 where po_no=#{poNo}  -- 체크된 PO_NO
+	</delete>
+</mapper>

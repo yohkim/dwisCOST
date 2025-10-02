@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dowinsys.mes.common.code.mapper.CodeMapper">
+	<select id="selectComCode1" resultType="CamelMap">	
+	SELECT 
+		code value, code_name text 
+	FROM dw_common_code
+	WHERE maj_code = #{code}
+	and use_yn = 1
+	order by sort_order,code
+	</select>
+	
+	<select id="selectComCode2" resultType="CamelMap">	
+	SELECT 
+		code_name value, code_name text 
+	FROM dw_common_code	
+	WHERE maj_code = #{code}
+	and use_yn = 1
+	order by code_name
+	</select>
+	
+	<select id="selectShiftInfo" resultType="CamelMap">
+		select CurrentTime,
+				  case when Shift = '주간' then 'D'
+				       else 'N'
+				  end as shift_code,
+				  Shift,
+				  근무시간대 
+		from Get주간야간구분()	
+	</select>	
+	
+	<select id="selectPrinterInfo" resultType="CamelMap">
+		select code,code_name,etc1 as ip,etc2 as port 
+		FROM dw_common_code
+		where maj_code = '96'
+		order by code
+	</select>	
+</mapper>

@@ -1,0 +1,1678 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0003000.mapper.M0003005Mapper">
+
+	<select id="M0003005_Sch1" parameterType="Map" resultType="CamelMap">	
+		select 
+		    a.lot_no, b.공정코드, b.p_code, c.거래처명, e.제품모델, a.제품_inch, e.제품버젼, d.자재품명, 
+			e.제품규격, a.입고일자, a.sheet, a.block수, a.cell수,
+			a.작업일자, a.생성수량, a.작업지시일자, 발행자, a.승인일자, 승인자,
+			a.panel_id, a.특기사항, a.시작온도, a.종료온도, a.전면광량, a.후면광량,
+			b.작업자, b.shift, coalesce(b.작업조, (select shift from Get주간야간구분())) 작업조, b.machine_code, f.설비명, f.설비약명, f.chamber,
+			b.작업시작, b.시작시각, b.작업종료, b.종료시각,
+			b.투입수량, b.양품수량, b.검사수량, b.불량수량, b.cell수량,
+			b.특이사항, b.공정_비고, g.tool_no_컷팅, g.tool_no_중삭, g.tool_no_정삭, g.컷팅, g.중삭, g.정삭,
+			i.작업종료 as 전작업종료, (case when #{공정코드} = '010' then '적층' when #{공정코드} = '013' then '적층' when #{공정코드} = '015' then '가공' when #{공정코드} = '017' then '치수' when #{공정코드} = '020' then 'WP' else null end) 전공정,			
+			case when #{공정코드} = '020' then j.작업시작 else  h.작업시작 end next작업시작,
+			case when nullif(b.lot_no, '') is not null then 'Y' else 'N' end vlr_check
+		from d21_제조지시mst a 
+		left join d21_제조지시vlr b on (a.lot_no = b.lot_no and b.공정코드= #{공정코드})
+		left join d03_거래처마스터파일 c on (a.거래처코드=c.거래처코드)
+		left join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+		left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)
+		left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+		left join d21_tool사용현황 g on (g.공장코드 = '2' and a.lot_no = g.lot_no and b.공정코드 = g.공정코드 and f.설비번호 = g.설비번호)
+		left join d21_제조지시vlr i on (a.lot_no = i.lot_no and i.공정코드= (case when #{공정코드} = '010' then '010' when #{공정코드} = '013' then '010' when #{공정코드} = '015' then '013' when #{공정코드} = '017' then '015' when #{공정코드} = '020' then '017' else null end))
+		left join d21_제조지시vlr h on (a.lot_no = h.lot_no and h.공정코드= (case when #{공정코드} = '010' then '013' when #{공정코드} = '013' then '015' when #{공정코드} = '015' then '017' when #{공정코드} = '017' then '020' when #{공정코드} = '020' then '017' else null end))
+		left join d22_run제조vlr j on (#{공정코드} = '020' and (nullif(a.run_no1,'') = j.run_no or nullif(a.run_no2,'') = j.run_no) and j.공정코드 = '023')
+		where 1=1
+		and a.lot_no = #{lotNo}
+	</select>
+	
+	
+	<select id="M0003005_Sch5" parameterType="Map" resultType="CamelMap">
+		select 
+			a.설비번호,a.설비명, a.설비약명 +' '+ a.chamber 설비약명, a.chamber 
+		from dw_equipment_mast a
+		where a.line= 'DFB1' and a.공정코드 = #{공정코드}
+		<if test="type != null">
+		and a.chamber = #{type}
+		</if>
+		order by a.설비번호
+	</select>
+	
+	<select id="M0003005_Sch6" parameterType="Map" resultType="CamelMap">
+		select
+			c.공정명, b.특이사항			
+		from d21_제조지시mst a 
+		left join d21_제조지시vlr b on (a.lot_no = b.lot_no)
+		left join dw_process_plan c on (c.line = 'DFB1' and c.process_id = 'D1UT' and b.공정코드 = c.공정코드)		
+		where 1=1
+		and a.lot_no = #{lotNo}
+		order by c.공정코드
+	</select>
+	
+	<select id="M0003005_Sch16" parameterType="Map" resultType="CamelMap">
+		select 
+			lot_no, 공정명, 특이사항			 
+		from (
+			select
+				1 as no, a.lot_no, b.공정코드, c.공정명, b.특이사항			
+			from d21_제조지시mst a 
+			left join d21_제조지시vlr b on (a.lot_no = b.lot_no)
+			left join dw_process_plan c on (c.line = 'DFB1' and c.process_id = 'D1UT' and b.공정코드 = c.공정코드)		
+			where 1=1
+			and a.lot_no = #{lotNo}
+			union all
+			select
+				2 as no, a.lot_no, b.공정코드, c.공정명, b.특이사항			
+			from d21_제조지시mst a 
+			left join d21_제조지시vlr b on (a.lot_no = b.lot_no)
+			left join dw_process_plan c on (c.line = 'DFB1' and c.process_id = 'D1UT' and b.공정코드 = c.공정코드)		
+			where 1=1
+			and a.lot_no = #{lotNo1}
+		) a
+		order by no, 공정코드
+	</select>
+	
+	<update id="M0003005_Start" parameterType="Map">
+		delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{lotNo};
+		delete from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{lotNo};
+		delete from d42_검사불량사유파일_block where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{lotNo};	
+		delete from d21_치수측정파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lot_no = #{lotNo};
+		delete from d21_tool사용현황 where 공장코드 = '2' and 공정코드 = #{공정코드} and lot_no = #{lotNo};
+			
+		<choose>
+			<when test="code != null and code == '010'">
+				with mst as (
+					select 
+			   			sheet in_qty, cell수			
+					from d21_제조지시mst
+			    	where lot_no = #{lotNo}
+				)
+			</when>
+			<when test="code != null and code == '013'">
+				with mst as (
+					select 
+			   			a.block수 in_qty, b.양품수량*a.block수 cell수			
+					from d21_제조지시mst a
+					left join d21_제조지시vlr b 
+					on (a.lot_no = b.lot_no and b.공정코드 = '010')
+			    	where a.lot_no = #{lotNo}
+				)
+			</when>
+			<otherwise>
+				with mst as (
+					select 
+			   			c.양품수량 in_qty, b.양품수량*c.양품수량 cell수			
+					from d21_제조지시mst a
+					left join d21_제조지시vlr b
+					on (a.lot_no = b.lot_no and b.공정코드 = '010')
+					left join d21_제조지시vlr c 
+					on (a.lot_no = c.lot_no and c.공정코드 = (case when #{공정코드} = '015' then '013' when #{공정코드} = '017' then '015' when #{공정코드} = '020' then '017' else null end))
+			    	where a.lot_no = #{lotNo}
+				)
+			</otherwise>
+		</choose>
+		update d21_제조지시vlr
+		set  
+			작업시작=#{작업시작}
+			,시작시각=#{시작시각}			
+			,투입수량 = isNull((select in_qty from mst), 0)
+			,양품수량 = isNull((select in_qty from mst), 0)
+			,불량수량 = 0
+			,검사수량 = 0
+			,cell수량 = isNull((select cell수 from mst), 0)
+			,작업조=(SELECT shift FROM Get주간야간구분1(#{시작시각}))
+		where lot_no = #{lotNo}
+		and 공정코드= #{공정코드}
+	</update>
+	
+	<update id="M0003005_TempMst" parameterType="Map">
+		update d21_제조지시mst
+		set  
+		<if test="code != null and code == '010'">
+			panel_id = #{panelId}
+		</if>
+		<if test="code != null and code == '020'">
+			시작온도 = #{시작온도}
+			,종료온도 = #{종료온도}
+			,전면광량 = #{전면광량}
+			,후면광량 = #{후면광량}
+		</if>
+		where lot_no = #{lotNo}		
+	</update>
+	
+	<update id="M0003005_TempVlr" parameterType="Map">
+		update d21_제조지시vlr
+		set 
+			작업자=#{작업자}
+			,shift=#{shift}
+			,machine_code = #{machineCode}
+			,p_code =  coalesce(#{pCode},'')
+			,공정_비고 = #{공정비고}
+			,특이사항 = #{특이사항}
+		where lot_no = #{lotNo}
+		and 공정코드= #{공정코드};
+		
+		
+		update d42_검사불량사유파일
+			set machine_code = coalesce(#{machineCode}, '-')
+		where lotrun_id = #{lotNo}
+		and 공정코드= #{공정코드};
+		
+		
+		update d42_검사불량사유파일_block
+			set machine_code = coalesce(#{machineCode}, '-')
+		where lotrun_id = #{lotNo}
+		and 공정코드= #{공정코드};
+	</update>
+	
+	<update id="M0003005_End" parameterType="Map">
+		<choose>
+			<when test="code != null and code == '010'">
+				with mst as (
+				    select 
+				        block수 mst수량
+				    from d21_제조지시mst
+				    where lot_no = #{lotNo}
+				)
+			</when>
+			<otherwise>
+				with mst as (
+					select 
+			   			b.양품수량 mst수량	
+					from d21_제조지시mst a
+					left join d21_제조지시vlr b 
+					on (a.lot_no = b.lot_no and b.공정코드 = '010')
+			    	where a.lot_no = #{lotNo}
+				)
+			</otherwise>
+		</choose>
+		update d21_제조지시vlr
+		set  
+			작업종료=#{작업종료}
+			,종료시각=#{종료시각}
+			,양품수량 = isnull((투입수량 - 불량수량), 0)
+			,검사수량 = 투입수량
+    		,cell수량 = isnull(((select mst수량 from mst) * (투입수량 - 불량수량)), 0)
+    		,bef_공정코드 = (case 
+		           when #{공정코드} = '010' then '010'
+		           when #{공정코드} = '013' then '010'
+		           when #{공정코드} = '015' then '013'
+		           when #{공정코드} = '017' then '015'
+		           when #{공정코드} = '020' then '017'
+		           else null
+		       	end)
+			,nxt_공정코드 = (case 
+		           when #{공정코드} = '010' then '013'
+		           when #{공정코드} = '013' then '015'
+		           when #{공정코드} = '015' then '017'
+		           when #{공정코드} = '017' then '020'
+		           when #{공정코드} = '020' then '023'
+		           else null
+		       	end)
+		where lot_no = #{lotNo}
+		and 공정코드= #{공정코드};
+	</update>
+	
+	<update id="M0003005_Error" parameterType="Map">
+		<choose>
+			<when test="code != null and code == '013'">
+				with error_cnt as (
+			    select 
+			        sum(isNull(b.불량수량, 0)) as 불량수량
+			    from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+			    left join d42_검사불량사유파일 b
+			    on (a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and b.lotrun_id = #{lotNo})
+			    where a.비고 = 1
+			),
+			mst as (
+			    select 
+			        sheet, block수 
+			    from d21_제조지시mst
+			    where lot_no = #{lotNo}
+			)
+			update d21_제조지시vlr
+			set 
+	    		불량수량 = isnull((select 불량수량 from error_cnt), 0)
+	    		,양품수량 = isnull(투입수량 - (select 불량수량 from error_cnt), 0)
+	    		,cell수량 = isnull((select sheet from mst) * (투입수량 - (select 불량수량 from error_cnt)), 0)
+			where lot_no = #{lotNo}
+	    	and 공정코드 = #{공정코드};
+			</when>
+			<when test="code != null and (code == '015' or code == '017' or code == '020')">
+				with error_cnt as (
+					select sum(불량수량) 불량수량 from (
+					    select 
+					        b.bl_no, 1 as 불량수량
+					    from d42_검사불량사유파일_block b
+					    left join Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					    on (
+					    	a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and b.lotrun_id = #{lotNo}
+					    	and not exists (
+					    		select 1 from d42_검사불량사유파일_block c
+					    		join d29_공정별불량파일 d
+								on (d.공정코드 = c.공정코드 and d.불량코드 = c.불량코드 and d.사용여부 = 1 and d.적용구분 = '0')		
+					    		where c.공정코드 in (
+									case 
+					                    when #{공정코드} = '015' then '013'
+					                    when #{공정코드} = '017' then '013' 
+					                    when #{공정코드} = '017' then '015'
+					                    when #{공정코드} = '020' then '013' 
+					                    when #{공정코드} = '020' then '015'
+					                    when #{공정코드} = '020' then '017'
+					                end
+								) and c.lotrun_id = b.lotrun_id and c.bl_no = b.bl_no and d.비고 = 1
+					    	)
+					    )
+					    where a.비고 = 1
+					    group by b.bl_no
+				    ) a
+				), 
+				mst as (
+					select 
+			   			b.양품수량 sheet	
+					from d21_제조지시mst a
+					left join d21_제조지시vlr b 
+					on (a.lot_no = b.lot_no and b.공정코드 = '010')
+			    	where a.lot_no = #{lotNo}
+				)
+				update d21_제조지시vlr
+				set  
+					불량수량 = isnull((select 불량수량 from error_cnt), 0)
+		    		,양품수량 = isnull(투입수량 - (select 불량수량 from error_cnt), 0)
+		    		,cell수량 = isnull((select sheet from mst) * (투입수량 - (select 불량수량 from error_cnt)), 0)
+				where lot_no = #{lotNo}
+				and 공정코드= #{공정코드};
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>		
+	</update>
+	
+	<select id="M0003005_Sch8" parameterType="Map" resultType="CamelMap">
+		WITH CountData AS (
+		    SELECT block수 AS TotalCount
+		    FROM d21_제조지시mst
+		    WHERE lot_no = #{lotNo}
+		),
+		RecursiveCTE AS (
+		    SELECT 1 AS RowNumber
+		    FROM CountData
+		    WHERE TotalCount > 0
+		    UNION ALL
+		    SELECT RowNumber + 1
+		    FROM RecursiveCTE, CountData
+		    WHERE RowNumber <![CDATA[<]]> TotalCount
+		),
+		GeneratedRows AS (
+		    SELECT '#' + CAST(RowNumber AS NVARCHAR) AS bl_no
+		    FROM RecursiveCTE
+		),
+		DefectData1 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량, isNull(a.cell별불량수량, 0) cell별불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량, isNull(max(cell별불량수량), 0) cell별불량수량
+				from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        ),
+        DefectData2 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량, isNull(a.cell별불량수량, 0) cell별불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량, isNull(max(cell별불량수량), 0) cell별불량수량
+				from Get공정별불량파일(#{line}, '013', #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and a.비고 = 1 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        ),
+        DefectData3 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량, isNull(a.cell별불량수량, 0) cell별불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량, isNull(max(cell별불량수량), 0) cell별불량수량
+				from Get공정별불량파일(#{line}, '015', #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and a.비고 = 1 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        ),
+        DefectData4 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량, isNull(a.cell별불량수량, 0) cell별불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량, isNull(max(cell별불량수량), 0) cell별불량수량
+				from Get공정별불량파일(#{line}, '017', #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and a.비고 = 1 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        )
+		select 
+		    a.lot_no, b.공정코드, c.bl_no, f.컷팅, f.중삭, f.정삭, f.tool_no_컷팅, f.tool_no_중삭, f.tool_no_정삭, d.불량수량, d.cell별불량수량,
+		    case when b.공정코드 = '017' then max(e.불량수량+g.불량수량)
+		    	when b.공정코드 = '020' then max(e.불량수량+g.불량수량+h.불량수량)
+		    	end pre_불량수량
+		from d21_제조지시mst a 
+		left join d21_제조지시vlr b on (a.lot_no = b.lot_no and b.공정코드= #{공정코드})
+		left join GeneratedRows c on (1=1)
+		left join DefectData1 d on (c.bl_no = d.bl_no)
+		left join DefectData2 e on (c.bl_no = e.bl_no)
+		left join DefectData3 g on (c.bl_no = g.bl_no)
+		left join DefectData4 h on (c.bl_no = h.bl_no)
+		left join d21_Tool사용현황 f on (f.공장코드 = '2' and f.lot_no = a.lot_no and f.공정코드 = b.공정코드)
+		where a.lot_no = #{lotNo}
+		group by a.lot_no, b.공정코드, c.bl_no, f.컷팅, f.중삭, f.정삭, f.tool_no_컷팅, f.tool_no_중삭, f.tool_no_정삭, d.불량수량, d.cell별불량수량
+		order by cast(replace(c.bl_no, '#', '') as int)
+		option (maxrecursion 0)
+	</select>
+	
+	<select id="M0003005_Sch9" parameterType="Map" resultType="CamelMap">
+		WITH CountData AS (
+		    SELECT block수 AS TotalCount
+		    FROM d21_제조지시mst
+		    WHERE lot_no = #{lotNo}
+		),
+		RecursiveCTE AS (
+		    SELECT 1 AS RowNumber
+		    FROM CountData
+		    WHERE TotalCount > 0
+		    UNION ALL
+		    SELECT RowNumber + 1
+		    FROM RecursiveCTE, CountData
+		    WHERE RowNumber <![CDATA[<]]> TotalCount
+		),
+		GeneratedRows AS (
+		    SELECT '#' + CAST(RowNumber AS NVARCHAR) AS bl_no
+		    FROM RecursiveCTE
+		),
+		DefectData1 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량
+				from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        ),
+        DefectData2 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량
+				from Get공정별불량파일(#{line}, '013', #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and a.비고 = 1 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        )
+		select 
+		    'DFB1' 공장코드, isnull(d.lot_no,a.lot_no) lot_no, isnull(d.공정코드,b.공정코드) 공정코드, c.bl_no,
+		    d.Off_set_추천값, isnull(d.Off_set_전, 0.0) Off_set_전, d.Off_set_후, d.판정_Control, d.판정_Space, d.편차단축, d.편차장축, 
+		    d.단측수치1, d.단측수치2, d.단측수치3, d.장측수치1, d.장측수치2, d.장측수치3, isnull(d.두께수치, 0) 두께수치, d.담당자, d.비고,
+		    f.단측수치, f.장측수치, isnull(f.두께수치, 0) 두께수치1, f.단측Control_range_out, f.장측Control_range_out, f.단측range_out, f.장측range_out, g.불량수량, a.block수, h.불량수량 as pre_불량수량
+		from d21_제조지시mst a 
+		left join d21_제조지시vlr b on (a.lot_no = b.lot_no and b.공정코드= #{공정코드})
+		left join GeneratedRows c on (1=1)
+		left join d21_치수측정파일 d on (a.공장코드 = '2' and a.lot_no = d.lot_no and b.공정코드 = d.공정코드 and c.bl_no = d.bl_no)
+		left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)
+		left join d21_모델별치수mst_view f on (f.공장코드 = '2' and b.공정코드 = f.공정코드 and e.제품모델 = f.model)
+		left join DefectData1 g on (c.bl_no = g.bl_no)
+		left join DefectData2 h on (c.bl_no = h.bl_no)
+		where a.lot_no = #{lotNo}
+		order by cast(replace(c.bl_no, '#', '') as int)
+		option (maxrecursion 0)
+	</select>
+	
+	<update id="M0003005_Update6" parameterType="Map">
+		merge into d21_치수측정파일 as t
+		using (values (#{lotNo}, #{공정코드}, #{blNo}, #{offSet추천값}, #{offSet전}, #{offSet후}, #{판정Control}, #{판정Space}, #{편차단축}, #{편차장축}, #{두께수치}, #{단측수치1}, #{단측수치2}, #{단측수치3}, #{장측수치1}, #{장측수치2}, #{장측수치3}, #{담당자}, #{비고})) as s (lot_no,공정코드,bl_no,off_set_추천값,off_set_전,off_set_후,판정_control,판정_space,편차단축,편차장축,두께수치,단측수치1,단측수치2,단측수치3,장측수치1,장측수치2,장측수치3,담당자,비고)
+		on t.공장코드 = '2' and t.lot_no = s.lot_no and t.공정코드 = s.공정코드  and t.bl_no = s.bl_no
+		when matched then
+		    update set
+		        off_set_추천값 = s.off_set_추천값,
+		        off_set_전 = s. off_set_전,
+		        off_set_후 = s.off_set_후,
+		        판정_control = s.판정_control,
+		        판정_space = s.판정_space,
+		        편차단축 = s.편차단축,
+		        편차장축 = s.편차장축,
+		        단측수치1 = s.단측수치1,
+		        단측수치2 = s.단측수치2,
+		        단측수치3 = s.단측수치3,
+		        장측수치1 = s.장측수치1,
+		        장측수치2 = s.장측수치2,
+		        장측수치3 = s.장측수치3,
+		        두께수치 = s.두께수치,
+		        담당자 = s.담당자,
+		        비고 = s.비고
+		when not matched then
+    		insert (공장코드,lot_no,공정코드,bl_no,off_set_추천값,off_set_전,off_set_후,판정_control,판정_space,편차단축,편차장축,단측수치1,단측수치2,단측수치3,장측수치1,장측수치2,장측수치3,두께수치,사용횟수,tool_no,담당자,비고)
+    		values ('2',s.lot_no,s.공정코드,s.bl_no,s.off_set_추천값,s.off_set_전,s.off_set_후,s.판정_control,s.판정_space,s.편차단축,s.편차장축,s.단측수치1,s.단측수치2,s.단측수치3,s.장측수치1,s.장측수치2,s.장측수치3,s.두께수치,1,null,s.담당자,s.비고)
+    	;
+	</update>
+	
+	<delete id="M0003005_Delete2" parameterType="Map">
+		delete from d21_치수측정파일 where 공장코드 = '2' and lot_no = #{lotNo} and 공정코드 = #{공정코드}
+	
+	</delete>
+	
+	<select id="M0003005_Sch10" parameterType="Map" resultType="CamelMap">
+		select 
+			불량코드, 불량명
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부})
+		where 공정코드 = #{공정코드}
+		and 비고 != '2'
+		order by 적용순서
+	</select>
+	
+	<select id="M0003005_Sch12" parameterType="Map" resultType="CamelMap">
+		select 
+			material_id 툴번호, 사용횟수, 최대사용횟수, 사용구분, line, step_code, equip_no
+		from dw_sub_mat_tool_out
+		where line = 'DFB1'
+		and step_code = #{공정코드}
+		and 사용구분 in ('커팅','중삭','정삭')
+		and equip_no = #{machineCode}
+		and 폐기여부 = 'N'
+		and 사용완료여부 = 'N'
+		order by 
+			case 
+				when 사용구분 = '커팅' then 1 
+			    when 사용구분 = '중삭' then 2
+			    when 사용구분 = '정삭' then 2 
+			    else 3
+		  	end, material_id
+	</select>
+	
+	<select id="M0003005_Sch3" parameterType="Map" resultType="CamelMap">
+		select 
+			material_id 툴번호
+		from dw_sub_mat_tool_out
+		where line = 'DFB1'
+		and step_code = #{공정코드}
+		and 사용구분 = #{사용구분}
+		and equip_no = #{machineCode}
+		and 폐기여부 = 'N'
+		and 사용완료여부 = 'N'
+		order by material_id
+	</select>
+	
+	<update id="M0003005_Update1" parameterType="Map">
+		update dw_sub_mat_tool_out
+			set 폐기여부 = 'Y'
+		where line = #{line}
+		and step_code = #{stepCode}
+		and 사용구분 = #{사용구분}
+		and equip_no = #{equipNo}
+		and material_id = #{툴번호}
+	</update>
+	
+	<update id="M0003005_Update7" parameterType="Map">
+	
+		begin transaction;
+		
+		<choose>
+			<when test="type != null and type == '커팅'">
+		        update dw_sub_mat_tool_out
+		        set 사용횟수 = 사용횟수 + 1
+		        	,사용완료여부 = (case when 최대사용횟수 <![CDATA[ <= ]]> 사용횟수 + 1 then 'Y' else 'N' end) 
+		        where line = 'DFB1'
+		        and step_code = #{공정코드}
+		        and 사용구분 = '커팅'
+		        and material_id = #{toolNo컷팅}
+		        and equip_no = #{machineCode};				
+			</when>
+			<when test="type != null and type == '중삭'">
+		        update dw_sub_mat_tool_out
+		        set 사용횟수 = 사용횟수 + 1
+		        	,사용완료여부 = (case when 최대사용횟수 <![CDATA[ <= ]]> 사용횟수 + 1 then 'Y' else 'N' end)
+		        where line = 'DFB1'
+		        and step_code = #{공정코드}
+		        and 사용구분 = '중삭'
+		        and material_id = #{toolNo중삭}
+		        and equip_no = #{machineCode};				
+			</when>
+			<when test="type != null and type == '정삭'">
+		        update dw_sub_mat_tool_out
+		        set 사용횟수 = 사용횟수 + 1
+		        	,사용완료여부 = (case when 최대사용횟수 <![CDATA[ <= ]]> 사용횟수 + 1 then 'Y' else 'N' end)
+		        where line = 'DFB1'
+		        and step_code = #{공정코드}
+		        and 사용구분 = '정삭'
+		        and material_id = #{toolNo정삭}
+		        and equip_no = #{machineCode};		        	
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>
+
+		<choose>
+			<when test="type != null">
+		       merge into d21_tool사용현황 as t
+				using (values (#{lotNo}, #{공정코드}, #{machineCode}, #{설비명}, #{설비약명}, #{chamber}, #{toolNo컷팅}, #{toolNo중삭}, #{toolNo정삭}, #{작업자})) as s (lot_no, 공정코드, 설비번호, 설비명, 설비약명, line_축, tool_no_컷팅, tool_no_중삭, tool_no_정삭, 담당자)
+				on t.공장코드 = '2' and t.공정코드 = s.공정코드 and t.lot_no = s.lot_no and t.설비번호 = s.설비번호
+				when matched then
+				    update set
+				        설비번호 = s.설비번호,
+				        설비명 = s.설비명,
+				        설비약명 = s.설비약명,
+				        line_축 = s.line_축,
+				        컷팅 = (select 사용횟수 from dw_sub_mat_tool_out where line = 'DFB1' and step_code = s.공정코드 and 사용구분 = '커팅' and material_id = s.tool_no_컷팅),
+				        중삭 = (select 사용횟수 from dw_sub_mat_tool_out where line = 'DFB1' and step_code = s.공정코드 and 사용구분 = '중삭' and material_id = s.tool_no_중삭),
+				        정삭 = (select 사용횟수 from dw_sub_mat_tool_out where line = 'DFB1' and step_code = s.공정코드 and 사용구분 = '정삭' and material_id = s.tool_no_정삭), 		        
+				        tool_no_컷팅 = s.tool_no_컷팅,
+				        tool_no_중삭 = s.tool_no_중삭,
+				        tool_no_정삭 = s.tool_no_정삭,
+				        담당자 = s.담당자	        
+				when not matched then
+		    		insert (공장코드,lot_no,공정코드,설비번호,설비명,설비약명,line_축,bl_no,컷팅,중삭,정삭,tool_no_컷팅,tool_no_중삭,tool_no_정삭,담당자,비고)
+		    		values ('2', s.lot_no, s.공정코드, s.설비번호, s.설비명, s.설비약명, s.line_축, '##', 
+		    			(select 사용횟수 from dw_sub_mat_tool_out where line = 'DFB1' and 공정코드 = s.공정코드 and 사용구분 = '커팅' and material_id = s.tool_no_컷팅),
+		            	(select 사용횟수 from dw_sub_mat_tool_out where line = 'DFB1' and 공정코드 = s.공정코드 and 사용구분 = '중삭' and material_id = s.tool_no_중삭),
+		            	(select 사용횟수 from dw_sub_mat_tool_out where line = 'DFB1' and 공정코드 = s.공정코드 and 사용구분 = '정삭' and material_id = s.tool_no_정삭),
+		    			s.tool_no_컷팅, s.tool_no_중삭, s.tool_no_정삭, s.담당자, null)
+		    	;			
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>
+    	
+        commit;
+	</update>
+
+	<select id="M0003005_Sch13" parameterType="Map" resultType="CamelMap">
+		select 
+			공정코드, lotrun_id, bl_no, machine_code, 불량구분, 불량위치, 불량코드, 검사시각, 'none' state
+		from d42_검사불량사유파일_block
+		where 공장코드 = '2'
+		and 공정코드 = #{공정코드}
+		and lotrun_id = #{lotNo}
+		and 불량구분 = #{불량구분}
+		and bl_no = #{blNo}
+		and 불량코드 = #{불량코드}
+		order by 불량위치, 불량코드
+	</select>
+	
+	<delete id="M0003005_Delete1" parameterType="Map">
+		delete from d42_검사불량사유파일_block
+		where 공장코드 = '2'
+		and 공정코드 = #{공정코드}
+		and lotrun_id = #{runId}
+		and bl_no = #{blNo}
+		and 불량구분 = #{불량구분}		
+	</delete>
+	
+	<insert id="M0003005_Insert1" parameterType="Map">
+    	insert into d42_검사불량사유파일_block(공장코드,공정코드,lotrun_id,machine_code,불량구분,BL_NO,불량위치,불량코드,불량수량,검사시각)
+    	values ('2', #{공정코드}, #{lotrunId}, coalesce(#{machineCode}, '-'), #{불량구분}, #{blNo}, #{불량위치}, #{불량코드}, 1, #{검사시각})    	
+	</insert>
+	
+	<update id="M0003005_Update8" parameterType="Map">
+		update d42_검사불량사유파일_BLOCK
+		set cell별불량수량 = isNull(#{cell별불량수량}, 0)
+		where 공장코드 = '2' 
+		and 공정코드 = #{공정코드}
+		and lotrun_id = #{lotNo}
+		and bl_no = #{blNo}
+	</update>
+	
+	<select id="M0003005_Sch14" parameterType="Map" resultType="CamelMap">
+	
+		WITH DefectData1 AS (
+		<choose>
+			<when test="curProcess != null and curProcess &lt; 23">
+				select 
+	            	a.공정코드, a.불량코드, a.불량명, isNull(sum(b.불량수량), 0) 불량수량
+				from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+				left join d42_검사불량사유파일 b
+				on (a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and b.lotrun_id = #{runId} and b.공장코드 = '2')			
+				where a.비고 != '2'
+				group by a.공정코드, a.불량코드, a.불량명, a.적용순서			
+			</when>	
+			<otherwise>
+				<choose>
+					<when test="curProcess == '023'">
+					select 
+						a.공정코드, a.불량코드, a.불량명, isNull(sum(b.불량수량), 0) 불량수량
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join (
+						select b.* 
+						from d42_검사불량사유파일 b
+						join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where 공정코드 = #{공정코드} and run_no = #{runId} and 공장코드 = '2') c on (c.차수 = b.차수)			
+						where b.공정코드 = #{공정코드} and 공장코드 = '2'
+						and b.lotrun_id = #{runId}
+					) b
+					on (a.불량코드 = b.불량코드)		
+					where a.비고 != '2'
+					group by a.공정코드, a.불량코드, a.불량명, a.적용순서
+					</when>
+					<otherwise>
+		            select 
+		            	a.공정코드, a.불량코드, a.불량명, isNull(sum(b.불량수량), 0) 불량수량
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join (
+						select b.* from d42_검사불량사유파일 b					
+						join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where 공정코드 = #{공정코드} and run_no = #{runId} and 공장코드 = '2') c on (c.차수 = b.차수)			
+						where b.공정코드 = #{공정코드} and b.lotrun_id = #{runId} and 공장코드 = '2'
+					) b
+					on (a.불량코드 = b.불량코드)		
+					where a.비고 != '2'
+					group by a.공정코드, a.불량코드, a.불량명, a.적용순서
+					</otherwise>
+				</choose>		
+	       	</otherwise>
+	    </choose>
+        )
+		select
+			<choose>
+                <when test="columns1 != null and columns1.size() > 0">                	 
+                    <foreach collection="columns1" item="item" separator=",">
+			            isnull(max(case when d.불량코드 = #{item.value} then d.불량수량 end), 0) AS ${item.text}
+			        </foreach>
+                </when>
+                <otherwise>
+                *
+                </otherwise>
+            </choose>
+		from DefectData1 d
+	</select>
+	
+	<select id="M0003005_Sch15" parameterType="Map" resultType="CamelMap">
+		WITH CountData AS (
+		    SELECT block수 AS TotalCount
+		    FROM d21_제조지시mst
+		    WHERE lot_no = #{lotNo}
+		),
+		RecursiveCTE AS (
+		    SELECT 1 AS RowNumber
+		    FROM CountData
+		    WHERE TotalCount > 0
+		    UNION ALL
+		    SELECT RowNumber + 1
+		    FROM RecursiveCTE, CountData
+		    WHERE RowNumber <![CDATA[<]]> TotalCount
+		),
+		GeneratedRows AS (
+		    SELECT '#' + CAST(RowNumber AS NVARCHAR) AS bl_no
+		    FROM RecursiveCTE
+		),
+        DefectData1 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량, isNull(a.cell별불량수량, 0) cell별불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량, isNull(max(cell별불량수량), 0) cell별불량수량
+				from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        ),
+        DefectData2 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량, isNull(a.cell별불량수량, 0) cell별불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량, isNull(max(cell별불량수량), 0) cell별불량수량
+				from Get공정별불량파일(#{line}, '013', #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and a.비고 = 1 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        ),
+        DefectData3 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량, isNull(a.cell별불량수량, 0) cell별불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량, isNull(max(cell별불량수량), 0) cell별불량수량
+				from Get공정별불량파일(#{line}, '015', #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and a.비고 = 1 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        ),
+        DefectData4 AS (
+			select 
+				gr.bl_no, isNull(a.불량수량, 0) 불량수량, isNull(a.cell별불량수량, 0) cell별불량수량
+			from GeneratedRows gr
+			left join (
+				select 
+					b.bl_no, isNull(sum(b.불량수량), 0) 불량수량, isNull(max(cell별불량수량), 0) cell별불량수량
+				from Get공정별불량파일(#{line}, '017', #{자동여부}) a
+				left join d42_검사불량사유파일_block b
+				on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and a.비고 = 1 and lotrun_id = #{lotNo} and 불량구분 = '불량')
+				group by b.bl_no
+			) a
+			on (a.bl_no = gr.bl_no)
+        )
+		select 
+		    a.lot_no, b.공정코드, c.bl_no, isnull(max(d.cell별불량수량), 0) cell별불량수량, isnull(sum(d.불량수량), 0) 불량수량,
+		    case when b.공정코드 = '017' then max(e.불량수량+f.불량수량)
+		    	when b.공정코드 = '020' then max(e.불량수량+f.불량수량+g.불량수량)
+		    	end pre_불량수량
+		from d21_제조지시mst a 
+		left join d21_제조지시vlr b on (a.lot_no = b.lot_no and b.공정코드= #{공정코드})
+		left join GeneratedRows c on (1=1)
+		left join DefectData1 d on (c.bl_no = d.bl_no)
+		left join DefectData2 e on (c.bl_no = e.bl_no)
+		left join DefectData3 f on (c.bl_no = f.bl_no)
+		left join DefectData4 g on (c.bl_no = g.bl_no)
+		where a.lot_no = #{lotNo}
+		group by a.lot_no, b.공정코드, c.bl_no
+		order by cast(replace(c.bl_no, '#', '') as int)
+		option (maxrecursion 0)
+	</select>
+	
+	<update id="M0003005_Update9" parameterType="Map">
+	
+		delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runId};
+		
+		merge into d42_검사불량사유파일 as t
+		using (
+			select 
+				공정코드, lotrun_id, 불량코드, sum(불량수량) 불량수량, max(검사시각) 검사시작
+			from (
+				select 
+					공정코드, lotrun_id, 불량코드, bl_no, 1 as 불량수량, max(검사시각) as 검사시각
+				from d42_검사불량사유파일_block
+				where 공장코드 = '2'
+				and 공정코드 = #{공정코드}
+				and lotrun_id = #{runId}			
+				group by 공정코드, lotrun_id, 불량코드, bl_no
+			) a
+			group by 공정코드, lotrun_id, 불량코드
+		) as s (공정코드, lotrun_id, 불량코드, 불량수량, 검사시각)
+		on t.공정코드 = s.공정코드 and t.lotrun_id = s.lotrun_id and t.불량코드 = s.불량코드
+		when matched then
+		    update set
+		        t.불량수량 = s.불량수량,
+		        t.block_su = 0,
+		        t.검사시각 = s.검사시각
+		when not matched then
+		    insert (공장코드, 공정코드, lotrun_id, 불량코드, block_su, 불량수량, 검사시각)
+		    values ('2', s.공정코드, s.lotrun_id, s.불량코드, 0, s.불량수량, s.검사시각);
+	</update>
+	
+	<select id="M0003005_Sch17" parameterType="Map" resultType="CamelMap">
+		select 
+			panel_id, 근무조, 작업자, 설비호기, 설비약명,
+			LEFT(start_time, CHARINDEX(' ', start_time) - 1) AS 작업시작,
+    		RIGHT(start_time, LEN(start_time) - CHARINDEX(' ', start_time)) AS 시작시각, 
+    		LEFT(end_time, CHARINDEX(' ', end_time) - 1) AS 작업종료,
+    		RIGHT(end_time, LEN(end_time) - CHARINDEX(' ', end_time)) AS 종료시각, 
+    		tank_no, batch_no,
+    		(select * from CheckPanelId등록여부(#{panelId})) 등록여부
+		from Get_적층설비작업이력Summary(#{panelId}) a
+		left join dw_equipment_mast b on (b.line= 'DFB1' and b.공정코드 = #{공정코드} and b.설비번호 = a.설비호기)
+	</select>
+	
+	<update id="M0003005_AutoPanelId" parameterType="Map">
+	
+		update d21_제조지시mst
+		set  
+			panel_id = #{panelId}		
+		where lot_no = #{lotNo};
+		
+		update d21_제조지시vlr
+		set 
+			작업자=#{작업자}
+			,shift=#{근무조}
+			,작업조=(SELECT shift FROM Get주간야간구분1(#{시작시각}))
+			,작업시작=#{작업시작}
+			,시작시각=#{시작시각}
+			,작업종료=#{작업종료}
+			,종료시각=#{종료시각}	
+			,machine_code = #{설비호기}
+			,p_code = #{batchNo}
+			,공정_비고 = #{tankNo}
+		where lot_no = #{lotNo}
+		and 공정코드= #{공정코드};
+		
+		update d42_검사불량사유파일
+			set machine_code = coalesce(#{machineCode}, '-')
+		where lotrun_id = #{lotNo}
+		and 공정코드= #{공정코드};
+	</update>
+	
+	<select id="M0003005_Sch2" parameterType="Map" resultType="CamelMap">
+		select 
+			a.lot_no 
+		from (
+			select 
+				a.lot_no, a.machine_code
+			from d21_제조지시vlr a
+			where a.lot_no = #{lotNo}
+			and a.공정코드 = #{공정코드} 
+			union
+			select 
+				a.lot_no, a.machine_code
+			from d21_제조지시vlr a
+			left join dw_equipment_mast c
+			on (c.line= 'DFB1' and a.공정코드 = c.공정코드 and a.machine_code = c.설비번호)
+			where 1=1
+			and exists (
+				select 1 from d21_제조지시vlr b
+				left join dw_equipment_mast d
+				on (d.line= 'DFB1' and b.공정코드 = d.공정코드 and b.machine_code = d.설비번호)
+				where a.공정코드 = b.공정코드 
+				and nullif(b.작업시작, '') is not null					
+				and nullif(b.시작시각, '') is not null
+				and a.작업시작 = b.작업시작 
+				and a.시작시각 = b.시작시각	
+				and	b.lot_no = #{lotNo}
+				and b.공정코드 = #{공정코드}
+				and c.설비약명 = d.설비약명 
+			)
+		) a
+		left join dw_equipment_mast c
+		on (a.machine_code = c.설비번호)
+		order by 
+			case 
+				when c.chamber = 'L' then 1 
+			    when c.chamber = 'R' then 2 
+			    else 3
+		  	end
+	</select>
+	
+	<select id="M0003005_Sch7" parameterType="Map" resultType="CamelMap">	
+		select 
+		    a.lot_no, b.공정코드, b.p_code, c.거래처명, e.제품모델, a.제품_inch, e.제품버젼, d.자재품명, 
+			e.제품규격, a.입고일자, a.sheet, a.block수, a.cell수,
+			a.작업일자, a.생성수량, a.작업지시일자, 발행자, a.승인일자, 승인자,
+			a.panel_id, a.특기사항, a.시작온도, a.종료온도, a.전면광량, a.후면광량,
+			b.작업자, b.shift, coalesce(b.작업조, (select shift from Get주간야간구분())) 작업조, b.machine_code, f.설비명, f.설비약명, f.chamber,
+			b.작업시작, b.시작시각, b.작업종료, b.종료시각,
+			b.투입수량, b.양품수량, b.검사수량, b.불량수량, b.cell수량,
+			b.특이사항, b.공정_비고, g.tool_no_컷팅, g.tool_no_중삭, g.tool_no_정삭,
+			i.작업종료 as 전작업종료, (case when #{공정코드} = '010' then '적층' when #{공정코드} = '013' then '적층' when #{공정코드} = '015' then '가공' when #{공정코드} = '017' then '치수' when #{공정코드} = '020' then 'WP' else null end) 전공정,			
+			case when #{공정코드} = '020' then (case when nullif(j.작업시작, '') is null then null else j.작업시작 end) else (case when nullif(h.작업시작, '') is null then null else h.작업시작 end) end next작업시작
+		from (
+			 <foreach collection="items" item="item" index="index" separator=" UNION ALL ">
+	            select #{index} as seq, #{item} as lot_no
+	        </foreach>
+		) m 
+		left join d21_제조지시mst a on (m.lot_no = a.lot_no) 
+		left join d21_제조지시vlr b on (a.lot_no = b.lot_no and b.공정코드= #{공정코드})
+		left join d03_거래처마스터파일 c on (a.거래처코드=c.거래처코드)
+		left join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+		left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)
+		left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+		left join d21_tool사용현황 g on (g.공장코드 = '2' and a.lot_no = g.lot_no and b.공정코드 = g.공정코드 and f.설비번호 = g.설비번호)
+		left join d21_제조지시vlr i on (a.lot_no = i.lot_no and i.공정코드= (case when #{공정코드} = '010' then '010' when #{공정코드} = '013' then '010' when #{공정코드} = '015' then '013' when #{공정코드} = '017' then '015' when #{공정코드} = '020' then '017' else null end))
+		left join d21_제조지시vlr h on (a.lot_no = h.lot_no and h.공정코드= (case when #{공정코드} = '010' then '013' when #{공정코드} = '013' then '015' when #{공정코드} = '015' then '017' when #{공정코드} = '017' then '020' when #{공정코드} = '020' then '017' else null end))
+		left join d22_run제조vlr j on (#{공정코드} = '020' and (nullif(a.run_no1,'') = j.run_no or nullif(a.run_no2,'') = j.run_no) and j.공정코드 = '023')
+		where 1=1
+		order by m.seq
+	</select>
+	
+	<select id="selectWipHeaderList" resultType="CamelMap">
+	select  
+		공정코드
+		,공정명
+		,HEADER
+		,seq
+	from dw_재공재고Report순서
+	where 공정별_작업이력요약 != 'X'
+	order by seq
+	</select>
+	
+	<select id="selectWipDataList" parameterType="Map" resultType="CamelMap">
+	DECLARE @columns NVARCHAR(MAX);
+	DECLARE @sql NVARCHAR(MAX);
+	
+	-- 동적으로 컬럼 목록 생성
+	SELECT @columns = STRING_AGG(QUOTENAME(공정코드+'seq'+seq), ',') 
+	FROM (SELECT DISTINCT 공정코드,seq FROM dw_재공재고Report순서 where 공정별_작업이력요약 != 'X') AS 공정코드;
+	
+	-- 동적 SQL 생성
+	SET @sql = '
+	WITH PivotData AS (
+	   SELECT 
+			a.mat_id
+		    ,b.작업구분 
+		    ,c.공정코드 +''seq''+c.seq as fn 
+		    ,c.공정명
+	    	,CASE WHEN a.작업구분 = b.작업구분 AND a.공정코드 = c.공정코드 AND a.seq = c.seq THEN a.수량 ELSE 0 END AS 수량
+	    	,case when right(a.mat_id,1) = ''P'' then 1
+				when right(a.mat_id,1) = ''D'' then 2
+				when right(a.mat_id,1) = ''M'' then 3
+				when right(a.mat_id,1) = ''Q'' then 4
+				when right(a.mat_id,1) = ''T'' then 5
+				when right(a.mat_id,1) = ''C'' then 6
+				when right(a.mat_id,1) = ''O'' then 7
+				else 99 end mat_ord
+			,left(a.mat_id,4) as model
+			,right(a.mat_id,1) as 품번
+			,a.org작업구분
+		FROM dw_재공재고집계 a WITH (NOLOCK)
+		LEFT OUTER JOIN (
+			SELECT ORD, 작업구분 
+			FROM (VALUES (1, ''작업대기''), (2, ''작업중''), (3, ''HOLD'')) AS 상태(ORD, 작업구분)
+		) b on (1 = 1)
+		LEFT OUTER JOIN dw_재공재고Report순서 c ON (1 = 1)
+		where 1 = 1 ';
+	
+	<if test="calcDateTime != null and calcDateTime != ''">
+	SET @sql = @sql + ' AND a.집계일자 = ''${calcDateTime}'' ';
+	</if>
+	SET @sql = @sql + '
+	)
+	SELECT * 
+	FROM (
+	    SELECT 
+			model
+			,case when org작업구분 = ''-'' then 품번 else org작업구분 + ''-'' + 품번 end as 작업구분
+			,mat_id, 작업구분 as type, fn, 수량,mat_ord,org작업구분 
+		FROM PivotData
+	) AS SourceTable
+	PIVOT (
+	    SUM(수량) FOR fn IN (' + @columns + ')
+	) AS PivotTable
+	ORDER BY model,mat_ord,작업구분,type;';
+	
+	-- 실행
+	EXEC sp_executesql @sql;
+	</select>
+	
+	<select id="selectWipDateTimeList" parameterType="Map" resultType="CamelMap">
+	/*selectWipDateTimeList - 집계일의 타임리스트 가져오기*/
+	select
+		집계일자 as value
+		,STUFF(RIGHT(집계일자, 4), 3, 0, ':') as text
+	from dw_재공재고집계 WITH (NOLOCK)
+	where 집계일자 like #{calcDate} + '%'
+	group by 집계일자
+	order by 집계일자 desc
+	</select>
+	
+	
+	<select id="selectWipDtlFrontW" parameterType="Map" resultType="CamelMap">
+	select distinct 집계일시, area, 공정코드, lot_no OBJ_NO, 수량, 종료시간, 
+	       대기시간, 상태, 
+	       특이사항, lot_no
+	from DW_재공재고_FRONT_작업대기
+	where 1=1
+	and 집계일시 = #{calcDateTime}
+	<if test="matId != null and matId != ''">
+	and substring(lot_no, 1,4) +  substring(lot_no, 11,1) = #{matId}
+	</if>
+	and 공정코드 = #{process}
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(lot_no,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(lot_no, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	order by lot_no
+	</select>
+	
+	<select id="selectWipDtlFrontI" parameterType="Map" resultType="CamelMap">
+	select distinct area, 공정코드, lot_no OBJ_NO, 수량, 설비약명, 작업자, 시작시간,  상태, lot_no
+	from DW_재공재고_FRONT_작업중
+	where 1=1
+	and 집계일시 = #{calcDateTime}
+	<if test="matId != null and matId != ''">
+	and substring(lot_no, 1,4) +  substring(lot_no, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(lot_no,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(lot_no, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	and 공정코드 = #{process}
+	order by lot_no
+	</select>
+
+	
+	<select id="selectWipDtlBackW" parameterType="Map" resultType="CamelMap">
+	select distinct 집계일시, area, 공정코드, run_no OBJ_NO, 수량, 종료시간,
+               대기시간, 상태,
+               max(특이사항) over (partition by 집계일시, area, 공정코드, run_no, 수량, 종료시간, 대기시간, 상태) 특이사항,
+               run_no
+	from dw_재공재고_BACK_작업대기
+	where 1=1
+	and 집계일시 = #{calcDateTime}
+	<if test="matId != null and matId != ''">
+	and substring(run_no, 1,4) +  substring(run_no, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(run_no,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(run_no, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	and 공정코드 = #{process}
+	order by run_no
+	</select>
+	
+	<select id="selectWipDtlBackI" parameterType="Map" resultType="CamelMap">
+	select distinct area, 공정코드, run_no OBJ_NO, 수량, 설비약명, 작업자, 시작시간, 상태, run_no
+	from dw_재공재고_BACK_작업중 a
+	where 1=1
+	and 집계일시 = #{calcDateTime}
+	<if test="matId != null and matId != ''">
+	and substring(run_no, 1,4) +  substring(run_no, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(run_no,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(run_no, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	and 공정코드 = #{process}
+	order by run_no
+	</select>
+	
+	
+	<select id="selectWipDtlLotCardW" parameterType="Map" resultType="CamelMap">
+	select distinct 집계일시, area, 공정코드, lot_no OBJ_NO, 수량, 종료시간, 
+	       대기시간, 상태, 
+	       특이사항, lot_no
+	from DW_재공재고_FRONT_작업대기
+	where 1=1
+	and 집계일시 = #{calcDateTime}
+	<if test="matId != null and matId != ''">
+	and substring(lot_no, 1,4) +  substring(lot_no, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(lot_no,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(lot_no, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	and 공정코드 = #{process}
+	order by lot_no
+	</select>
+	
+	<select id="selectWipDtlRunCardW" parameterType="Map" resultType="CamelMap">
+	select distinct 집계일시, area, 공정코드, lot_no obj_no, 수량, 종료시간, 
+	       대기시간, 상태, 
+	       특이사항, lot_no
+	from DW_재공재고_FRONT_작업대기
+	where 1=1
+	and 집계일시 = #{calcDateTime}
+	<if test="matId != null and matId != ''">
+	and substring(lot_no, 1,4) +  substring(lot_no, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(lot_no,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(lot_no, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	and 공정코드 = #{process}
+	order by lot_no
+	</select>
+	
+	<update id="M0003005_AUTOPANEL" parameterType="Map">
+		delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{lotNo};
+		delete from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{lotNo};
+		delete from d42_검사불량사유파일_block where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{lotNo};	
+		delete from d21_치수측정파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lot_no = #{lotNo};
+		delete from d21_tool사용현황 where 공장코드 = '2' and 공정코드 = #{공정코드} and lot_no = #{lotNo};
+		
+		with mst as (
+			select 
+				sheet in_qty, cell수	
+			from d21_제조지시mst
+			where lot_no = #{lotNo}
+		)		
+		update d21_제조지시vlr
+		set  
+			작업시작=#{작업시작}
+			,시작시각=#{시작시각}			
+			,투입수량 = isNull((select in_qty from mst), 0)
+			,양품수량 = isNull((select in_qty from mst), 0)
+			,불량수량 = 0
+			,검사수량 = isNull((select in_qty from mst), 0)
+			,cell수량 = isNull((select cell수 from mst), 0)
+			,작업조=(SELECT shift FROM Get주간야간구분1(#{시작시각}))
+			,bef_공정코드 = (case 
+		           when #{공정코드} = '010' then '010'
+		           when #{공정코드} = '013' then '010'
+		           when #{공정코드} = '015' then '013'
+		           when #{공정코드} = '017' then '015'
+		           when #{공정코드} = '020' then '017'
+		           else null
+		       	end)
+			,nxt_공정코드 = (case 
+		           when #{공정코드} = '010' then '013'
+		           when #{공정코드} = '013' then '015'
+		           when #{공정코드} = '015' then '017'
+		           when #{공정코드} = '017' then '020'
+		           when #{공정코드} = '020' then '023'
+		           else null
+		       	end)
+			,작업자=#{작업자}
+			,shift=#{근무조}
+			,machine_code = #{설비호기}
+			,p_code = #{batchNo}
+			,공정_비고 = #{tankNo}
+		where lot_no = #{lotNo}
+		and 공정코드= #{공정코드};
+		
+		update d21_제조지시mst
+		set  
+			panel_id = #{panelId}
+		where lot_no = #{lotNo};		
+	</update>
+	
+	<update id="M0003005_cancel" parameterType="Map">
+		<choose>
+			<when test="code != null and code == '013'">
+		        update dw_sub_mat_tool_out
+		        set 사용횟수 = 사용횟수 - 1
+		        	,사용완료여부 = 'N'
+		        where line = 'DFB1'
+		        and step_code = #{공정코드}
+		        and 사용구분 = '커팅'
+		        and material_id = #{toolNo컷팅}
+		        and equip_no = #{machineCode};				
+		        
+		        update dw_sub_mat_tool_out
+		        set 사용횟수 = 사용횟수 - 1
+		        	,사용완료여부 = 'N'
+		        where line = 'DFB1'
+		        and step_code = #{공정코드}
+		        and 사용구분 = '중삭'
+		        and material_id = #{toolNo중삭}
+		        and equip_no = #{machineCode};				
+		        
+		        update dw_sub_mat_tool_out
+		        set 사용횟수 = 사용횟수 - 1
+		        	,사용완료여부 = 'N'
+		        where line = 'DFB1'
+		        and step_code = #{공정코드}
+		        and 사용구분 = '정삭'
+		        and material_id = #{toolNo정삭}
+		        and equip_no = #{machineCode};
+		    </when>
+			<otherwise>
+			</otherwise>
+		</choose>
+		delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{lotNo};
+		delete from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{lotNo};
+		delete from d42_검사불량사유파일_block where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{lotNo};	
+		delete from d21_치수측정파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lot_no = #{lotNo};
+		delete from d21_tool사용현황 where 공장코드 = '2' and 공정코드 = #{공정코드} and lot_no = #{lotNo};
+		
+		update d21_제조지시vlr
+		set BEF_공정코드 = null
+		,NXT_공정코드 = null
+		,작업시작 = null
+		,시작시각 = null
+		,작업종료 = null
+		,종료시각 = null
+		,작업자 = null
+		,작업조 = null
+		,Shift = null
+		,Machine_Code = null
+		,P_CODE = ''
+		,공정_비고 = null
+		,투입수량 = 0
+		,검사수량 = 0
+		,불량수량 = 0
+		,양품수량 = 0
+		,CELL수량 = 0
+		,특이사항 = null
+		where 공정코드 = #{공정코드}
+		and lot_no = #{lotNo};
+
+		<choose>
+			<when test="code != null and (code == '010' or code == '020')">
+				update  d21_제조지시mst
+				set
+				<if test="code == '010'">
+					panel_id = null
+				</if>
+				<if test="code == '020'">
+					시작온도 = null
+					,종료온도 = null
+					,전면광량 = null
+					,후면광량 = null
+				</if>
+				where lot_no = #{lotNo};				        
+		    </when>
+			<otherwise>
+			</otherwise>
+		</choose>
+
+	</update>
+	<select id="execCalcWipNow" parameterType="Map">
+	exec Get_재공재고_집계 #{calcDate};
+	</select>
+	
+	<select id="execCalcDprNow" parameterType="Map">
+	exec Get_dw_일별_공정별_생산집계 #{calcDate},#{calcDate},null,'ACTUAL';
+	</select>
+	
+	<select id="selectWorkEndByFac1" parameterType="Map" resultType="CamelMap">
+	select * --설비약명, 설비명
+	from Get_설비별_작업완료_요약(#{startDate},#{endDate},#{curProcess});
+	</select>
+	
+	<select id="selectWorkEndByFac2" parameterType="Map" resultType="CamelMap">
+	select * --설비약명, 설비명
+	from Get_설비별_작업완료_모델별(#{startDate},#{endDate},#{curProcess});
+	</select>
+	
+	<select id="selectWorkEndByFac3" parameterType="Map" resultType="CamelMap">
+	select * --설비약명, 설비명
+	from Get_설비별_작업완료_lot_run_no(#{startDate},#{endDate},#{curProcess});
+	</select>
+	
+	
+	<select id="selectWorkIngByFac1" parameterType="Map" resultType="CamelMap">
+	select * --설비약명, 설비명
+	from Get_설비별_작업중_요약(#{startDate},#{endDate},#{curProcess})
+	</select>
+	
+	<select id="selectWorkIngByFac2" parameterType="Map" resultType="CamelMap">
+	select * --설비약명, 설비명
+	from Get_설비별_작업중_모델별(#{startDate},#{endDate},#{curProcess})
+	</select>
+	
+	<select id="selectWorkIngByFac3" parameterType="Map" resultType="CamelMap">
+	select * --설비약명, 설비명
+	from Get_설비별_작업중_lot_run_no(#{startDate},#{endDate},#{curProcess})
+	</select>
+	
+	<select id="M0003005_Sch4" parameterType="Map" resultType="CamelMap">	
+		select 
+		    a.lot_no, b.공정코드, b.p_code, c.거래처명, e.제품모델, a.제품_inch, e.제품버젼, d.자재품명, 
+			e.제품규격, a.입고일자, a.sheet, a.block수, a.cell수,
+			a.작업일자, a.생성수량, a.작업지시일자, 발행자, a.승인일자, 승인자,
+			a.panel_id, a.특기사항, a.시작온도, a.종료온도, a.전면광량, a.후면광량,
+			b.작업자, b.shift, coalesce(b.작업조, (select shift from Get주간야간구분())) 작업조, b.machine_code, f.설비명, f.설비약명, f.chamber,
+			b.작업시작, b.시작시각, b.작업종료, b.종료시각,
+			b.투입수량, b.양품수량, b.검사수량, b.불량수량, b.cell수량,
+			b.특이사항, b.공정_비고, g.tool_no_컷팅, g.tool_no_중삭, g.tool_no_정삭, g.컷팅, g.중삭, g.정삭,
+			i.작업종료 as 전작업종료, (case when #{공정코드} = '010' then '적층' when #{공정코드} = '013' then '적층' when #{공정코드} = '015' then '가공' when #{공정코드} = '017' then '치수' when #{공정코드} = '020' then 'WP' else null end) 전공정,			
+			case when #{공정코드} = '020' then (case when nullif(j.작업시작, '') is null then null else j.작업시작 end) else (case when nullif(h.작업시작, '') is null then null else h.작업시작 end) end next작업시작
+		from d21_제조지시mst a 
+		left join d21_제조지시vlr b on (a.lot_no = b.lot_no and b.공정코드= #{공정코드})
+		left join d03_거래처마스터파일 c on (a.거래처코드=c.거래처코드)
+		left join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+		left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)
+		left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+		left join d21_tool사용현황 g on (g.공장코드 = '2' and a.lot_no = g.lot_no and b.공정코드 = g.공정코드 and f.설비번호 = g.설비번호)
+		left join d21_제조지시vlr i on (a.lot_no = i.lot_no and i.공정코드= (case when #{공정코드} = '010' then '010' when #{공정코드} = '013' then '010' when #{공정코드} = '015' then '013' when #{공정코드} = '017' then '015' when #{공정코드} = '020' then '017' else null end))
+		left join d21_제조지시vlr h on (a.lot_no = h.lot_no and h.공정코드= (case when #{공정코드} = '010' then '013' when #{공정코드} = '013' then '015' when #{공정코드} = '015' then '017' when #{공정코드} = '017' then '020' when #{공정코드} = '020' then '017' else null end))
+		left join d22_run제조vlr j on (#{공정코드} = '020' and (nullif(a.run_no1,'') = j.run_no or nullif(a.run_no2,'') = j.run_no) and j.공정코드 = '023')
+		where 1=1
+		AND a.lot_no in
+					  <foreach item="lotNo" collection="lotNoList" open="(" separator="," close=")">
+					    #{lotNo}
+					  </foreach>
+		order by b.시작시각
+	</select>
+	
+	<select id="M0003005_Sch11" parameterType="Map" resultType="CamelMap">
+		select 
+		    a.lot_no
+		from d21_제조지시mst a 
+		join d21_제조지시vlr b on (a.lot_no = b.lot_no and b.공정코드= #{공정코드})
+		left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+		where 1=1		
+		and exists (
+			select 
+			    1
+			from d21_제조지시mst c
+			join d21_제조지시vlr d on (c.lot_no = d.lot_no and d.공정코드= #{공정코드})
+			left join dw_equipment_mast g on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+			where 1=1
+			and c.lot_no = #{lotNo}
+			and d.작업시작 = b.작업시작			
+			and substring(d.시작시각, 1, 5) = substring(b.시작시각, 1, 5)
+			and f.설비약명 = g.설비약명
+			
+		)
+		order by 시작시각
+	</select>
+	
+	<select id="M0003005_Sch18" parameterType="Map" resultType="CamelMap">
+		select 
+		    a.lot_no
+		from d21_제조지시mst a 
+		join d21_제조지시vlr b on (a.lot_no = b.lot_no and b.공정코드= #{공정코드})
+		left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+		where 1=1		
+		and exists (
+			select 
+			    1
+			from d21_제조지시mst c
+			join d21_제조지시vlr d on (c.lot_no = d.lot_no and d.공정코드= #{공정코드})
+			left join dw_equipment_mast g on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+			where 1=1
+			and c.lot_no = #{lotNo}
+			and d.작업시작 = b.작업시작			
+			and substring(d.시작시각, 1, 5) = substring(b.시작시각, 1, 5)
+			and f.설비약명 = g.설비약명
+		)
+		order by 
+			case 
+				when f.chamber = 'L' then 1 
+			    when f.chamber = 'R' then 2 
+			    else 3
+		  	end
+	</select>
+	
+	<select id="M0003005_Sch19" parameterType="Map" resultType="CamelMap">	
+		select 
+		    a.lot_no, b.공정코드, b.p_code, c.거래처명, e.제품모델, a.제품_inch, e.제품버젼, d.자재품명, 
+			e.제품규격, a.입고일자, a.sheet, a.block수, a.cell수,
+			a.작업일자, a.생성수량, a.작업지시일자, 발행자, a.승인일자, 승인자,
+			a.panel_id, a.특기사항, a.시작온도, a.종료온도, a.전면광량, a.후면광량,
+			b.작업자, b.shift, coalesce(b.작업조, (select shift from Get주간야간구분())) 작업조, b.machine_code, f.설비명, f.설비약명, f.chamber,
+			b.작업시작, b.시작시각, b.작업종료, b.종료시각,
+			b.투입수량, b.양품수량, b.검사수량, b.불량수량, b.cell수량,
+			b.특이사항, b.공정_비고, g.tool_no_컷팅, g.tool_no_중삭, g.tool_no_정삭, g.컷팅, g.중삭, g.정삭,
+			i.작업종료 as 전작업종료, (case when #{공정코드} = '010' then '적층' when #{공정코드} = '013' then '적층' when #{공정코드} = '015' then '가공' when #{공정코드} = '017' then '치수' when #{공정코드} = '020' then 'WP' else null end) 전공정,			
+			case when #{공정코드} = '020' then j.작업시작 else  h.작업시작 end next작업시작
+		from d21_제조지시mst a 
+		left join d21_제조지시vlr b on (a.lot_no = b.lot_no and b.공정코드= #{공정코드})
+		left join d03_거래처마스터파일 c on (a.거래처코드=c.거래처코드)
+		left join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+		left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)
+		left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+		left join d21_tool사용현황 g on (g.공장코드 = '2' and a.lot_no = g.lot_no and b.공정코드 = g.공정코드 and f.설비번호 = g.설비번호)
+		left join d21_제조지시vlr i on (a.lot_no = i.lot_no and i.공정코드= (case when #{공정코드} = '010' then '010' when #{공정코드} = '013' then '010' when #{공정코드} = '015' then '013' when #{공정코드} = '017' then '015' when #{공정코드} = '020' then '017' else null end))
+		left join d21_제조지시vlr h on (a.lot_no = h.lot_no and h.공정코드= (case when #{공정코드} = '010' then '013' when #{공정코드} = '013' then '015' when #{공정코드} = '015' then '017' when #{공정코드} = '017' then '020' when #{공정코드} = '020' then '017' else null end))
+		left join d22_run제조vlr j on (#{공정코드} = '020' and (nullif(a.run_no1,'') = j.run_no or nullif(a.run_no2,'') = j.run_no) and j.공정코드 = '023')
+		where 1=1
+		AND a.lot_no in
+					  <foreach item="lotNo" collection="lotNoList" open="(" separator="," close=")">
+					    #{lotNo}
+					  </foreach>
+		order by 
+			case 
+				when f.chamber = 'L' then 1 
+			    when f.chamber = 'R' then 2 
+			    else 3
+		  	end
+	</select>
+	
+	<select id="M0003005_Sch20" parameterType="Map" resultType="CamelMap">
+	
+		WITH DefectData1 AS (
+		<choose>
+			<when test="curProcess != null and curProcess &lt; 23">
+				select 
+	            	a.공정코드, a.불량코드, a.불량명, isNull(sum(b.불량수량), 0) 불량수량
+				from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+				left join d42_검사불량사유파일 b
+				on (a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and b.lotrun_id = #{runId} and b.공장코드 = '2')			
+				where a.비고 != '2'
+				group by a.공정코드, a.불량코드, a.불량명, a.적용순서			
+			</when>	
+			<otherwise>
+				<choose>
+					<when test="curProcess == '023'">
+					select 
+						a.공정코드, a.불량코드, a.불량명, isNull(sum(b.불량수량), 0) 불량수량
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join (
+						select b.* 
+						from d42_검사불량사유파일 b
+						inner join (
+							select lot_no
+							from d22_RUN카세트파일
+							where run_no = #{runId}
+							and 공정코드 = #{공정코드}
+							group by lot_no
+						) z on (b.lotrun_id = z.lot_no)
+						where b.공정코드 = #{공정코드} and 공장코드 = '2' and 차수 = #{차수}
+					) b
+					on (a.불량코드 = b.불량코드)		
+					where a.비고 != '2'
+					group by a.공정코드, a.불량코드, a.불량명, a.적용순서
+					</when>
+					<otherwise>
+		            select 
+		            	a.공정코드, a.불량코드, a.불량명, isNull(sum(b.불량수량), 0) 불량수량
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join (
+						select b.* from d42_검사불량사유파일 b
+						where b.공정코드 = #{공정코드} and b.lotrun_id = #{runId} and 공장코드 = '2' and 차수 = #{차수}
+					) b
+					on (a.불량코드 = b.불량코드)		
+					where a.비고 != '2'
+					group by a.공정코드, a.불량코드, a.불량명, a.적용순서
+					</otherwise>
+				</choose>		
+	       	</otherwise>
+	    </choose>
+        )
+		select
+			<choose>
+                <when test="columns1 != null and columns1.size() > 0">                	 
+                    <foreach collection="columns1" item="item" separator=",">
+			            isnull(max(case when d.불량코드 = #{item.value} then d.불량수량 end), 0) AS ${item.text}
+			        </foreach>
+                </when>
+                <otherwise>
+                *
+                </otherwise>
+            </choose>
+		from DefectData1 d
+	</select>
+	
+	<select id="M0003005_Sch21" parameterType="Map" resultType="CamelMap">
+		select 
+			불량코드, 불량명
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부})
+		where 공정코드 = #{공정코드}
+		and 비고 = '2'
+		order by 적용순서
+	</select>
+	
+	<select id="selectPackShip074" parameterType="Map" resultType="CamelMap">
+	select * 
+	from Get_포장출하_출하검사대기(null)
+	where 공정코드 = '074'
+	<if test="matId != null and matId != ''">
+	and substring(run_id, 1,4) + substring(run_id, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(run_id,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(run_id, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	</select>
+	
+	<select id="selectPackShip077Wait" parameterType="Map" resultType="CamelMap">
+	select * 
+	from Get_포장출하_출하검사_작업대기(null)
+	where 공정코드 = '077'
+	<if test="matId != null and matId != ''">
+	and substring(run_id, 1,4) + substring(run_id, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(run_id,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(run_id, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	</select>
+	
+	<select id="selectPackShip077" parameterType="Map" resultType="CamelMap">
+	select * 
+	from Get_포장출하_출하검사_작업중(null)
+	where 공정코드 = '077'
+	<if test="matId != null and matId != ''">
+	and substring(run_id, 1,4) + substring(run_id, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(run_id,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(run_id, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	</select>
+	
+	<select id="selectPackShip080" parameterType="Map" resultType="CamelMap">
+	select * 
+	from Get_포장출하_반출대기(null)
+	where 공정코드 = '080'
+	<if test="matId != null and matId != ''">
+	and substring(run_id, 1,4) + substring(run_id, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(run_id,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(run_id, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	</select>
+	
+	<select id="selectPackShip081" parameterType="Map" resultType="CamelMap">
+	select * 
+	from Get_포장출하_소포장반출(null)
+	where 공정코드 = '081'
+	<if test="matId != null and matId != ''">
+	and substring(run_id, 1,4) + substring(run_id, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(run_id,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(run_id, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	</select>
+	
+	<select id="selectPackShip082" parameterType="Map" resultType="CamelMap">
+	select * 
+	from Get_포장출하_출하대기(null)
+	where 1=1
+	<if test="matId != null and matId != ''">
+	and substring(run_id, 1,4) + substring(run_id, 11,1) = #{matId}
+	</if>
+	<if test="modelList != null and modelList.size() > 0" >
+		and left(run_id,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(run_id, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	</select>
+	
+	<select id="selectPackShip002" parameterType="Map" resultType="CamelMap">
+	select * from Get_Rework_MBox대기(null,null,null)
+		<where>
+			<if test="matId != null and matId != ''">
+			AND mat_id =  #{matId}
+			</if>
+			<if test="orgJobType != null">
+			AND substring(bef_runno,11,1) = #{orgJobType}
+			</if>
+			<if test="modelList != null and modelList.size() > 0" >
+			and left(mat_id,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+			</if>
+			<if test="workList != null and workList.size() > 0" >
+			and right(mat_id,1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+			</if>	
+		</where>
+	</select>
+	
+	<select id="selectPackShip003" parameterType="Map" resultType="CamelMap">
+	select * from Get_Rework_MRUN대기(null,null,null,null)
+	<where>
+		<if test="matId != null and matId != ''">
+		AND mat_id =  #{matId}
+		</if>
+		<if test="orgJobType != null">
+		AND substring(bef_runno,11,1) = #{orgJobType}
+		</if>
+		<if test="modelList != null and modelList.size() > 0" >
+		and left(mat_id,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+		</if>
+		<if test="workList != null and workList.size() > 0" >
+		and right(mat_id,1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+		</if>
+	</where>
+	</select>
+	
+	<select id="selectPackShip022" parameterType="Map" resultType="CamelMap">
+	select * from Get_Rework_필름박리대기(null,null,null,null)
+	<where>
+		<if test="matId != null and matId != ''">
+		AND mat_id =  #{matId}
+		</if>
+		<if test="orgJobType != null">
+		AND substring(bef_runno,11,1) = #{orgJobType}
+		</if>
+		<if test="modelList != null and modelList.size() > 0" >
+		and left(mat_id,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+		</if>
+		<if test="workList != null and workList.size() > 0" >
+		and right(mat_id,1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+		</if>
+	</where>
+	</select>
+	
+	<select id="selectPackShipIng022" parameterType="Map" resultType="CamelMap">
+	select distinct area, 공정코드, run_no OBJ_NO, 수량, 설비약명, 작업자, 시작시간, 상태, run_no
+    from dw_재공재고_BACK_작업중 a
+    where 집계일시 = #{calcDateTime}
+    and substring(run_no, 1,4) +  substring(run_no, 11,1) = #{matId}
+    and 공정코드 = '022'
+    <if test="modelList != null and modelList.size() > 0" >
+		and left(run_no,4) in <foreach item="item" collection="modelList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+	<if test="workList != null and workList.size() > 0" >
+		and SUBSTRING(run_no, 11, 1) in <foreach item="item" collection="workList" open="(" separator="," close=")" >#{item}</foreach>
+	</if>
+    order by run_no
+	</select>
+	
+	<select id="selectDprHeaderList" parameterType="Map" resultType="CamelMap">
+	/*selectDprHeaderList*/
+	select * 
+	from Get_모델별_생산일보_기간조회(#{calcDate})
+	</select>
+	
+	<select id="selectDprList" parameterType="Map" resultType="CamelMap">
+	/*selectDprList*/
+	select * 
+	from Get_모델별_생산일보(#{calcDate})
+	order by 구분_ord, 도우코드, 도우모델, 작업구분, org작업구분
+	</select>
+	
+</mapper>

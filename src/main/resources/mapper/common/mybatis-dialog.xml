@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dowinsys.mes.common.dialog.mapper.DialogMapper">
+	<select id="selectDwModelMast" resultType="CamelMap">
+	select MODEL as 제품유형라벨, CODE as 제품유형
+	from dw_model_mast 
+	where use_yn='Y'
+	order by MODEL
+	</select>
+	
+	<select id="selectWorkType" resultType="CamelMap">
+		select 내용 작업구분라벨, 코드 as 작업구분  
+		from d02_일반코드파일 
+		where 대분류='31'
+		order by 내용
+	</select>
+	
+	<select id="selectDwVendorMast" resultType="CamelMap">
+	select code as 거래처코드, name as 거래처명, abbr as 거래처약명, ceo as 대표자
+	from dw_vendor_mast 
+	where trade_code='30'
+	</select>
+	
+	<select id="selectDwProductMast" resultType="CamelMap">
+	select a.line,
+		a.prod_code as 제품코드,
+		a.customer_name as 고객명,
+		b.abbr as 고객약명,
+		a.model as 제품모델,
+		c.description as model_name,
+		a.inch as 제품Inch,
+		a.Glass_thick as GLASS두께,
+		a.Version as 제품버젼,
+		a.sheet,
+		a.block,
+		a.run_size,
+		a.spec as 제품규격
+	from dw_product_mast a
+	left outer join dw_vendor_mast b 
+	on ( a.customer_code = b.code)
+	left outer join dw_model_mast c 
+	on ( a.model = c.model )
+	<if test="line != null and line != ''" >	
+	where line = #{line}
+	</if>	
+	<if test="model != null and model != ''" >	
+	where a.model = #{model}
+	</if>
+	</select>  
+	
+	<select id="selectDwPoNoInfoMast" resultType="CamelMap">
+	select a.수주일자,a.PO_NO,b.name 거래처명,c.Model+' '+CAST(c.Inch AS VARCHAR)+' '+CAST(c.GLASS_Thick AS VARCHAR)+' '+c.Version+' '+CAST(c.sheet AS VARCHAR) 제품명,a.제품코드,a.수주수량,a.필요자재량,d.code_name 내용 
+	from d33_제품수주서파일 a
+	        left join dw_vendor_mast b on (a.거래처코드=b.code)
+	    	left join dw_product_mast c on (a.제품코드=c.Prod_code )
+	    	left join dw_common_code d on (a.작업구분=d.code and d.maj_code='31' )
+	where 1=1
+	<if test="model != null and model != ''" >	
+	AND 제품유형=#{model}
+	</if>
+	order by 수주일자
+	</select>
+	
+	<select id="selectDwWorkerInfoMast" resultType="CamelMap">
+	select 작업자코드,작업자명,직책코드 직책명 
+	from d07_작업자파일 
+	where 생산관리=1 and 채용형태='01'
+	order by 작업자명
+	</select>  
+	
+	<select id="selectDwMatInfoMast" resultType="CamelMap">
+	select a.자재코드,a.자재품명,a.자재재질,a.자재두께,a.자재규격,a.자재단위 ,b.거래처명
+	from d04_자재마스터파일 a
+	  left join d03_거래처마스터파일 b on (a.매입처=b.거래처코드 and b.거래처분류=10)
+	where 자재단위='71'
+	</select>
+	
+	<select id="selectCommonCode" resultType="CamelMap">
+	select
+		b.maj_code as 대분류코드,
+		a.maj_code_name as 대분류명,
+		b.code as 코드,
+		b.code_name as 내용,
+		b.tray_cell ,
+		b.use_yn as 사용여부
+	from dw_maj_code a
+	join dw_common_code b 
+	on ( a.maj_code = b.maj_code )
+	where a.maj_code = #{majCode}
+	  and b.use_yn = '1'
+	order by b.sort_order, b.code	
+	</select>	
+	
+	<select id="selectProcess" resultType="CamelMap">	
+	select line,
+			process_id,
+			description,
+			version
+	from dw_process_mast	
+	</select>
+	
+	<select id="selectUseEquipList" resultType="CamelMap">
+		SELECT
+		   	   a.line
+		   	 , a.설비번호
+		   	 , a.설비명
+		   	 , a.설비약명
+		   	 , a.chamber
+		   	 , a.공정코드
+		   	 , b.공정약어 as 공정명
+		   	 , a.공정구분 as area_code
+		   	 , a.area
+		   	 , a.비고
+		  FROM dw_equipment_mast a
+		  LEFT OUTER JOIN dw_step_mast b 
+			ON ( a.line = b.line and a.공정코드 = b.공정코드 )
+		where 1 = 1 
+		<if test="line != null and line.trim() != ''" >	
+			and a.line = #{line}
+		</if>
+		<if test="stepCode != null and stepCode.trim() != ''" >	
+			and a.공정코드=#{stepCode}
+		</if>
+		  and a.사용여부 = '1'
+	</select>
+	
+	
+	<select id="selectEquipListInSteps" resultType="CamelMap">
+		SELECT
+		   	   a.line
+		   	 , a.설비번호
+		   	 , a.설비명
+		   	 , a.설비약명
+		   	 , a.chamber
+		   	 , a.공정코드
+		   	 , b.공정약어 as 공정명
+		   	 , a.공정구분 as area_code
+		   	 , a.area
+		   	 , a.비고
+		  FROM dw_equipment_mast a
+		  LEFT OUTER JOIN dw_step_mast b 
+			ON ( a.line = b.line and a.공정코드 = b.공정코드 )
+		where 1 = 1 
+		<if test="line != null and line.trim() != ''" >	
+			and a.line = #{line}
+		</if>
+		<if test="stepCode != null and stepCode.size()  > 0" >
+			and  a.공정코드 IN
+				<foreach item="item" collection="stepCode" open="(" separator="," close=")" >
+					#{item}
+				</foreach>			
+		</if>
+		  and a.사용여부 = '1'
+	</select>	
+	
+	<select id="selectErrorList" resultType="CamelMap">
+		select 
+			a.공정코드, a.불량코드, a.불량명, isNull(b.불량수량, 0) 불량수량 
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+		left join d42_검사불량사유파일 b
+		on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runId})
+		order by 적용순서
+
+	</select>
+	
+	<select id="selectErrorCstnoList" resultType="CamelMap">
+		select 
+			a.공정코드, a.불량코드, a.불량명, isNull(b.불량수량, 0) 불량수량,a.비고 
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+		left join d42_검사불량사유파일 b
+		on (
+			b.공장코드 = '2'
+			and b.차수 = #{차수} 
+			and a.공정코드 = b.공정코드 
+			and a.불량코드 = b.불량코드 
+			and lotrun_id = #{runId} 
+			and cst_no = #{fCstNo} 
+			and case when cst_no1 is not null then cst_no1 else #{tCstNo} end = #{tCstNo} 			
+		)
+		where a.비고 != '2' 
+		order by 적용순서
+
+	</select>
+	
+	<select id="selectErrorEtcnoList" resultType="CamelMap">
+		select 
+			a.공정코드, a.불량코드, a.불량명, isNull(b.불량수량, 0) 불량수량 
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+		left join d42_검사불량사유파일 b
+		on (
+			b.공장코드 = '2'
+			and b.차수 = #{차수} 
+			and a.공정코드 = b.공정코드 
+			and a.불량코드 = b.불량코드 
+			and lotrun_id = #{runId} 
+			and cst_no = #{fCstNo} 
+			and cst_no1 = #{tCstNo}
+			and etc_no = #{etcNo} 			
+		)
+		where a.비고 != '2' 
+		order by 적용순서
+
+	</select>
+	
+	<select id="selectErrorCstnoList1" resultType="CamelMap">
+		select 
+			a.공정코드, a.불량코드, a.불량명, isNull(b.불량수량, 0) 불량수량, isNull(b.불량수량, 0) error_cnt 
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+		left join d42_검사불량사유파일 b
+		on (
+			b.공장코드 = '2'
+			and b.차수 = #{차수} 
+			and a.공정코드 = b.공정코드 
+			and a.불량코드 = b.불량코드 
+			and lotrun_id = #{runId} 
+			and cst_no = #{cstNo} 
+		)
+		where a.비고 != '2' 
+		order by 적용순서
+
+	</select>
+	
+	<select id="selectErrorBlockList" resultType="CamelMap">
+		select 
+			a.공정코드, a.불량코드, a.불량명, a.적용순서, isNull(sum(b.불량수량), 0) 불량수량 
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+		left join d42_검사불량사유파일_block b
+		on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runId} and machine_code = coalesce(#{machineCode}, '-') and 불량구분 = '불량' and bl_no = #{blNo})
+		group by a.공정코드, a.불량코드, a.불량명, a.적용순서
+		order by 적용순서
+
+	</select>
+	
+	<select id="selectErrorBlock" resultType="CamelMap">
+		select 
+			a.공정코드, a.불량코드, a.불량명, a.적용순서, isNull(b.불량수량, 0) 불량수량 
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+		left join d42_검사불량사유파일_block b
+		on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runId} and machine_code = coalesce(#{machineCode}, '-') and 불량구분 = '불량' and bl_no = #{blNo} and 불량위치 = '-')		
+		order by 적용순서
+
+	</select>
+	
+	<select id="selectErrorCell" resultType="CamelMap">
+		select 
+			a.공정코드, a.불량코드, a.불량명, a.적용순서, isNull(sum(b.불량수량), 0) 불량수량, 'none' state 
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+		left join d42_검사불량사유파일_cell b
+		on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runId} and cst_no = #{cstNo} and cell_id = '-' and 차수 = #{차수})
+		group by a.공정코드, a.불량코드, a.불량명, a.적용순서		
+		order by 적용순서
+	</select>
+	
+	<update id="MergeError" parameterType="Map">
+		merge into d42_검사불량사유파일 as t
+		using (values (#{공정코드}, #{runId}, #{불량코드}, #{machineCode}, 0, #{불량수량}, #{검사시각})) as s (공정코드, lotrun_id, 불량코드, machine_code, block_su, 불량수량, 검사시각)
+		on t.공정코드 = s.공정코드 and t.lotrun_id = s.lotrun_id and t.불량코드 = s.불량코드
+		when matched then
+		    update set
+		        t.machine_code = s.machine_code,
+		        t.불량수량 = s.불량수량,
+		        t.block_su = s.block_su
+		when not matched then
+    		insert (공장코드,공정코드,lotrun_id,machine_code,불량코드,block_su,불량수량,검사시각)
+    		values ('2', s.공정코드, s.lotrun_id, s.machine_code, s.불량코드, s.block_su, s.불량수량, s.검사시각)
+    	;
+	</update>
+	
+	<update id="MergeErrorCstNo" parameterType="Map">
+		merge into d42_검사불량사유파일 as t
+		using (values (#{공정코드}, #{runId}, #{불량코드}, #{fCstNo}, #{tCstNo}, #{machineCode}, 0, #{불량수량}, #{검사시각}, #{차수})) as s (공정코드, lotrun_id, 불량코드, cst_no, cst_no1, machine_code, block_su, 불량수량, 검사시각, 차수)
+		on t.공정코드 = s.공정코드 and t.lotrun_id = s.lotrun_id and t.불량코드 = s.불량코드 and t.cst_no = s.cst_no and t.cst_no1 = s.cst_no1 and t.차수 = s.차수
+		when matched then
+		    update set
+		        t.machine_code = s.machine_code,
+		        t.불량수량 = s.불량수량,
+		        t.block_su = s.block_su
+		when not matched then
+    		insert (공장코드,공정코드,lotrun_id,machine_code,불량코드,block_su,불량수량,검사시각,cst_no, cst_no1, 차수)
+    		values ('2', s.공정코드, s.lotrun_id, s.machine_code, s.불량코드, s.block_su, s.불량수량, s.검사시각, s.cst_no, s.cst_no1, s.차수)
+    	;    	
+	</update>
+	
+	<update id="MergeErrorCstNo1" parameterType="Map">
+		merge into d42_검사불량사유파일 as t
+		using (values (#{공정코드}, #{runId}, #{불량코드}, #{fCstNo}, #{machineCode}, 0, #{불량수량}, #{검사시각}, #{차수})) as s (공정코드, lotrun_id, 불량코드, cst_no, machine_code, block_su, 불량수량, 검사시각, 차수)
+		on t.공정코드 = s.공정코드 and t.lotrun_id = s.lotrun_id and t.불량코드 = s.불량코드 and t.cst_no = s.cst_no and t.차수 = s.차수
+		when matched then
+		    update set
+		        t.machine_code = s.machine_code,
+		        t.불량수량 = s.불량수량,
+		        t.block_su = s.block_su
+		when not matched then
+    		insert (공장코드,공정코드,lotrun_id,machine_code,불량코드,block_su,불량수량,검사시각,cst_no, 차수)
+    		values ('2', s.공정코드, s.lotrun_id, s.machine_code, s.불량코드, s.block_su, s.불량수량, s.검사시각, s.cst_no, s.차수)
+    	;    	
+	</update>
+	
+	<update id="MergeErrorEtcNo" parameterType="Map">
+		merge into d42_검사불량사유파일 as t
+		using (values (#{공정코드}, #{runId}, #{불량코드}, #{fCstNo}, #{tCstNo}, #{machineCode}, 0, #{불량수량}, #{검사시각}, #{차수}, #{etcNo})) as s (공정코드, lotrun_id, 불량코드, cst_no, cst_no1, machine_code, block_su, 불량수량, 검사시각, 차수,etc_no)
+		on t.공정코드 = s.공정코드 and t.lotrun_id = s.lotrun_id and t.불량코드 = s.불량코드 and t.cst_no = s.cst_no and t.cst_no1 = s.cst_no1 and t.차수 = s.차수 and t.etc_no = s.etc_no
+		when matched then
+		    update set
+		        t.machine_code = s.machine_code,
+		        t.불량수량 = s.불량수량,
+		        t.block_su = s.block_su
+		when not matched then
+    		insert (공장코드,공정코드,lotrun_id,machine_code,불량코드,block_su,불량수량,검사시각,cst_no, cst_no1, 차수,etc_no)
+    		values ('2', s.공정코드, s.lotrun_id, s.machine_code, s.불량코드, s.block_su, s.불량수량, s.검사시각, s.cst_no, s.cst_no1, s.차수,s.etc_no)
+    	;    	
+	</update>
+	
+	<update id="MergeErrorBlNo" parameterType="Map">
+		merge into d42_검사불량사유파일_block as t
+		using (values (#{공정코드}, #{runId}, coalesce(#{machineCode}, '-'), '불량', #{blNo}, '-', #{불량코드}, #{불량수량}, #{검사시각})) as s (공정코드,lotrun_id,machine_code,불량구분,bl_no,불량위치,불량코드,불량수량,검사시각)
+		on t.공정코드 = s.공정코드 and t.lotrun_id = s.lotrun_id and t.machine_code = s.machine_code and t.불량구분 = '불량'  and t.bl_no = s.bl_no and t.불량위치 = '-' and t.불량코드 = s.불량코드
+		when matched then
+		    update set		        
+		        t.불량수량 = s.불량수량,
+		        t.검사시각 = s.검사시각
+		when not matched then
+    		insert (공장코드,공정코드,lotrun_id,machine_code,불량구분,bl_no,불량위치,불량코드,불량수량,검사시각)
+    		values ('2', s.공정코드, s.lotrun_id, s.machine_code, '불량', s.bl_no, '-', s.불량코드, s.불량수량, s.검사시각)
+    	;
+    	
+    	merge into d42_검사불량사유파일 as t
+		using (
+		    select 
+		    	공정코드, lotrun_id, 불량코드, machine_code, sum(불량수량) as 불량수량, max(검사시각) as 검사시각
+		    from d42_검사불량사유파일_block
+		    where 공장코드 = '2'
+		    and 공정코드 = #{공정코드}
+		   	and lotrun_id = #{runId}
+		   	and machine_code = coalesce(#{machineCode}, '-')
+		   	and 불량구분 = '불량'
+		   	and 불량위치 = '-'		   	
+		    and 불량코드 = #{불량코드}
+		    group by 공정코드, lotrun_id, 불량코드, machine_code
+		) as s (공정코드, lotrun_id, 불량코드, machine_code, 불량수량, 검사시각)
+		on t.공정코드 = s.공정코드 
+		   and t.lotrun_id = s.lotrun_id 
+		   and t.불량코드 = s.불량코드
+		when matched then
+		    update set
+		        t.machine_code = s.machine_code,
+		        t.불량수량 = s.불량수량,
+		        t.block_su = 0
+		when not matched then
+		    insert (공장코드, 공정코드, lotrun_id, machine_code, 불량코드, block_su, 불량수량, 검사시각)
+		    values ('2', s.공정코드, s.lotrun_id, s.machine_code, s.불량코드, 0, s.불량수량, s.검사시각);
+	</update>
+	
+	<update id="M0003005Error" parameterType="Map">
+	
+		<choose>
+			<when test="code != null and code == '010'">
+				with error_cnt as (
+				    select 
+				        sum(b.불량수량) as 불량수량
+				    from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+				    left join d42_검사불량사유파일 b
+				    on (a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and b.lotrun_id = #{lotNo})
+				    where a.비고 = 1
+				),
+				mst as (
+				    select 
+				        block수 
+				    from d21_제조지시mst
+				    where lot_no = #{lotNo}
+				)
+				update d21_제조지시vlr
+				set 
+		    		불량수량 = isnull((select 불량수량 from error_cnt), 0)
+		    		,양품수량 = isnull(투입수량 - (select 불량수량 from error_cnt), 0)
+		    		,cell수량 = isnull((select block수 from mst) * (투입수량 - (select 불량수량 from error_cnt)), 0)
+				where lot_no = #{lotNo}
+		    	and 공정코드 = #{공정코드};
+			</when>
+			<when test="code != null and (code == '015' or code == '017' or code == '020')">
+				with error_cnt as (
+				    select 
+				        isNull(sum(b.불량수량), 0) as 불량수량
+				    from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+				    left join d42_검사불량사유파일_block b
+				    on (
+				    	a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and b.lotrun_id = #{lotNo}
+				    	and not exists (
+				    		select 1 from d42_검사불량사유파일_block c
+				    		join d29_공정별불량파일 d
+							on (d.공정코드 = c.공정코드 and d.불량코드 = c.불량코드 and d.사용여부 = 1 and d.적용구분 = '0')				    		
+				    		where c.공정코드 = (case when #{공정코드} = '015' then '013' when #{공정코드} = '017' then '015' when #{공정코드} = '020' then '017' else null end) and c.lotrun_id = b.lotrun_id and c.bl_no = b.bl_no and d.비고 = 1
+				    	)
+				    )
+				    where a.비고 = 1
+				), 
+				mst as (
+					select 
+			   			b.양품수량 sheet	
+					from d21_제조지시mst a
+					left join d21_제조지시vlr b 
+					on (a.lot_no = b.lot_no and b.공정코드 = '010')
+			    	where a.lot_no = #{lotNo}
+				)
+				update d21_제조지시vlr
+				set  
+					불량수량 = isnull((select 불량수량 from error_cnt), 0)
+		    		,양품수량 = isnull(투입수량 - (select 불량수량 from error_cnt), 0)
+		    		,cell수량 = isnull((select sheet from mst) * (투입수량 - (select 불량수량 from error_cnt)), 0)
+				where lot_no = #{lotNo}
+				and 공정코드= #{공정코드};
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>
+		
+	</update>
+	
+	<update id="M0003002Error" parameterType="Map">
+	
+		<choose>
+			<when test="code != null and (code == '055' or code == '056')">
+				with error_cnt as (
+				    select 
+						isNull(sum(b.불량수량), 0) 불량수량 
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join d42_검사불량사유파일 b
+					on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runNo} and cst_no = #{fCstNo} and b.차수 = #{차수})
+				)
+				update d22_run카세트파일
+				set 
+		    		f_불량수량 = isnull((select 불량수량 from error_cnt), 0)		    		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and f_cstno = #{fCstNo}
+		    	and f_수량 > 0
+				and 차수 = #{차수};
+		    	
+				update d22_run제조vlr
+				set 
+		    		불량수량 = isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0),
+		    		양품수량 = (투입수량-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0))  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</when>
+			<when test="code != null and (code == '054')">
+				with error_cnt as (
+				    select 
+						isNull(sum(b.불량수량), 0) 불량수량 
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join d42_검사불량사유파일 b
+					on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runNo} and cst_no = #{tCstNo} and b.차수 = #{차수})
+				)
+				update d22_run카세트파일
+				set 
+		    		t_불량수량 = isnull((select 불량수량 from error_cnt), 0),		
+		    		t_수량 = (f_수량-isnull((select 불량수량 from error_cnt), 0))	   		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and f_cstno = #{fCstNo}		    	
+				and 차수 = #{차수};
+		    	
+				update d22_run제조vlr
+				set 
+		    		불량수량 = isnull((select sum(t_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+		    		양품수량 = (투입수량-isnull((select sum(t_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0))  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</when>
+			<when test="code != null and (code == '058' or code == '059')">
+				with error_cnt as (
+				    select 
+						isNull(sum(b.불량수량), 0) 불량수량 
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join d42_검사불량사유파일 b
+					on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runNo} and cst_no = #{fCstNo} and b.차수 = #{차수})
+				)
+				update d22_run카세트파일
+				set 
+		    		t_불량수량 = isnull((select 불량수량 from error_cnt), 0),		
+		    		t_수량 = (f_수량-isnull((select 불량수량 from error_cnt), 0))	   		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and f_cstno = #{fCstNo}		    	
+				and 차수 = #{차수};
+		    	
+				update d22_run제조vlr
+				set 
+		    		불량수량 = isnull((select sum(t_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+		    		양품수량 = (투입수량-isnull((select sum(t_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0))  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</when>	
+			<when test="code != null and (code == '061' or code == '067')">
+				with error_cnt as (
+				    select 
+						isNull(sum(b.불량수량), 0) 불량수량 
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join d42_검사불량사유파일 b
+					on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runNo} and cst_no = #{fCstNo} and b.차수 = #{차수})
+				)
+				, sample AS (
+					select a.cst_no, sum(qty) qty from (				
+						select 
+							a.cst_no, a.cell_id, a.신뢰성시료유형, case when nullif(a.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from (
+							select 
+								a.*
+							from dw_run_cell_data a
+							where a.공장코드 = '2' and a.공정코드 = #{공정코드} and a.run_id = #{runNo} and a.차수 = #{차수} and a.cst_no = #{fCstNo}		  
+						) a
+						group by a.cst_no, a.cell_id, a.신뢰성시료유형
+					) a
+					group by a.cst_no
+				)
+				update d22_run카세트파일
+				set 
+		    		f_불량수량 = isnull((select 불량수량 from error_cnt), 0),
+		    		t_수량 = (f_수량-isnull((select 불량수량 from error_cnt), 0)-isnull((select qty from sample), 0))
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and f_cstno = #{fCstNo}
+		    	and f_수량 > 0
+				and 차수 = #{차수};
+		    		
+				update d22_run제조vlr
+				set 
+		    		불량수량 = isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0),
+		    		양품수량 = (투입수량-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0)-시료수량)  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</when>		
+			<otherwise>
+			</otherwise>
+		</choose>
+		
+	</update>
+	<update id="M0003001Error" parameterType="Map">
+		<choose>
+			<when test="code != null and (code == '023' or code == '022')">
+				/*박리,rework*/
+				with error_cnt as (
+				    select 
+						isNull(sum(b.불량수량), 0) 불량수량 
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join d42_검사불량사유파일 b
+					on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runNo} and cst_no = #{fCstNo} and b.cst_no1 = #{tCstNo} and etc_no = #{etcNo} and b.차수 = #{차수})
+				)
+				update d22_run카세트파일
+				set 
+		    		f_불량수량 = isnull((select 불량수량 from error_cnt), 0)
+		    		,t_수량 = (f_수량-isnull((select 불량수량 from error_cnt), 0))	  		    		
+				where run_no = #{runNo}
+				and lot_no = #{lotNo}
+		    	and 공정코드 = #{공정코드}
+		    	and f_cstno = #{fCstNo}
+		    	and t_cstno = #{tCstNo}
+		    	and f_수량 > 0
+				and 차수 = #{차수};
+		    	
+		    	
+				update d22_run제조vlr
+				set 
+		    		불량수량 = isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0),
+		    		양품수량 = (투입수량-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0))  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</when>
+			<otherwise>
+				/*back1 그외*/
+				with error_cnt as (
+				    select 
+						isNull(sum(b.불량수량), 0) 불량수량 
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join d42_검사불량사유파일 b
+					on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runNo} and cst_no = #{fCstNo} and b.cst_no1 = #{tCstNo} and b.차수 = #{차수} and a.비고 = 1)
+				)
+				update d22_run카세트파일
+				set 
+		    		f_불량수량 = isnull((select 불량수량 from error_cnt), 0)
+		    		,t_수량 = (f_수량-isnull((select 불량수량 from error_cnt), 0))	  		    		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and f_cstno = #{fCstNo}
+		    	and t_cstno = #{tCstNo}
+		    	and f_수량 > 0
+				and 차수 = #{차수};
+		    	
+		    	
+				update d22_run제조vlr
+				set 
+		    		불량수량 = isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0),
+		    		양품수량 = (투입수량-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0))  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</otherwise>
+		</choose>
+		
+	</update>
+	<select id="selectErrorCodeList" resultType="CamelMap">
+		select 불량코드, 불량명
+		FROM d14_불량사유코드파일
+		where 사용여부 = 1
+		order by 1
+	</select>
+	
+	<select id="selectProcessDailyErrorReportDtlList" resultType="CamelMap">
+		select *		
+		from Get_일별_공정별_불량현황_MODEL_작업구분_상세_DATA조회(#{집계일자},#{공정코드},#{불량코드},#{model},#{job})
+	</select>
+	
+	
+	<select id="selectProcessDailyErrorReportDtl1List" resultType="CamelMap">
+		select *
+		from Get_일별_공정별_불량현황_MODEL_작업구분_상세_DATA조회_주간(#{week},#{공정코드},#{불량코드},#{model},#{job})
+	</select>
+	
+	<select id="selectProcessDailyErrorReportDtl2List" resultType="CamelMap">
+		select *
+		from Get_일별_공정별_불량현황_MODEL_작업구분_상세_DATA조회_월간(#{yyyymm},#{공정코드},#{불량코드},#{model},#{job})
+	</select>
+	
+</mapper>

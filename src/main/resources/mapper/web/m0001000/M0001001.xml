@@ -1,0 +1,1058 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0001000.mapper.M0001001Mapper">
+
+	<select id="dupGlassId" resultType="int">
+		SELECT count(1)
+		  FROM dw_raw_mat_proc_in
+		 WHERE glass_id = #{glassId}
+		   and in_date = #{inDate}
+	</select>
+	
+	<select id="getGlassInfo" resultType="CamelMap">
+		SELECT glass_material
+			 , glass_size
+			 , glass_thickness
+		  FROM dw_glass_mast
+		 WHERE glass_code = #{glassCode}
+	</select>
+	
+	<select id="getCutDateInfo" resultType="CamelMap">
+		SELECT '20' + (SELECT chg_date FROM dw_date_code WHERE date_code = #{yCode})
+			   		+ (SELECT chg_date FROM dw_date_code WHERE date_code = #{mCode})
+			   		+ (SELECT chg_date FROM dw_date_code WHERE date_code = #{dCode}) AS cut_date
+	</select>
+	
+	<select id="getUnitInfo" resultType="CamelMap">
+		SELECT unit
+		  FROM dw_mat_category 
+		 WHERE mat_category_code = '10'
+	</select>
+	
+	<select id="getRawMatInList" resultType="CamelMap">
+		SELECT a.glass_id
+			 , a.in_date
+			 , a.in_time
+			 , a.use_category
+			 , a.box_num
+			 , a.in_qty
+			 , a.in_qty as org_in_qty
+			 , a.use_qty
+			 , a.remain_qty
+			 , a.unit
+			 , a.use_yn
+			 , a.worker_id
+			 , a.worker_name
+			 , a.glass_material
+			 , a.glass_thickness
+			 , a.glass_size
+			 , a.cut_type
+			 , a.cut_date
+			 , a.comments
+			 , a.create_date
+			 , a.create_user
+			 , b.status
+			 , c.out_comments
+			 , case when isnull(b.close_yn,'N') = 'N' then 'Y'
+			 	    else 'N'
+			   end as editable
+		  FROM dw_raw_mat_proc_in a 
+		  left outer join ( select * from dw_mat_close_info where mat_category_code ='10' and mat_type_code='GLASS' ) b 
+		  on ( a.in_date = b.stock_date )
+		  left outer join 
+		  (
+				SELECT a.glass_id, 
+				     	a.in_date, 
+				       STRING_AGG(a.comments, ' ') AS out_comments
+				FROM dw_raw_mat_proc_out a  
+				GROUP BY a.glass_id, a.in_date
+		  ) c
+		  on ( a.glass_id = c.glass_id 
+		       and a.in_date = c.in_date )		  
+		  WHERE 1 = 1
+			<choose>
+				<when test="searchGlassId != null and searchGlassId.trim() != ''">
+					and a.glass_id = #{searchGlassId}
+				</when>
+				<otherwise>
+					   and a.in_date BETWEEN #{stDate} AND #{edDate}
+					<if test="useCategory != null and useCategory != ''" >
+				  	   AND a.use_category = #{useCategory}
+					</if>
+				</otherwise>			
+			</choose> 
+		 ORDER BY a.in_date desc, a.in_time desc, a.box_num desc
+	</select>
+	
+	<select id="checkDupGlassId" resultType="map">
+		SELECT glass_id, in_date
+		  FROM dw_raw_mat_proc_in
+		 WHERE glass_id+in_date IN
+		<foreach item="item" collection="vo" open="(" separator="," close=")" >
+			#{item.glassId}+ #{item.inDate}
+		</foreach>
+	</select>
+	
+	<select id="checkUseInData" resultType="Map">
+		select COALESCE(STRING_AGG(glass_id, '/'), 'NoData') AS glassId
+		from dw_raw_mat_proc_in a
+		where upper(a.glass_id)+in_date in
+		<foreach item="item" collection="vo" open="(" separator="," close=")" >
+			upper(#{item.glassId}) + #{item.inDate}
+		</foreach>
+		and a.use_yn = 'Y'
+	</select>			
+	
+	<insert id="insertRawMatIn">
+		INSERT INTO dw_raw_mat_proc_in
+		(
+			   glass_id
+			 , in_date
+			 , in_time
+			 , use_category
+			 , box_num
+			 , in_qty
+			 , use_qty
+			 , remain_qty
+			 , unit
+			 , use_yn
+			 , worker_id
+			 , worker_name
+			 , glass_material
+			 , glass_thickness
+			 , glass_size
+			 , cut_type
+			 , cut_date
+			 , comments
+			 , create_date
+			 , create_user
+		)
+		VALUES
+		(
+			   #{glassId}
+			 , #{inDate}
+			 , #{inTime}
+			 , #{useCategory}
+			 , #{boxNum}
+			 , #{inQty}
+			 , 0
+			 , #{inQty}
+			 , #{unit}
+			 , #{useYn}
+			 , #{workerId}
+			 , #{workerName}
+			 , isnull(#{glassMaterial},'')
+			 , isnull(#{glassThickness},0)
+			 , isnull(#{glassSize},'')
+			 , #{cutType}
+			 , #{cutDate}
+			 , #{comments}
+			 , getdate()
+			 , #{dowInsysUserId}
+		)
+	</insert>
+	
+	<delete id="deleteRawMatIn">
+		DELETE FROM dw_raw_mat_proc_in
+		 WHERE glass_id = #{glassId}
+		   and in_date = #{inDate}
+	</delete>
+	
+	<update id="updateRawMatIn">
+		UPDATE dw_raw_mat_proc_in
+		   SET 	worker_name = #{workerName},
+		   		in_qty = isnull(#{inQty},0),
+				remain_qty = remain_qty + ( isnull(#{inQty},0) - isnull(#{orgInQty},0)),
+				comments = #{comments}
+		 WHERE glass_id = #{glassId}
+		   and in_date = #{inDate}
+	</update>
+	
+	<select id="getRawMatInInfo" resultType="CamelMap">
+		SELECT top 1 A.glass_id
+			 , a.in_date
+			 , A.use_category
+			 , B.code_name AS use_category_nm
+			 , A.glass_thickness
+			 , A.glass_material
+			 , A.unit
+			 ,a.remain_qty as stock_qty
+			 ,a.use_yn
+			 ,a.comments as in_comments
+		  FROM dw_raw_mat_proc_in A
+		  LEFT OUTER JOIN dw_common_code B
+		  	ON B.maj_code = '74'
+		   AND B.code = A.use_category
+		 WHERE glass_id = #{glassId}
+		 order by a.remain_qty desc
+	</select>
+	
+	<select id="getRawMatOutList" resultType="CamelMap">
+		SELECT A.out_no
+			 , A.work_date
+			 , A.shift_code
+			 , A.out_seq
+			 , A.out_date
+			 , A.out_time
+			 , A.glass_id
+			 , A.in_date
+			 , A.batch_no
+			 , A.worker_name
+			 , A.line
+			 , A.step_code
+			 , A.step_nm
+			 , A.equip_no
+			 , A.equip_nm
+			 , A.unit
+			 , isnull(I.remain_qty,0) remain_qty
+			 , isnull(I.remain_qty,0) + isnull(a.out_qty,0) as stock_qty
+			 , isnull(A.out_qty,0) out_qty			 
+			 , isnull(A.out_qty,0) AS org_out_qty
+			 , A.good_qty			 
+			 , A.error_rate
+			 , A.error_qty
+			 , A.error_ngport_qty
+			 , A.error_wash_qty
+			 , A.error_tkout_qty
+			 , A.error_etc_qty
+			 , A.comments
+			 , I.comments as in_comments
+			 , A.use_category
+			 , C.code_name AS use_category_nm
+			 , A.glass_thickness
+			 , A.glass_material			 
+			, case when isnull(d.close_yn, 'N') = 'N' and 
+			 		<![CDATA[
+						( ( datepart(hour,getdate())   <  8
+			              		and ( a.out_date = CONVERT(VARCHAR(8), getdate(), 112) ) or 
+							  		( a.out_date = CONVERT(VARCHAR(8), DATEADD(DAY, -1, getdate()), 112) and convert(int,substring(a.out_time, 1,2))   >   19)
+					     	) or 
+					     	( datepart(hour,getdate())   >=   8 and a.out_date = CONVERT(VARCHAR(8), getdate(), 112) 
+					     	) or
+					     	I.remain_qty > 0   
+					     )  ]]>
+			        then 'Y'
+			        else 'N'
+			   end editable
+		  FROM dw_raw_mat_proc_out A
+		  JOIN dw_raw_mat_proc_in I
+		    ON ( I.glass_id = A.glass_id and I.in_date = A.in_date )
+		  LEFT OUTER JOIN dw_common_code C
+		  	ON C.maj_code = '74'
+		   AND C.code = A.use_category
+		  left outer join ( select * from dw_mat_close_info where mat_category_code ='10' and mat_type_code='GLASS' ) d 
+		   on ( a.work_date = d.stock_date )		   
+		 WHERE 1 = 1
+		<choose>
+			<when test="searchGlassId != null and searchGlassId.trim() != ''">
+				and a.glass_id = #{searchGlassId}
+			</when>
+			<otherwise>
+				   and work_date BETWEEN #{stWorkDate} AND #{edWorkDate} 
+				<if test="shiftCode != null and shiftCode != ''" >
+			  	   AND shift_code = #{shiftCode}
+				</if>
+			</otherwise>			
+		</choose> 
+		 ORDER BY A.out_date desc, A.out_time desc, A.out_seq desc
+	</select>
+	
+	<select id="checkRemainQty" resultType="CamelMap">
+		SELECT glass_id
+		  FROM dw_raw_mat_proc_in
+		 WHERE glass_id = #{glassId}
+		   and in_date = #{inDate}
+		   AND remain_qty - #{outQty} <![CDATA[<]]> 0		  
+	</select>
+	
+	<select id="checkRemainDiffQty" resultType="CamelMap">
+		select glass_id
+		  from dw_raw_mat_proc_in a
+		 where upper(a.glass_id) = upper(#{glassId})
+		   and a.in_date =  #{inDate}
+		   and remain_qty - ( #{outQty} - #{orgOutQty} )<![CDATA[ < 0 ]]>
+	</select>		
+	
+	<insert id="insertRawMatOut">	    
+		INSERT INTO dw_raw_mat_proc_out
+		(
+			   out_no
+			 , work_date
+			 , shift_code
+			 , out_seq
+			 , out_date
+			 , out_time
+			 , glass_id
+			 , in_date
+			 , batch_no
+			 , use_category
+			 , glass_material
+			 , glass_thickness			 
+			 , worker_name
+			 , line
+			 , step_code
+			 , step_nm
+			 , equip_no
+			 , equip_nm
+			 , unit
+			 , out_qty
+			 , good_qty			
+			 , error_rate
+			 , error_qty
+			 , error_ngport_qty
+			 , error_wash_qty
+			 , error_tkout_qty
+			 , error_etc_qty
+			 , comments
+			 , create_date
+			 , create_user
+		)
+		VALUES
+		(
+		   ( select case when  isnull(max(out_no),'') = '' then  'GO' + #{workDate} + #{shiftCode} + '001'
+			              else  'GO' + #{workDate} + #{shiftCode} + RIGHT('000' + cast((cast(substring(max(out_no),12,14) as int) + 1) as varchar),3)
+			         end as out_no
+				from dw_raw_mat_proc_out 
+			   where work_date = #{workDate} and shift_code = #{shiftCode}
+			)
+			 , #{workDate}
+			 , #{shiftCode}
+			 , (select COALESCE(max(out_seq),0)+1 from dw_raw_mat_proc_out where work_date=#{workDate} and shift_code = #{shiftCode})
+			 , #{outDate}         
+			 , #{outTime}     
+			 , #{glassId}
+			 , #{inDate}
+			 , #{batchNo}
+			 , #{useCategory}
+			 , #{glassMaterial}
+			 , #{glassThickness}				 
+			 , #{workerName}
+			 , #{line}
+			 , #{stepCode}
+			 , #{stepNm}
+			 , #{equipNo}
+			 , #{equipNm}
+			 , #{unit}
+			 , isnull(#{outQty},0)
+			 , isnull(#{outQty},0) - ( isnull(#{errorNgportQty},0) + isnull(#{errorNgportQty},0) + isnull(#{errorTkoutQty},0) + isnull(#{errorEtcQty},0) )	
+			 , cast(( isnull(#{errorNgportQty},0) + isnull(#{errorNgportQty},0) + isnull(#{errorTkoutQty},0) + isnull(#{errorEtcQty},0) ) * 100.0 / #{outQty} as decimal(5,2))
+			 , isnull(#{errorNgportQty},0) + isnull(#{errorNgportQty},0) + isnull(#{errorTkoutQty},0) + isnull(#{errorEtcQty},0)
+			 , isnull(#{errorNgportQty},0)
+			 , isnull(#{errorWashQty},0)
+			 , isnull(#{errorTkoutQty},0)
+			 , isnull(#{errorEtcQty},0)
+			 , #{comments}
+			 , getdate()
+			 , #{dowInsysUserId}
+		)
+	</insert>
+	
+	<delete id="deleteRawMatOut">
+		DELETE FROM dw_raw_mat_proc_out
+		 WHERE out_no = #{outNo}
+	</delete>	
+	
+	<update id="updateRemainQtyMinus">
+		UPDATE dw_raw_mat_proc_in
+		   SET use_qty = use_qty + #{outQty}
+		   	 , remain_qty = remain_qty - #{outQty}
+		   	 , use_yn = 'Y'
+		 WHERE glass_id = #{glassId}
+		   and in_date = #{inDate}
+	</update>
+	
+	<update id="updateRemainQtyPlus">
+		UPDATE dw_raw_mat_proc_in
+		   SET use_qty = use_qty - #{outQty}
+		   	 , remain_qty = remain_qty + #{outQty}
+			 , use_yn = case when ( use_qty - #{outQty} ) <![CDATA[ <=0 ]]> then 'N'
+			           	     else 'Y' 
+			            end	
+		 WHERE glass_id = #{glassId}
+		   and in_date = #{inDate}
+	</update>
+	
+	<update id="updateRemainDiffQty">
+		UPDATE dw_raw_mat_proc_in
+			SET use_qty = use_qty + ( #{outQty} - #{orgOutQty} ),
+			    remain_qty = remain_qty - ( #{outQty} - #{orgOutQty} ),
+			    use_yn = case when ( use_qty + ( #{outQty} - #{orgOutQty} ) ) <![CDATA[ <=0 ]]> then 'N'
+			             	  else 'Y'
+			              end			             
+		WHERE glass_id = #{glassId}
+		  and in_date = #{inDate}
+	</update>		
+	
+	<update id="updateRawMatOut">
+		UPDATE dw_raw_mat_proc_out
+		   SET worker_name = #{workerName}
+		   	 , line = #{line}
+			 , step_code = #{stepCode}
+			 , step_nm = #{stepNm}
+			 , equip_no = #{equipNo}
+			 , equip_nm = #{equipNm}
+			 , out_qty = isnull(#{outQty},0)			 
+			 , good_qty = isnull(#{outQty},0) - ( isnull(#{errorNgportQty},0) + isnull(#{errorNgportQty},0) + isnull(#{errorTkoutQty},0) + isnull(#{errorEtcQty},0) )	
+			 , error_rate = case when #{outQty} = 0 then 0 
+			                     else cast(( isnull(#{errorNgportQty},0) + isnull(#{errorNgportQty},0) + isnull(#{errorTkoutQty},0) + isnull(#{errorEtcQty},0) ) * 100.0 / #{outQty} as decimal(5,2))
+			                end
+			 , error_qty = isnull(#{errorNgportQty},0) + isnull(#{errorNgportQty},0) + isnull(#{errorTkoutQty},0) + isnull(#{errorEtcQty},0)
+			 , error_ngport_qty = isnull(#{errorNgportQty},0)
+			 , error_wash_qty = isnull(#{errorWashQty},0)
+			 , error_tkout_qty = isnull(#{errorTkoutQty},0)
+			 , error_etc_qty = isnull(#{errorEtcQty},0)
+		   	 , comments = #{comments}
+		 WHERE out_no = #{outNo}
+	</update>
+	
+	<select id="selectEquipListPop" resultType="com.dowinsys.mes.common.CamelMap">
+		SELECT 'DFB1' AS line
+		   	 , '999' AS 설비번호
+		   	 , '수동' AS 설비명
+		   	 , '수동' AS 설비약명
+		   	 , '010' AS 공정코드
+		   	 , '적층' AS 공정명
+		   	 , '09' AS area_code
+		   	 , 'Front' AS area
+		   	 , '' AS 비고
+		UNION ALL
+		SELECT
+		   	   a.line
+		   	 , a.설비번호
+		   	 , a.설비명
+		   	 , a.설비약명
+		   	 , a.공정코드
+		   	 , b.공정명
+		   	 , a.공정구분 as area_code
+		   	 , a.area
+		   	 , a.비고
+		  FROM dw_equipment_mast a
+		  LEFT OUTER JOIN dw_step_mast b 
+			ON ( a.line = b.line and a.공정코드 = b.공정코드 )
+		WHERE 1 = 1
+		  AND a.사용여부 = 1
+		  AND a.공정코드 = '010'
+	</select>
+	
+	<!-- 재고실사 -->
+	<select id="selectGlassMaterialList" resultType="CamelMap">
+		SELECT distinct glass_material, glass_thickness
+		  FROM dw_glass_mast
+		 ORDER BY glass_material, glass_thickness
+	</select>
+	
+	<select id="selectMaxStockDate" resultType="String">
+		SELECT CONVERT(VARCHAR(8), 
+			       	   ISNULL(max(stock_date), CONVERT(VARCHAR(8), DATEADD(HOUR, 9, GETUTCDATE()), 112)), 
+			       	   112) AS stockDate
+			FROM dw_raw_mat_proc_id_stock
+	</select>
+	
+	<select id="selectStockStatus" resultType="String">
+		select status
+		from dw_mat_close_info a
+		where a.stock_date = #{stockDate} 
+		  and a.mat_category_code = #{matCategoryCode}
+		  and a.mat_type_code = #{matTypeCode}
+	</select>
+	
+	<select id="selectPreStockStatus" resultType="String">
+		select status
+		from dw_mat_close_info a
+		where a.stock_date = CONVERT(VARCHAR(8), DATEADD(DAY, -1, #{stockDate} ), 112) 
+		  and a.mat_category_code = #{matCategoryCode}
+		  and a.mat_type_code = #{matTypeCode}
+	</select>	
+	
+	<select id="selectConfirmN" resultType="int">
+		select count(1) as cnt
+		from dw_raw_mat_proc_id_stock
+		where stock_date = #{stockDate}
+		  and confirm_yn = 'N'
+	</select>	
+	
+	<select id="selectRawMatIdStock" resultType="CamelMap">
+		SELECT a.stock_date,
+			a.glass_id,
+			a.use_category,
+			b.code_name as use_category_name,
+			a.glass_material,
+			a.glass_thickness,
+			a.unit,
+			a.prev_stock_qty,
+			a.prev_real_stock_qty,
+			a.in_qty,
+			a.out_qty,
+			a.good_qty,
+			a.error_qty,
+			a.stock_qty,
+			a.real_stock_qty,
+			a.diff_qty,
+			a.confirm_yn,
+			a.charger_id,
+			a.charger_name,
+			a.comments,
+			case when c.status = 'CLOSE' then 'N'
+			     else 'Y'
+			end as editable			
+		FROM dw_raw_mat_proc_id_stock a 
+		left outer join ( select code, code_name from dw_common_code where maj_code='74' ) b 
+		on ( a.use_category = b.code )
+		left outer join ( select * from dw_mat_close_info where mat_category_code='10' and mat_type_code='GLASS' ) c
+		on ( a.stock_date = c.stock_date  )			
+		where a.stock_date = #{stockDate}
+		<if test="glassId != null and glassId.trim() != ''" >
+		  and a.glass_id = #{glassId}
+		</if>		
+		<if test="useCategory != null and useCategory.trim() != ''" >
+		  and a.use_category = #{useCategory}
+		</if>	
+		<if test="glassMaterial != null and glassMaterial.trim() != ''" >
+		  and a.glass_material = #{glassMaterial}
+		</if>	
+		<if test="glassThick != null and glassThick != ''" >
+		  and a.glass_thickness = #{glassThick}
+		</if>	
+		<if test="confirmYn != null and confirmYn.trim() != ''" >
+		  and a.confirm_yn = #{confirmYn}
+		</if>
+		<if test="diffYn != null and diffYn.trim() != ''" >
+          AND (
+            	(#{diffYn} = 'N' AND a.diff_qty = 0) OR
+            	(#{diffYn} = 'Y' AND a.diff_qty != 0)
+           )
+		</if>		
+	</select>
+	
+	<select id="createTempMatStockTable">
+	    SELECT *
+	      INTO ${tempTableName}
+	      FROM dw_raw_mat_proc_id_stock
+	     WHERE stock_date = #{stockDate}
+	</select>	
+	
+	<delete id="dropTempMatStockTable">
+		DROP TABLE ${tempTableName}
+	</delete>		
+	
+	<delete id="deleteRawMatIdStock">
+		delete from dw_raw_mat_proc_id_stock
+		where stock_date = #{stockDate}
+	</delete>
+	
+	<insert id="insertRawMatIdStock">
+		INSERT INTO dw_raw_mat_proc_id_stock
+		(
+			stock_date,
+			glass_id,
+			use_category,
+			glass_material,
+			glass_thickness,
+			unit,
+			prev_stock_qty,
+			prev_real_stock_qty,
+			in_qty,
+			out_qty,
+			good_qty,
+			error_qty,
+			stock_qty,
+			real_stock_qty,
+			diff_qty,
+			confirm_yn,
+			charger_id,
+			charger_name,
+			comments,
+			create_date,
+			create_user
+		)
+		select a.stock_date,
+				a.glass_id,
+				a.use_category,
+				a.glass_material,
+				a.glass_thickness,
+				a.unit,
+				a.prev_stock_qty,
+				a.prev_real_stock_qty,
+				a.in_qty,
+				a.out_qty,
+				a.good_qty,
+				a.error_qty,
+				( a.prev_stock_qty + a.in_qty - a.out_qty ) as stock_qty,				
+				case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then 
+							( a.prev_real_stock_qty + a.in_qty - a.out_qty ) 
+					 else b.real_stock_qty
+			    end as real_stock_qty,
+				case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then 
+							( a.prev_real_stock_qty + a.in_qty - a.out_qty ) - ( a.prev_stock_qty + a.in_qty - a.out_qty )
+					 else ( b.real_stock_qty ) - ( a.prev_stock_qty + a.in_qty - a.out_qty )
+			    end as diff_qty,	
+			    case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then 'Y'
+				     else b.confirm_yn
+				end as confirm_yn,
+				case when #{workerId} = 'SYSTEM' and #{workerName} = 'SYS_BATCH' and b.charger_id is not null then b.charger_id
+				     else #{workerId}
+				end as worker_id,
+				case when #{workerId} = 'SYSTEM' and #{workerName} = 'SYS_BATCH' and b.charger_id is not null then b.charger_name
+				     else #{workerName}
+				end as worker_name,
+			    case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then ''
+				     else b.comments
+				end as comments,				
+				getdate(),
+				#{workerId}
+		from 		
+		( 
+			select #{stockDate} as stock_date,
+					a.glass_id,
+					a.use_category,
+					a.glass_material,
+					a.glass_thickness,
+					a.unit,
+					sum(case when gubun = 'PRE_STOCK' then qty else 0 end) as prev_stock_qty,
+					sum(case when gubun = 'PRE_STOCK' then real_qty else 0 end) as prev_real_stock_qty,
+					sum(case when gubun = 'IN' then qty else 0 end) as in_qty,
+					sum(case when gubun = 'OUT' then qty else 0 end) as out_qty,
+					sum(case when gubun = 'OUT' then good_qty else 0 end) as good_qty,
+					sum(case when gubun = 'OUT' then error_qty else 0 end) as error_qty
+			from 
+			( 
+				SELECT 'PRE_STOCK' as gubun, 
+						glass_id,
+						use_category,
+						glass_material,
+						glass_thickness,
+						unit,
+						sum(stock_qty) as qty,
+						sum(real_stock_qty) as real_qty,
+						0 as good_qty,
+						0 as error_qty
+				FROM dw_raw_mat_proc_id_stock a
+				where stock_date = convert(char(8), dateadd(DAY, -1, cast(#{stockDate} as date)), 112)
+				  and ( stock_qty > 0  or real_stock_qty > 0 )
+				GROUP by glass_id, use_category, glass_material, glass_thickness, unit
+				union all 
+				SELECT 'IN' as gubun, 
+						glass_id,
+						use_category,
+						glass_material,
+						glass_thickness,
+						unit,
+						sum(in_qty) as qty,
+						sum(in_qty) as real_qty,
+						0 as good_qty,
+						0 as error_qty	
+				FROM dw_raw_mat_proc_in a
+				where in_date + in_time between #{stockDate} + '08:00' and convert(char(8), dateadd(DAY, 1, cast(#{stockDate} as date)), 112) + '07:59'
+				GROUP by glass_id, use_category, glass_material, glass_thickness, unit
+				union all 
+				SELECT 'OUT' as gubun, 
+						glass_id,
+						use_category,
+						glass_material,
+						glass_thickness,
+						unit,
+						sum(out_qty) as qty,
+						sum(out_qty) as real_qty,
+						sum(good_qty) as good_qty,
+						sum(error_qty) as error_qty		
+				FROM dw_raw_mat_proc_out a
+				where work_date = #{stockDate}
+				GROUP by glass_id, use_category, glass_material, glass_thickness, unit
+			) a 
+			group by glass_id, use_category, glass_material, glass_thickness, unit
+		) a	
+		left outer join 
+		(
+			select a.stock_date, a.glass_id, a.use_category, a.real_stock_qty, a.confirm_yn, a.comments, b.status, a.charger_id, a.charger_name
+			  from ${tempTableName} a 
+			left outer join 
+			( 
+				select * from dw_mat_close_info 
+				where stock_date = #{stockDate}
+				  and mat_category_code = '10' and mat_type_code='GLASS'
+			) b 
+			on ( a.stock_date = b.stock_date )
+			where a.stock_date = #{stockDate}
+		) b 
+		on ( a.stock_date = b.stock_date
+		     and a.glass_id = b.glass_id
+		     and a.use_category = b.use_category )		
+	</insert>
+	
+	<update id="updateRawMatIdStock">
+		update dw_raw_mat_proc_id_stock
+		   set charger_name = #{workerName}, 
+		   	   real_stock_qty = isnull(#{realStockQty},0),
+			   diff_qty =  isnull(#{realStockQty},0) - stock_qty,
+			   confirm_yn = #{confirmYn},
+			   comments = #{comments}
+		where stock_date = #{stockDate}
+		  and glass_id = #{glassId}	
+	</update>	
+	
+	<delete id="deleteRawMatStock">
+		delete from dw_raw_mat_proc_stock
+		where stock_date = #{stockDate}
+	</delete>
+	
+	<insert id="insertRawMatStock">
+		INSERT INTO dw_raw_mat_proc_stock
+		(
+			stock_date,
+			use_category,
+			glass_material,
+			glass_thickness,
+			unit,
+			prev_stock_qty,
+			prev_real_stock_qty,
+			in_qty,
+			out_qty,
+			good_qty,
+			error_qty,
+			stock_qty,
+			real_stock_qty,
+			diff_qty,
+			create_date,
+			create_user
+		)
+		select stock_date,
+			use_category,
+			glass_material,
+			glass_thickness,
+			unit,
+			sum(prev_stock_qty) as prev_stock_qty,
+			sum(prev_real_stock_qty) as prev_real_stock_qty,
+			sum(in_qty) as in_qty,
+			sum(out_qty) as out_qty,
+			sum(good_qty) as good_qty,
+			sum(error_qty) as error_qty,
+			sum(stock_qty)as stock_qty,
+			sum(real_stock_qty) as real_stock_qty,
+			sum(diff_qty) as diff_qty,
+			getdate(),
+			#{workerId}
+		from dw_raw_mat_proc_id_stock
+		where stock_date = #{stockDate}
+		group by stock_date, use_category, glass_material, glass_thickness, unit	
+	</insert>
+	
+	<delete id="deletetMatCloseInfo">
+		delete from dw_mat_close_info
+		where stock_date =  #{stockDate}
+		  and mat_category_code = #{matCategoryCode}
+		  and mat_type_code = #{matTypeCode}
+	</delete>
+	
+	<insert id="insertMatCloseInfo">
+	  MERGE INTO dw_mat_close_info AS target
+	    USING (
+	    		SELECT #{stockDate} AS stock_date,
+	                  #{matCategoryCode} AS mat_category_code,
+	                  #{matTypeCode} AS mat_type_code
+	           ) AS source
+	    ON target.stock_date = source.stock_date
+	       AND target.mat_category_code = source.mat_category_code
+	       AND target.mat_type_code = source.mat_type_code
+	    WHEN MATCHED THEN
+	        UPDATE SET
+	            stock_summary_yn = 'Y',
+	            stock_summary_date = GETDATE(),
+	            stock_summary_charger = #{workerName},
+	            update_date = GETDATE(),
+	            update_user = #{workerId}
+	    WHEN NOT MATCHED THEN
+	        INSERT (
+	            stock_date,
+	            mat_category_code,
+	            mat_type_code,
+	            stock_summary_yn,
+	            stock_summary_date,
+	            stock_summary_charger,
+	            real_stock_check_yn,
+	            real_stock_check_date,
+	            real_stock_check_charger,
+	            close_yn,
+	            close_date,
+	            close_charger,
+	            status,
+	            create_date,
+	            create_user,
+	            update_date,
+	            update_user
+	        )
+	        VALUES (
+	            #{stockDate},
+	            #{matCategoryCode},
+	            #{matTypeCode},
+	            'Y',
+	            GETDATE(),
+	            #{workerName},
+	            'N',
+	            NULL,
+	            NULL,
+	            'N',
+	            NULL,
+	            NULL,
+	            'SUMMARY',
+	            GETDATE(),
+	            #{workerId},
+	            GETDATE(),
+	            #{workerId}
+	        );
+	</insert>	
+	
+	<update id="updatetMatCloseInfo">
+		update dw_mat_close_info
+		  set 
+		<if test="status == 'CLOSE'" >		
+			  close_yn = 'Y',
+			  close_date = getdate(),
+			  close_charger = #{workerName},
+		</if>  
+		<if test="status == 'COMPLETE' or status == 'CHECKING'" >		
+			  real_stock_check_yn = 'Y',
+			  real_stock_check_date = getdate(),
+			  real_stock_check_charger = #{workerName},
+		</if> 
+		  	  status = #{status},
+		  	  update_date = getdate(),
+		  	  update_user =   #{workerId}
+		where stock_date =  #{stockDate}
+		  and mat_category_code = #{matCategoryCode}
+		  and mat_type_code = #{matTypeCode}
+	</update>	
+	
+	<!-- Report -->
+	<select id="selectRawMatMonthReport" resultType="CamelMap">
+	    WITH BaseData AS (
+	        SELECT 
+	            glass_material,
+	            glass_thickness,
+	            use_category,
+	            stock_date,
+	            sort_order,
+	            gubun,
+	            CASE WHEN gubun = 'in_qty' THEN '1'
+	                 WHEN gubun = 'out_qty' THEN '2'
+	                 WHEN gubun = 'good_qty' THEN '3'
+	                 WHEN gubun = 'error_qty' THEN '4'
+	                 WHEN gubun = 'stock_qty' THEN '6'
+	                 WHEN gubun = 'real_stock_qty' THEN '5'
+	                 WHEN gubun = 'diff_qty' THEN '7'
+	            END AS item_order,
+	            CASE WHEN gubun = 'in_qty' THEN '입고'
+	                 WHEN gubun = 'out_qty' THEN '사용'
+	                 WHEN gubun = 'good_qty' THEN '양품'
+	                 WHEN gubun = 'error_qty' THEN 'Loss'
+	                 ELSE '재고'
+	            END AS item_name1,  
+	            CASE WHEN gubun = 'in_qty' THEN ''
+	                 WHEN gubun = 'out_qty' THEN ''
+	                 WHEN gubun = 'good_qty' THEN ''
+	                 WHEN gubun = 'error_qty' THEN ''
+	                 WHEN gubun = 'stock_qty' THEN '전산'
+	                 WHEN gubun = 'real_stock_qty' THEN '실물'
+	                 WHEN gubun = 'diff_qty' THEN '차이'
+	            END AS item_name2,        
+	            qty
+	        FROM (
+	            SELECT 
+	                stock_date,
+	                glass_material,
+	                CAST(glass_thickness AS VARCHAR) AS glass_thickness,
+	                use_category,
+	                1 AS sort_order,
+	                in_qty,
+	                out_qty,
+	                good_qty,
+	                error_qty,
+	                stock_qty,
+	                real_stock_qty,
+	                diff_qty
+	            FROM dw_raw_mat_proc_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%')
+	              AND use_category = #{useCategory}
+	            UNION ALL 
+	            SELECT 
+	                'Total' AS stock_date,
+	                glass_material,
+	                CAST(glass_thickness AS VARCHAR) AS glass_thickness,
+	                use_category,
+	                1 AS sort_order,
+	                SUM(in_qty) AS in_qty,
+	                SUM(out_qty) AS out_qty,
+	                SUM(good_qty) AS good_qty,
+	                SUM(error_qty) AS error_qty,
+	                SUM(stock_qty) AS stock_qty,
+	                SUM(real_stock_qty) AS real_stock_qty,
+	                SUM(diff_qty) AS diff_qty
+	            FROM dw_raw_mat_proc_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%')
+	              AND use_category = #{useCategory}
+	            GROUP BY glass_material, glass_thickness, use_category
+	            UNION ALL 
+	            SELECT 
+	                stock_date,
+	                'Total' AS glass_material,
+	                'Total' AS glass_thickness, 
+	                use_category,
+	                0 AS sort_order,
+	                SUM(in_qty) AS in_qty,
+	                SUM(out_qty) AS out_qty,
+	                SUM(good_qty) AS good_qty,
+	                SUM(error_qty) AS error_qty,
+	                SUM(stock_qty) AS stock_qty,
+	                SUM(real_stock_qty) AS real_stock_qty,
+	                SUM(diff_qty) AS diff_qty
+	            FROM dw_raw_mat_proc_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%') 
+	              AND use_category = #{useCategory}
+	            GROUP BY stock_date, use_category
+	            UNION ALL 
+	            SELECT 
+	                'Total' AS stock_date,
+	                'Total' AS glass_material,
+	                'Total' AS glass_thickness,
+	                use_category,
+	                0 AS sort_order,
+	                SUM(in_qty) AS in_qty,
+	                SUM(out_qty) AS out_qty,
+	                SUM(good_qty) AS good_qty,
+	                SUM(error_qty) AS error_qty,
+	                SUM(stock_qty) AS stock_qty,
+	                SUM(real_stock_qty) AS real_stock_qty,
+	                SUM(diff_qty) AS diff_qty
+	            FROM dw_raw_mat_proc_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%') 
+	              AND use_category = #{useCategory}
+	            GROUP BY use_category
+	        ) a 
+	        UNPIVOT ( 
+	            qty FOR gubun IN (in_qty, out_qty, good_qty, error_qty, stock_qty, real_stock_qty, diff_qty)
+	        ) AS b
+	    )
+	    SELECT 
+	        a.*, 
+	        b.qty AS pre_stock
+	    FROM (
+	        SELECT 
+	            glass_material,
+	            glass_thickness,
+	            use_category,
+	            gubun,
+	            sort_order,
+	            item_order,
+	            item_name1,
+	            item_name2,
+	            case when item_name1 = '재고' then null 
+	                 else ISNULL([Total], 0) 
+	             end AS D_Total,  
+	            <foreach collection="days" item="item" separator=",">
+	                ISNULL([${item.day}], 0) AS D_${item.day}
+	            </foreach>
+	        FROM BaseData
+	        PIVOT (
+	            SUM(qty) FOR stock_date IN 
+	            ([Total],<foreach collection="days" item="item" separator=",">[${item.day}]</foreach>)
+	        ) AS pvt
+	    ) a 
+	    LEFT OUTER JOIN (
+	        SELECT 
+	            glass_material,
+	            glass_thickness,
+	            use_category,
+	            gubun,
+	            qty
+	        FROM (
+	            SELECT 
+	                glass_material,
+	                CAST(glass_thickness AS VARCHAR) AS glass_thickness,
+	                use_category,
+	                prev_stock_qty AS stock_qty,
+	                prev_real_stock_qty AS real_stock_qty,
+	                prev_real_stock_qty - prev_stock_qty AS diff_qty
+	            FROM dw_raw_mat_proc_stock 
+	            WHERE stock_date = CONCAT(#{month}, '01')
+	              AND use_category = #{useCategory}
+	            UNION ALL 
+	            SELECT 
+	                'Total' AS glass_material,
+	                'Total' AS glass_thickness,
+	                use_category,
+	                SUM(prev_stock_qty) AS stock_qty,
+	                SUM(prev_real_stock_qty) AS real_stock_qty,
+	                SUM(prev_real_stock_qty - prev_stock_qty) AS diff_qty
+	            FROM dw_raw_mat_proc_stock 
+	            WHERE stock_date = CONCAT(#{month}, '01') 
+	              AND use_category = #{useCategory}
+	            GROUP BY use_category
+	        ) a 
+	        UNPIVOT (
+	            qty FOR gubun IN (stock_qty, real_stock_qty, diff_qty)
+	        ) AS b
+	    ) b
+	    ON (a.glass_material = b.glass_material 
+	        AND a.glass_thickness = b.glass_thickness 
+	        AND a.use_category = b.use_category 
+	        AND a.gubun = b.gubun)
+	    ORDER BY sort_order, glass_material, glass_thickness, use_category, item_order
+	</select>	
+	
+	<!-- 원장정보 -->
+	<select id="getDateCodeList" resultType="CamelMap">
+		SELECT date_code, chg_date
+		  FROM dw_date_code
+		 ORDER BY date_code
+	</select>
+	
+	<select id="getGlassMstList" resultType="CamelMap">
+		SELECT glass_code
+			 , glass_material
+			 , glass_size
+			 , glass_thickness
+		  FROM dw_glass_mast
+		 ORDER BY glass_code
+	</select>
+	
+	<select id="checkDupGlassMst" resultType="Map">
+		SELECT COALESCE(STRING_AGG(glass_code, '/'), 'NoData') AS glassCode
+		  FROM dw_glass_mast
+		 WHERE glass_code IN
+		<foreach item="item" collection="vo" open="(" separator="," close=")" >
+			#{item.glassCode}
+		</foreach>
+	</select>
+	
+	<insert id="insertGlassMst">
+	INSERT INTO dw_glass_mast
+		(
+			   glass_code
+			 , glass_material
+			 , glass_size
+			 , glass_thickness
+		)
+		VALUES
+		(
+			   #{glassCode}
+			 , #{glassMaterial}
+			 , #{glassSize}
+			 , #{glassThickness}
+		)
+	</insert>
+	
+	<delete id="deleteGlassMst">
+		DELETE FROM dw_glass_mast
+		 WHERE glass_code = #{glassCode}
+	</delete>
+	
+	<update id="updateGlassMst">
+		UPDATE dw_glass_mast
+		   SET glass_material = #{glassMaterial}
+		   	 , glass_size = #{glassSize}
+		   	 , glass_thickness = #{glassThickness}
+		 WHERE glass_code = #{glassCode}
+	</update>
+	
+</mapper>

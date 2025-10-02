@@ -1,0 +1,1198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.r0000000.mapper.R0000000Mapper">
+
+    <select id="R0000000_Sch1" parameterType="Map" resultType="CamelMap">
+    
+    	select x.*
+		from
+		(		
+			select 차수, area, 공정명, LEFT(작업시작시간, CHARINDEX(' ', 작업시작시간) - 1) AS 작업시작, 작업시작시간, LEFT(작업종료시간, CHARINDEX(' ', 작업종료시간) - 1) AS 작업종료, 작업종료시간, 설비명 설비약명, 작업자, Shift, 공정코드, po_no, panel_id, lot_no, null run_no, 특이사항, 투입수량, 양품수량, 수율, 불량수량, seq       
+			from Get_공정별_작업이력_요약_FRONT(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), null)
+			union all			
+			select distinct 차수, area, 공정명, LEFT(작업시작시간, CHARINDEX(' ', 작업시작시간) - 1) AS 작업시작, 작업시작시간, LEFT(작업종료시간, CHARINDEX(' ', 작업종료시간) - 1) AS 작업종료, 작업종료시간, 설비약명, 작업자, Shift, 공정코드, null po_no, null panel_id, null lot_no, run_no, 특이사항, 투입수량, 양품수량, 수율, 불량수량, seq       
+			from Get_공정별_작업이력_요약_BACK(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), null)
+		) x
+		where 1=1		
+		order by seq, 작업시작시간, 작업종료시간
+    </select>
+    
+    <select id="R0000000_Sch2" parameterType="Map" resultType="CamelMap">
+    
+		SELECT
+			a.차수, 
+	        area, 
+	        공정명, 
+	        작업시작, 
+	        작업시작시간, 
+	        작업종료, 
+	        작업종료시간, 
+	        설비약명, 
+	        작업자, 
+	        Shift, 
+	        공정코드, 
+	        po_no, 
+	        panel_id, 
+	        lot_no, 
+	        run_no, 
+	        특이사항, 
+	        투입수량, 
+	        양품수량, 
+	        수율, 
+	        a.불량수량,
+	        row_number() over (partition by a.차수, run_no  order by seq, 작업시작시간, 작업종료시간) rn     
+	        <choose>
+	            <when test="columns != null and columns.size() > 0">
+	            ,                	 
+	                <foreach collection="columns" item="item" separator=",">
+	                    isnull(max(case when d.불량코드 = #{item.value} then
+	                    	(case when a.공정코드 = '010' then d.불량수량 * block수
+					            when a.공정코드 > '010' and a.공정코드 <![CDATA[<=]]> '020'  then d.불량수량 * sheet
+					            else d.불량수량 
+					       	end)	 
+	                    end), 0) AS ${item.text}
+	                </foreach>
+	            </when>
+	            <otherwise>	                
+	            </otherwise>
+	        </choose>
+		from
+		(		
+			<choose>
+				<when test="curProcess != null and curProcess &lt; 22">
+					select 차수, area, 공정명, LEFT(작업시작시간, CHARINDEX(' ', 작업시작시간) - 1) AS 작업시작, 작업시작시간, LEFT(작업종료시간, CHARINDEX(' ', 작업종료시간) - 1) AS 작업종료, 작업종료시간, 설비명 설비약명, 작업자, Shift, 공정코드, po_no, panel_id, lot_no, null run_no, 특이사항, 투입수량, 양품수량, 수율, 불량수량, seq, sheet, block수       
+					from Get_공정별_작업이력_요약_FRONT(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess})
+				</when>	
+				<otherwise>
+		            select distinct 차수, area, 공정명, LEFT(작업시작시간, CHARINDEX(' ', 작업시작시간) - 1) AS 작업시작, 작업시작시간, LEFT(작업종료시간, CHARINDEX(' ', 작업종료시간) - 1) AS 작업종료, 작업종료시간, 설비약명, 작업자, Shift, 공정코드, null po_no, null panel_id, null lot_no, run_no, 특이사항, 투입수량, 양품수량, 수율, 불량수량, seq, null sheet, null block수       
+					from Get_공정별_작업이력_요약_BACK(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess})
+		       	</otherwise>
+	       	</choose>
+		) a
+	    LEFT JOIN (
+	        select 
+	        	차수, lotrun_id, 불량코드, sum(불량수량) as 불량수량
+	        from d42_검사불량사유파일
+	        where 공정코드 = #{curProcess}
+	        group by 차수, lotrun_id, 불량코드
+	        union ALL 
+                select 차수, run_id, 불량코드, count(*) cell수량 
+            from dw_run_cell_data 
+            where 1=1
+            and 공장코드 = '2'
+            and 공정코드 = #{curProcess}
+            and nullif(불량코드,'') is not null
+            group by 차수, run_id, 불량코드
+	    ) d on ((a.lot_no = d.lotrun_id or a.run_no = d.lotrun_id) and a.차수 = d.차수)
+	    WHERE a.공정코드 = #{curProcess}
+	    <choose>
+			<when test="curProcess != null and curProcess &lt; 22">
+				<if test="lotNo != null and lotNo != ''">
+				   	and a.lot_no like CONCAT('%',#{lotNo},'%')
+				</if>
+			</when>	
+			<otherwise>
+	            <if test="runNo != null and runNo != ''">
+				   	and a.run_no like CONCAT('%',#{runNo},'%')
+				</if>
+	       	</otherwise>
+       	</choose>
+	    group by a.차수, area,공정명,작업시작,작업시작시간,작업종료,작업종료시간,설비약명,작업자,Shift,공정코드,po_no,panel_id,lot_no,run_no,특이사항,투입수량,양품수량,수율,a.불량수량,a.seq	       
+	    order by seq, run_no, 작업시작시간, 작업종료시간
+    </select>
+    
+    <select id="R0000000_Sch3" parameterType="Map" resultType="CamelMap">
+    select 
+    	 *
+    from (
+		SELECT 
+	        area, 
+	        공정명, 
+	        작업시작, 
+	        작업시작시간, 
+	        작업종료, 
+	        작업종료시간, 
+	        설비약명, 
+	        작업자, 
+	        Shift, 
+	        공정코드, 
+	        po_no, 
+	        panel_id, 
+	        lot_no, 
+	        run_no, 
+	        특이사항, 
+	        투입수량, 
+	        양품수량, 
+	        수율, 
+	        a.불량수량	        
+	        <choose>
+	            <when test="columns != null and columns.size() > 0">
+	            ,                	 
+	                <foreach collection="columns" item="item" separator=",">
+	                    isnull(max(case when d.불량코드 = #{item.value} then
+	                    	(case when a.공정코드 = '010' then d.불량수량 * block수
+					            when a.공정코드 > '010' and a.공정코드 <![CDATA[<=]]> '020'  then d.불량수량 * sheet
+					            else d.불량수량 
+				       		end) 
+	                    end), 0) AS ${item.text}
+	                </foreach>
+	            </when>
+	            <otherwise>	                
+	            </otherwise>
+	        </choose>
+	    from
+		(		
+			<choose>
+				<when test="curProcess != null and curProcess &lt; 22">
+					select area, 공정명, LEFT(작업시작시간, CHARINDEX(' ', 작업시작시간) - 1) AS 작업시작, 작업시작시간, LEFT(작업종료시간, CHARINDEX(' ', 작업종료시간) - 1) AS 작업종료, 작업종료시간, 설비명 설비약명, 작업자, Shift, 공정코드, po_no, panel_id, lot_no, null run_no, 특이사항, 투입수량, 양품수량, 수율, 불량수량, seq, sheet, block수       
+					from Get_공정별_작업이력_요약_FRONT(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess})
+				</when>	
+				<otherwise>
+		            select area, 공정명, LEFT(작업시작시간, CHARINDEX(' ', 작업시작시간) - 1) AS 작업시작, 작업시작시간, LEFT(작업종료시간, CHARINDEX(' ', 작업종료시간) - 1) AS 작업종료, 작업종료시간, 설비약명, 작업자, Shift, 공정코드, po_no, panel_id, lot_no, run_no, 특이사항, 투입수량, 양품수량, 수율, 불량수량, seq, null sheet, null block수       
+					from Get_공정별_작업이력_요약_BACK(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess})
+		       	</otherwise>
+	       	</choose>
+		) a
+	    LEFT JOIN (
+	        select 
+	        	lotrun_id, 불량코드, sum(불량수량) as 불량수량
+	        from d42_검사불량사유파일
+	        where 공정코드 = #{curProcess}
+	        group by lotrun_id, 불량코드
+	        union ALL 
+                select run_id, 불량코드, count(*) cell수량 
+            from dw_run_cell_data 
+            where 1=1
+            and 공장코드 = '2'
+            and 공정코드 = #{curProcess}
+            and nullif(불량코드,'') is not null
+            group by run_id, 불량코드
+	    ) d on (a.lot_no = d.lotrun_id or a.run_no = d.lotrun_id)
+	    WHERE a.공정코드 = #{curProcess}		
+		<if test="lotNo != null and lotNo != ''">
+		   	and lot_no like CONCAT('%',#{lotNo},'%')
+		</if>		
+	   	group by area,공정명,작업시작,작업시작시간,작업종료,작업종료시간,설비약명,작업자,Shift,공정코드,po_no,panel_id,lot_no,run_no,특이사항,투입수량,양품수량,수율,a.불량수량,a.seq	  
+	    union         
+	    SELECT 
+	        area, 
+	        공정명, 
+	        작업시작, 
+	        작업시작시간, 
+	        작업종료, 
+	        작업종료시간, 
+	        설비약명, 
+	        작업자, 
+	        Shift, 
+	        공정코드, 
+	        po_no, 
+	        panel_id, 
+	        lot_no, 
+	        run_no, 
+	        특이사항, 
+	        투입수량, 
+	        양품수량, 
+	        수율, 
+	        a.불량수량	      
+	        <choose>
+	            <when test="columns != null and columns.size() > 0">
+	            ,                	 
+	                <foreach collection="columns" item="item" separator=",">
+	                    isnull(max(case when d.불량코드 = #{item.value} then 
+	                    	(case when a.공정코드 = '010' then d.불량수량 * block수
+					            when a.공정코드 > '010' and a.공정코드 <![CDATA[<=]]> '020'  then d.불량수량 * sheet
+					            else d.불량수량 
+					       	end)
+	                    end), 0) AS ${item.text}
+	                </foreach>
+	            </when>
+	            <otherwise>	                
+	            </otherwise>
+	        </choose>
+	    from
+		(		
+			<choose>
+				<when test="curProcess != null and curProcess &lt; 22">
+					select area, 공정명, LEFT(작업시작시간, CHARINDEX(' ', 작업시작시간) - 1) AS 작업시작, RIGHT(작업시작시간, LEN(작업시작시간) - CHARINDEX(' ', 작업시작시간)) AS 시작시간, 작업시작시간, LEFT(작업종료시간, CHARINDEX(' ', 작업종료시간) - 1) AS 작업종료, 작업종료시간, 설비명 설비약명, 작업자, Shift, 공정코드, po_no, panel_id, lot_no, null run_no, 특이사항, 투입수량, 양품수량, 수율, 불량수량, seq, sheet, block수       
+					from Get_공정별_작업이력_요약_FRONT(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess})
+				</when>	
+				<otherwise>
+		            select area, 공정명, LEFT(작업시작시간, CHARINDEX(' ', 작업시작시간) - 1) AS 작업시작, RIGHT(작업시작시간, LEN(작업시작시간) - CHARINDEX(' ', 작업시작시간)) AS 시작시간, 작업시작시간, LEFT(작업종료시간, CHARINDEX(' ', 작업종료시간) - 1) AS 작업종료, 작업종료시간, 설비약명, 작업자, Shift, 공정코드, po_no, panel_id, lot_no, run_no, 특이사항, 투입수량, 양품수량, 수율, 불량수량, seq, sheet, block수       
+					from Get_공정별_작업이력_요약_BACK(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess})
+		       	</otherwise>
+	       	</choose>
+		) a
+	    LEFT JOIN (
+	        select 
+	        	lotrun_id, 불량코드, sum(불량수량) as 불량수량
+	        from d42_검사불량사유파일
+	        where 공정코드 = #{curProcess}
+	        group by lotrun_id, 불량코드
+	        union ALL 
+                select run_id, 불량코드, count(*) cell수량 
+            from dw_run_cell_data 
+            where 1=1
+            and 공장코드 = '2'
+            and 공정코드 = #{curProcess}
+            and nullif(불량코드,'') is not null
+            group by run_id, 불량코드
+	    ) d on (a.lot_no = d.lotrun_id or a.run_no = d.lotrun_id)
+	    WHERE a.공정코드 = #{curProcess}
+		and exists (
+			select 1 from d21_제조지시vlr b
+			left join dw_equipment_mast f
+			on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+			where a.공정코드 = b.공정코드 
+			and nullif(b.작업시작, '') is not null					
+			and nullif(b.시작시각, '') is not null
+			and a.작업시작 = b.작업시작
+			and substring(a.시작시간, 0, 5) = substring(b.시작시각, 0, 5)
+			and	b.lot_no = #{lotNo}
+			and b.공정코드 = #{curProcess}		
+			and f.설비약명 = a.설비약명
+		)
+	    group by area,공정명,작업시작,작업시작시간,작업종료,작업종료시간,설비약명,작업자,Shift,공정코드,po_no,panel_id,lot_no,run_no,특이사항,투입수량,양품수량,수율,a.불량수량,a.seq	  
+	) a         
+	order by a.run_no, a.작업시작, a.작업시작시간		
+    </select>
+    
+    <select id="R0000000_Sch4" parameterType="Map" resultType="CamelMap">
+    
+		<choose>
+			<when test="curProcess1 != null and curProcess1 &lt; 22">
+				select
+					area, 공정코드, lot_no lot_run_no, 수량, 종료시간, 대기시간, 상태, 특이사항, lot_no
+				from Get_제조작업현황_FRONT_작업대기(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess}) a
+				ORDER BY CASE 
+    				WHEN CHARINDEX(':', 대기시간) > 0 
+      					THEN CAST(LEFT(대기시간, CHARINDEX(':', 대기시간) - 1) AS INT)
+    				ELSE 0
+  				END DESC,
+  				CASE 
+			    WHEN CHARINDEX(':', 대기시간) > 0 
+			      THEN CAST(SUBSTRING(대기시간, CHARINDEX(':', 대기시간) + 1, LEN(대기시간)) AS INT)
+			    ELSE 0
+			  	END DESC, 
+  				lot_no		
+			</when>	
+			<otherwise>
+				select 
+					* 
+				from (
+					select distinct x.* from (
+						select
+			        		area, 공정코드, run_no lot_run_no, 수량, 종료시간, 대기시간, 상태, 특이사항, run_no
+						from Get_재공재고_BACK_박리작업대기(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess}) a
+						union all
+						select
+							area, 공정코드, run_no lot_run_no, 수량, 종료시간, 대기시간, 상태, 특이사항, run_no
+						from Get_제조작업현황_BACK_작업대기(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess}) a
+					) x
+				) a
+				ORDER BY CASE 
+    				WHEN CHARINDEX(':', 대기시간) > 0 
+      					THEN CAST(LEFT(대기시간, CHARINDEX(':', 대기시간) - 1) AS INT)
+    				ELSE 0
+  				END DESC,
+  				CASE 
+			    WHEN CHARINDEX(':', 대기시간) > 0 
+			      THEN CAST(SUBSTRING(대기시간, CHARINDEX(':', 대기시간) + 1, LEN(대기시간)) AS INT)
+			    ELSE 0
+			  	END DESC, 
+  				run_no	
+            </otherwise>
+		</choose>
+    </select>
+    
+    <select id="R0000000_Sch5" parameterType="Map" resultType="CamelMap">
+    	<choose>
+			<when test="curProcess1 != null and curProcess1 &lt; 22">
+				select
+					area, 공정코드, lot_no lot_run_no, 수량, 설비약명, 작업자, 시작시간, 대기시간, 상태, lot_no
+				from Get_제조작업현황_FRONT_작업중(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess}) a
+				ORDER BY CASE 
+    				WHEN CHARINDEX(':', 대기시간) > 0 
+      					THEN CAST(LEFT(대기시간, CHARINDEX(':', 대기시간) - 1) AS INT)
+    				ELSE 0
+  				END DESC,
+  				CASE 
+			    WHEN CHARINDEX(':', 대기시간) > 0 
+			      THEN CAST(SUBSTRING(대기시간, CHARINDEX(':', 대기시간) + 1, LEN(대기시간)) AS INT)
+			    ELSE 0
+			  	END DESC, 
+  				lot_no		
+			</when>	
+			<otherwise>
+				select 
+					* 
+				from (
+					select
+						distinct area, 공정코드, run_no lot_run_no, 수량, 설비약명, 작업자, 시작시간, 대기시간, 상태, run_no
+					from Get_제조작업현황_BACK_작업중(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess})
+				) a
+				ORDER BY CASE 
+    				WHEN CHARINDEX(':', 대기시간) > 0 
+      					THEN CAST(LEFT(대기시간, CHARINDEX(':', 대기시간) - 1) AS INT)
+    				ELSE 0
+  				END DESC, 
+  				CASE 
+			    WHEN CHARINDEX(':', 대기시간) > 0 
+			      THEN CAST(SUBSTRING(대기시간, CHARINDEX(':', 대기시간) + 1, LEN(대기시간)) AS INT)
+			    ELSE 0
+			  	END DESC,
+  				run_no
+            </otherwise>
+		</choose>
+    </select>
+    
+    <select id="R0000000_Sch6" parameterType="Map" resultType="CamelMap">
+    
+		select 
+			#{curProcess} 공정코드, lot_run_no, area, lot_run_no lot_no, lot_run_no run_no
+		from Get_공정별_작업_현황_from_to_공정코드_작업완료(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess})	a
+		left join vw_process_plan b on (b.line = 'DFB1' and b.process_id = 'D1UT' and b.공정코드 = #{curProcess})	 
+		order by lot_run_no
+    </select>
+    
+	<select id="R0000000_Sch7" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="type != null and type == 'front'">
+				select area, 공정명, model, po_no, panel_id, LOT_NO, run_no, run_cell, Machine_code, 설비약명 + Chamber 설비명, 작업자, 작업조, Shift, 작업시작, 시작시각, 작업종료, 종료시각, 투입수량, 양품수량, 불량수량
+				from Get_작업이력조회_ByRunLotNumber(#{lotRunNo})
+				where 공정순서 <![CDATA[<]]> 6
+				order by 공정순서		
+			</when>	
+			<when test="type != null and type == 'back'">
+				select area, 공정명, model, po_no, panel_id, LOT_NO, run_no, run_cell, Machine_code, 설비약명 + Chamber 설비명, 작업자, 작업조, Shift, 작업시작, 시작시각, 작업종료, 종료시각, 투입수량, 양품수량, 불량수량
+				from Get_작업이력조회_ByRunLotNumber(#{lotRunNo})
+				where 공정순서 > 5
+				order by 공정순서		
+			</when>	
+			<otherwise>				
+            </otherwise>
+		</choose>
+    </select>
+    
+    <select id="R0000000_Sch8" parameterType="Map" resultType="CamelMap">
+    
+	DECLARE @columns NVARCHAR(MAX);
+	DECLARE @sql NVARCHAR(MAX);
+	
+	CREATE TABLE #모델별_공정별_작업이력_재공재고_재작업포함
+ 			( 	
+				seq varchar(5) COLLATE Korean_Wansung_CI_AS NULL,
+				공정코드 varchar(10) COLLATE Korean_Wansung_CI_AS NULL,
+				공정명 varchar(50) COLLATE Korean_Wansung_CI_AS NULL,
+				공정구분 varchar(5) COLLATE Korean_Wansung_CI_AS NULL,
+				header varchar(50) COLLATE Korean_Wansung_CI_AS NULL,
+				작업구분 varchar(10) COLLATE Korean_Wansung_CI_AS NULL,
+				mat_id varchar(10) COLLATE Korean_Wansung_CI_AS NOT NULL,
+				org작업구분 varchar(5) COLLATE Korean_Wansung_CI_AS not null,
+				sdc모델명 varchar(50) COLLATE Korean_Wansung_CI_AS NULL,
+				IN수량 int NOT NULL,
+				OUT수량 int NOT NULL,
+				LOSS수량 float NULL,
+				NG수량 int NOT NULL,
+				수율제외수량 int NOT NULL,
+				재공재고 int NOT NULL,
+			   );
+			  
+	INSERT INTO #모델별_공정별_작업이력_재공재고_재작업포함
+	EXEC Get_모델별_공정별_작업이력_재공재고_재작업포함
+	@시작일자 = #{startDate},
+    @종료일자 = #{endDate},
+    @공정코드 = null;
+	
+	-- 동적으로 컬럼 목록 생성
+	SELECT @columns = STRING_AGG(QUOTENAME(공정코드+'seq'+seq), ',') 
+	FROM (SELECT DISTINCT 공정코드,seq FROM dw_재공재고Report순서 where 공정별_작업이력요약 != 'X') AS 공정코드;
+	
+	-- 동적 SQL 생성
+	SET @sql = '
+	WITH PivotData AS (
+	   SELECT 
+			a.mat_id
+		    ,b.작업구분 
+		    ,c.공정코드 +''seq''+c.seq as fn 
+		    ,c.공정명
+	    	,case
+			  when b.작업구분 = ''IN'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.IN수량
+			  when b.작업구분 = ''OUT'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.OUT수량
+			  when b.작업구분 = ''LOSS'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.LOSS수량
+			  when b.작업구분 = ''NG'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.NG수량
+			  when b.작업구분 = ''수율제외'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.수율제외수량
+			  when b.작업구분 = ''재공재고'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.재공재고
+			  else 0
+			end as 수량
+			,ord
+	    	,case when right(a.mat_id,1) = ''P'' then 1
+				when right(a.mat_id,1) = ''D'' then 2
+				when right(a.mat_id,1) = ''M'' then 3
+				when right(a.mat_id,1) = ''Q'' then 4
+				when right(a.mat_id,1) = ''T'' then 5
+				when right(a.mat_id,1) = ''C'' then 6
+				when right(a.mat_id,1) = ''O'' then 7
+				else 99 end mat_ord
+			,left(a.mat_id,4) as model
+			,right(a.mat_id,1) as 품번
+			,a.org작업구분
+		FROM #모델별_공정별_작업이력_재공재고_재작업포함 a WITH (NOLOCK)
+		LEFT OUTER JOIN (
+			SELECT ORD, 작업구분 
+			FROM (VALUES (1, ''IN''), (2, ''OUT''), (3, ''LOSS''), (4, ''NG''), (5, ''수율제외''), (6, ''재공재고'')) AS 상태(ORD, 작업구분)
+		) b on (1 = 1)
+		LEFT OUTER JOIN dw_재공재고Report순서 c ON (1 = 1)
+		where 1 = 1 ';
+	
+	SET @sql = @sql + '
+	)
+	SELECT * 
+	FROM (
+		select	
+		    model			
+			,case when org작업구분 = ''-'' then 품번 else org작업구분 + ''-'' + 품번 end as 작업구분
+			,mat_id, 작업구분 as type, fn, 수량,mat_ord, ord FROM PivotData
+	) AS SourceTable
+	PIVOT (
+	    SUM(수량) FOR fn IN (' + @columns + ')
+	) AS PivotTable
+	ORDER BY model,mat_ord,작업구분,ord;
+	
+	DROP TABLE #모델별_공정별_작업이력_재공재고_재작업포함;
+	';
+	
+	-- 실행
+	EXEC sp_executesql @sql;
+    </select>
+    
+    <select id="R0000000_Sch9" parameterType="Map" resultType="CamelMap">
+    
+	DECLARE @columns NVARCHAR(MAX);
+	DECLARE @sql NVARCHAR(MAX);
+	
+	CREATE TABLE #모델별_공정별_작업이력_재공재고_재작업제외
+ 			( 	
+				seq varchar(5) COLLATE Korean_Wansung_CI_AS NULL,
+				공정코드 varchar(10) COLLATE Korean_Wansung_CI_AS NULL,
+				공정명 varchar(50) COLLATE Korean_Wansung_CI_AS NULL,
+				공정구분 varchar(5) COLLATE Korean_Wansung_CI_AS NULL,
+				header varchar(50) COLLATE Korean_Wansung_CI_AS NULL,
+				작업구분 varchar(10) COLLATE Korean_Wansung_CI_AS NULL,
+				mat_id varchar(10) COLLATE Korean_Wansung_CI_AS NOT NULL,
+				org작업구분 varchar(5) COLLATE Korean_Wansung_CI_AS not null,
+				sdc모델명 varchar(50) COLLATE Korean_Wansung_CI_AS NULL,
+				IN수량 int NOT NULL,
+				OUT수량 int NOT NULL,
+				LOSS수량 float NULL,
+				NG수량 int NOT NULL,
+				수율제외수량 int NOT NULL,
+				재공재고 int NOT NULL
+			   );
+			  
+	INSERT INTO #모델별_공정별_작업이력_재공재고_재작업제외
+	EXEC Get_모델별_공정별_작업이력_재공재고_재작업제외
+	@시작일자 = #{startDate},
+    @종료일자 = #{endDate},
+    @공정코드 = null;
+	
+	-- 동적으로 컬럼 목록 생성
+	SELECT @columns = STRING_AGG(QUOTENAME(공정코드+'seq'+seq), ',') 
+	FROM (SELECT DISTINCT 공정코드,seq FROM dw_재공재고Report순서 where 공정별_작업이력요약 != 'X') AS 공정코드;
+	
+	-- 동적 SQL 생성
+	SET @sql = '
+	WITH PivotData AS (
+	   SELECT 
+			a.mat_id
+		    ,b.작업구분 
+		    ,c.공정코드 +''seq''+c.seq as fn 
+		    ,c.공정명
+	    	,case
+			  when b.작업구분 = ''IN'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.IN수량
+			  when b.작업구분 = ''OUT'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.OUT수량
+			  when b.작업구분 = ''LOSS'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.LOSS수량
+			  when b.작업구분 = ''NG'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.NG수량
+			  when b.작업구분 = ''수율제외'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.수율제외수량
+			  when b.작업구분 = ''재공재고'' and a.공정코드 = c.공정코드 and a.seq = c.seq then a.재공재고
+			  else 0
+			end as 수량
+			,ord
+	    	,case when right(a.mat_id,1) = ''P'' then 1
+				when right(a.mat_id,1) = ''D'' then 2
+				when right(a.mat_id,1) = ''M'' then 3
+				when right(a.mat_id,1) = ''Q'' then 4
+				when right(a.mat_id,1) = ''T'' then 5
+				when right(a.mat_id,1) = ''C'' then 6
+				when right(a.mat_id,1) = ''O'' then 7
+				else 99 end mat_ord
+			,left(a.mat_id,4) as model
+			,right(a.mat_id,1) as 품번
+			,a.org작업구분
+		FROM #모델별_공정별_작업이력_재공재고_재작업제외 a WITH (NOLOCK)
+		LEFT OUTER JOIN (
+			SELECT ORD, 작업구분 
+			FROM (VALUES (1, ''IN''), (2, ''OUT''), (3, ''LOSS''), (4, ''NG''), (5, ''수율제외''), (6, ''재공재고'')) AS 상태(ORD, 작업구분)
+		) b on (1 = 1)
+		LEFT OUTER JOIN dw_재공재고Report순서 c ON (1 = 1)
+		where 1 = 1 ';
+	
+	SET @sql = @sql + '
+	)
+	SELECT * 
+	FROM (
+	    SELECT 
+			model			
+			,case when org작업구분 = ''-'' then 품번 else org작업구분 + ''-'' + 품번 end as 작업구분
+			,mat_id, 작업구분 as type, fn, 수량,mat_ord, ord FROM PivotData
+	) AS SourceTable
+	PIVOT (
+	    SUM(수량) FOR fn IN (' + @columns + ')
+	) AS PivotTable
+	ORDER BY model,mat_ord,작업구분,ord;
+	
+	DROP TABLE #모델별_공정별_작업이력_재공재고_재작업제외;
+	';
+	
+	-- 실행
+	EXEC sp_executesql @sql;
+    </select>
+    
+    <select id="R0000000_Sch10" parameterType="Map" resultType="CamelMap">
+    
+	DECLARE @columns NVARCHAR(MAX);
+	DECLARE @selectColumns NVARCHAR(MAX);
+	DECLARE @sql NVARCHAR(MAX);
+	
+	-- 임시 테이블 생성
+	CREATE TABLE #일별_공정별_불량현황
+	(
+	    area VARCHAR(50) COLLATE Korean_Wansung_CI_AS NULL,
+	    공정코드 VARCHAR(4) COLLATE Korean_Wansung_CI_AS NULL,
+	    공정명 VARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+	    불량코드 VARCHAR(4) COLLATE Korean_Wansung_CI_AS NULL,
+	    불량명 VARCHAR(30) COLLATE Korean_Wansung_CI_AS NULL,
+	    집계일자 VARCHAR(15) COLLATE Korean_Wansung_CI_AS NULL,
+	    Total_NG INT NOT NULL,
+	    NG수량 INT NOT NULL,
+	    수율제외수량 INT NOT NULL
+	);
+	
+	-- 데이터 삽입
+	INSERT INTO #일별_공정별_불량현황
+	EXEC Get_일별_공정별_불량현황
+	    @시작일자 = #{startDate},
+	    @종료일자 = #{endDate};
+	
+	-- 동적 컬럼 목록 생성 (날짜별로 항목 3종 묶기)
+	SELECT @columns = STRING_AGG(
+								CAST( QUOTENAME(집계일자 + '_Total_NG') + ',' +
+	                             QUOTENAME(집계일자 + '_NG수량') + ',' +
+	                             QUOTENAME(집계일자 + '_수율제외수량')
+	                        	AS NVARCHAR(MAX)) 
+	, ',') WITHIN GROUP (ORDER BY 집계일자)
+	FROM (
+	    SELECT DISTINCT 집계일자 FROM #일별_공정별_불량현황
+	) AS Dates;
+	
+	SELECT @selectColumns = STRING_AGG(
+		CAST(
+		    'ISNULL(' + QUOTENAME(집계일자 + '_Total_NG') + ', 0) AS ' + QUOTENAME(집계일자 + '_Total_NG') + ',' +
+		    'ISNULL(' + QUOTENAME(집계일자 + '_NG수량') + ', 0) AS ' + QUOTENAME(집계일자 + '_NG수량') + ',' +
+		    'ISNULL(' + QUOTENAME(집계일자 + '_수율제외수량') + ', 0) AS ' + QUOTENAME(집계일자 + '_수율제외수량')
+		AS NVARCHAR(MAX)) 
+	, ',') WITHIN GROUP (ORDER BY 집계일자)
+	FROM (SELECT DISTINCT 집계일자 FROM #일별_공정별_불량현황) AS Dates;
+	
+	-- 동적 SQL 생성
+	SET @sql = '
+	WITH PivotRaw AS (
+		SELECT area, 공정코드, 공정명, 불량코드, 불량명, ' + @columns + ', seq
+		FROM (
+			SELECT A.*, B.SEQ FROM (
+			    SELECT 
+			        area,
+			        공정코드,
+			        공정명,
+			        불량코드,
+			        불량명,
+			        집계일자 + ''_Total_NG'' AS 항목,
+			        CAST(Total_NG AS INT) AS 수량
+			    FROM #일별_공정별_불량현황
+			    UNION ALL
+			    SELECT 
+			        area,
+			        공정코드,
+			        공정명,
+			        불량코드,
+			        불량명,
+			        집계일자 + ''_NG수량'',
+			        CAST(NG수량 AS INT)
+			    FROM #일별_공정별_불량현황
+			    UNION ALL
+			    SELECT 
+			        area,
+			        공정코드,
+			        공정명,
+			        불량코드,
+			        불량명,
+			        집계일자 + ''_수율제외수량'',
+			        CAST(수율제외수량 AS INT)
+			    FROM #일별_공정별_불량현황
+			) A
+			LEFT JOIN dw_재공재고Report순서 B ON (A.공정코드 = B.공정코드 and A.공정명 = B.공정명)		
+		) AS SourceTable
+		PIVOT (
+		    SUM(수량) FOR 항목 IN (' + @columns + ')
+		) AS PivotTable
+	)
+	SELECT area, 공정코드, 공정명, 불량코드, 불량명, seq, ' + @selectColumns + '
+	FROM PivotRaw
+	ORDER BY seq, 공정코드, 불량코드;
+	
+	DROP TABLE #일별_공정별_불량현황;
+	';
+	
+	-- 실행
+	EXEC sp_executesql @sql;
+    </select>
+    
+    <select id="selectHeaderList1" resultType="CamelMap">
+    SELECT DISTINCT 집계일자 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회(#{startDate}, #{endDate}, null, null, #{model}, #{job}) 	    
+	</select>
+	
+	<select id="selectHeaderList2" resultType="CamelMap">
+    SELECT DISTINCT week 집계일자 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회_주간(#{endDate}, '2', null, null, #{model}, #{job}) 	    
+	</select>
+	
+	<select id="selectHeaderList3" resultType="CamelMap">
+    SELECT DISTINCT yyyymm 집계일자
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회_월간(#{endDate}, '1', null, null, #{model}, #{job}) 	    
+	</select>
+	
+	<select id="R0000000_Sch11" parameterType="Map" resultType="CamelMap">
+	    select 
+			x.RUN_NO, x.공정코드, x.LOT_NO, x.F_CSTNO, x.차수, x.T_CSTNO, x.설비명, x.작업시작, x.시작시각, x.작업종료, x.종료시각, x.투입수, x.양품수, x.불량수량, x.수율, x.불량율, x.작업자, x.Shift, x.특이사항
+			<choose>
+	            <when test="columns != null and columns.size() > 0">
+	            ,                	 
+	                <foreach collection="columns" item="item" separator=",">
+	                    isnull(max(case when y.불량코드 = #{item.value} then y.불량수량 end), 0) AS ${item.text}
+	                </foreach>
+	            </when>
+	            <otherwise>	                
+	            </otherwise>
+	        </choose>
+		from Get_공정별_RUN별_카세트리스트(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess}) x
+		<choose>
+	            <when test="curProcess == '023'">
+					left join (
+						select 
+							차수, 불량코드, sum(불량수량) 불량수량,
+						    공정코드, lotrun_id, machine_code, cst_no, cst_no1, etc_no
+						 from
+						 (
+							select 
+								차수, 공정코드, lotrun_id, machine_code, cst_no, cst_no1, 
+								isnull(etc_no,'-') etc_no,  불량코드, 불량수량
+							 from d42_검사불량사유파일
+							 where 1=1
+							 and 공장코드 = '2'
+							 and substring(lotrun_id,6,4) > '2404' 
+							 and 불량수량 != 0
+							 and 공정코드 = '023' 
+							 and (#{curProcess} = '023' or #{curProcess} is null) 
+							 and nullif(cst_no,'') is not null
+						) x
+						where 1=1
+						and (공정코드 = #{curProcess} or #{curProcess} is null)
+						group by 차수, 공정코드, lotrun_id, machine_code, cst_no, cst_no1, etc_no, 불량코드
+					) y
+					on x.차수 = y.차수 and x.run_no = y.lotrun_id and x.공정코드 = y.공정코드
+					and  (x.f_cstno = y.cst_no 
+					  or (x.f_cstno = y.cst_no and x.t_cstno = nullif(y.cst_no1,'')) 
+					  or (x.f_cstno = y.cst_no and x.t_cstno = nullif(y.cst_no1,'') and nullif(x.lot_no,'') = y.etc_no)) 
+	            
+	            </when>
+	            <otherwise>	                
+					left join (
+						select 
+							차수, 불량코드, sum(불량수량) 불량수량,
+						    공정코드, lotrun_id, machine_code, cst_no, cst_no1, etc_no
+						 from
+						 (
+							select 차수, 공정코드, lotrun_id, machine_code, cst_no, cst_no1, 
+								isnull(etc_no,'-') etc_no,  불량코드, 불량수량
+								 from d42_검사불량사유파일
+								 where 1=1
+								 and 공장코드 = '2'
+								 and substring(lotrun_id,6,4) > '2404' 
+								 and 불량수량 != 0
+								 and 공정코드 = '023' 
+								 and (#{curProcess} = '023' or #{curProcess} is null) 
+								 and nullif(cst_no,'') is not null				
+							union all
+							 select 
+							 	차수, 공정코드, lotrun_id, machine_code, cst_no, cst_no1, 
+						        isnull(etc_no,'-') etc_no,  불량코드, 불량수량	
+							 from d42_검사불량사유파일
+							 where 1=1
+							 and 공장코드 = '2'
+							 and substring(lotrun_id,6,4) > '2404'
+							 and 불량수량 != 0
+							 and 공정코드 != '023'
+							 and 공정코드 in (
+								 select distinct 공정코드
+								 from dw_process_plan dpp 
+								 where 1=1
+								 and (공정코드 between '024' and '067')
+						     )         
+							 and nullif(cst_no,'') is not null			     
+						     union all
+						     select 
+						     	차수, 공정코드, run_id, machine_code, cst_no, cst_no1,   
+						        etc_no, 불량코드, 불량수량
+						    from
+						    (
+					            select 
+					            	차수, 공정코드, run_id, 설비호기 machine_code, cst_no, '-' cst_no1,  '-' etc_no, 
+					               불량코드, count(*) 불량수량
+					            from dw_run_cell_data
+					            where 1=1
+					            and 공장코드 = '2'
+					            and 공정코드 = '061'
+					            and nullif(불량코드,'') is not null
+					            and result = '양품'
+					            group by 차수, 공정코드, run_id, 설비호기, cst_no,  불량코드
+							) x
+						) x
+						where 1=1
+						and (공정코드 = #{curProcess} or #{curProcess} is null)
+						group by 차수, 공정코드, lotrun_id, machine_code, cst_no, cst_no1, etc_no, 불량코드
+					) y
+					on x.차수 = y.차수 and x.run_no = y.lotrun_id and x.공정코드 = y.공정코드 and  (x.f_cstno = y.cst_no or (x.f_cstno = y.cst_no and x.t_cstno = nullif(y.cst_no1,'')) ) 
+	            </otherwise>
+	        </choose>
+		where 1=1	
+		group by x.RUN_NO, x.공정코드, x.LOT_NO, x.F_CSTNO, x.차수, x.T_CSTNO, x.설비명, x.작업시작, x.시작시각, x.작업종료, x.종료시각, x.투입수, x.양품수, x.불량수량, x.수율, x.불량율, x.작업자, x.Shift, x.특이사항
+    </select>
+    
+    
+    <select id="R0000000_Sch12" parameterType="Map" resultType="CamelMap">
+    	SELECT
+			a.차수,
+            area,
+            공정명,
+            작업시작,
+            작업시작시간,
+            작업종료,
+            작업종료시간,
+            설비약명,
+            작업자,
+            Shift,
+            공정코드,
+            po_no,
+            panel_id,
+            lot_no,
+            run_no,
+            특이사항,
+            투입수량,
+            양품수량,
+            수율,
+            a.불량수량,
+            row_number() over (partition by a.차수, run_no  order by seq, 작업시작시간, 작업종료시간) rn
+           <choose>
+	            <when test="columns != null and columns.size() > 0">
+	            ,                	 
+	                <foreach collection="columns" item="item" separator=",">
+	                    isnull(max(case when d.불량코드 = #{item.value} then d.불량수량 end), 0) AS ${item.text}
+	                </foreach>
+	            </when>
+	            <otherwise>	                
+	            </otherwise>
+	        </choose>
+        from
+        (
+            select distinct 차수, area, 공정명, 
+                   case when 작업종료시간 >= format(DATEADD(DAY, 0, CONVERT(DATETIME, substring(작업종료시간,1,8), 112)),'yyyyMMdd')+' '+'080000' and 
+	                 		 작업종료시간 <![CDATA[<]]>  format(DATEADD(DAY, 1, CONVERT(DATETIME, substring(작업종료시간,1,8), 112)),'yyyyMMdd')+' '+'080000'
+			            then format(DATEADD(DAY, 0, CONVERT(DATETIME, substring(작업종료시간,1,8), 112)),'yyyyMMdd') 
+			            else format(DATEADD(DAY, -1, CONVERT(DATETIME, substring(작업종료시간,1,8), 112)),'yyyyMMdd') 
+	       		    end 집계일자,
+                    LEFT(작업시작시간, CHARINDEX(' ', 작업시작시간) - 1) AS 작업시작, 작업시작시간, LEFT(작업종료시간, CHARINDEX(' ', 작업종료시간) - 1) AS 작업종료, 작업종료시간, 설비약명, 작업자, Shift,
+                    공정코드, null po_no, null panel_id, null lot_no, run_no, 특이사항, 투입수량, 양품수량, 수율,  불량수량, seq
+            from Get_공정별_작업이력_요약_BACK(replace(#{startDate}, '-', ''), replace(#{endDate}, '-', ''), #{curProcess})
+            where 1=1 
+        ) a
+		LEFT JOIN (
+            select 차수, run_id lotrun_Id, 집계일자, 불량코드, count(*) 불량수량
+            from
+            (
+	            select q.*,
+	                   case when end_time >= format(DATEADD(DAY, 0, CONVERT(DATETIME, substring(end_time,1,8), 112)),'yyyyMMdd')+' '+'080000' and 
+				                 end_time <![CDATA[<]]>  format(DATEADD(DAY, 1, CONVERT(DATETIME, substring(end_time,1,8), 112)),'yyyyMMdd')+' '+'080000'
+				            then format(DATEADD(DAY, 0, CONVERT(DATETIME, substring(end_time,1,8), 112)),'yyyyMMdd') 
+				            else format(DATEADD(DAY, -1, CONVERT(DATETIME, substring(end_time,1,8), 112)),'yyyyMMdd') 
+				       end 집계일자
+	            from dw_run_cell_data q with (nolock)
+	            where 1=1
+	            and 공장코드 = '2'
+	            and 공정코드 =  #{curProcess}
+	            and nullif(불량코드,'') is not null
+	        ) x
+            group by 차수, run_id, 집계일자 , 불량코드
+        ) d on ((a.lot_no = d.lotrun_id or a.run_no = d.lotrun_id) and a.차수 = d.차수 and a.집계일자 = d.집계일자)
+        WHERE a.공정코드 = #{curProcess}
+	    <if test="runNo != null and runNo != ''">
+		   	and a.run_no like CONCAT('%',#{runNo},'%')
+		</if>
+        group by a.차수, area,공정명,작업시작,작업시작시간,작업종료,작업종료시간,설비약명,작업자,Shift,공정코드,po_no,panel_id,lot_no,run_no,특이사항,투입수량,양품수량,수율,a.불량수량,a.seq
+        order by seq, run_no, 작업시작시간, 작업종료시간
+            
+    </select>
+    
+    <select id="R0000000_CreatedFrontData" parameterType="Map" resultType="CamelMap">
+    	EXEC Get_일별_공정별_불량현황_MODEL_작업구분_상세_FRONT_DATA생성 @시작일자 = #{startDate}, @종료일자 = #{endDate}, @공정코드 = null, @불량코드 = null;
+    </select>
+    
+    <select id="R0000000_CreatedBackData" parameterType="Map" resultType="CamelMap">
+    	EXEC Get_일별_공정별_불량현황_MODEL_작업구분_상세_BACK_DATA생성 @시작일자 = #{startDate}, @종료일자 = #{endDate}, @공정코드 = null, @불량코드 = null;
+    </select>
+    
+    <select id="R0000000_SchDailyErrorStatus" parameterType="Map" resultType="CamelMap">
+   
+	DECLARE @startDate VARCHAR(8) = #{startDate};
+	DECLARE @endDate VARCHAR(8) = #{endDate};
+	DECLARE @model NVARCHAR(MAX) = #{model};
+	DECLARE @job NVARCHAR(MAX) = #{job};
+	
+	DECLARE @modelStr NVARCHAR(MAX);
+	DECLARE @jobStr NVARCHAR(MAX);
+	
+	SET @modelStr = CASE WHEN @model IS NULL THEN 'null' ELSE '''' + @model + '''' END;
+	SET @jobStr = CASE WHEN @job IS NULL THEN 'null' ELSE '''' + @job + '''' END;
+	
+	DECLARE @columns NVARCHAR(MAX);
+	DECLARE @selectColumns NVARCHAR(MAX);
+	DECLARE @sql NVARCHAR(MAX);
+	
+	-- PIVOT 컬럼 생성
+	SELECT @columns = STRING_AGG(
+	    CAST( 
+			QUOTENAME(집계일자 + '_투입수량') + ',' +
+	        QUOTENAME(집계일자 + '_Total_NG') + ',' +
+	        QUOTENAME(집계일자 + '_NG수량') + ',' +
+	        QUOTENAME(집계일자 + '_수율제외수량') + ',' +
+	        QUOTENAME(집계일자 + '_Rework진행여부수량')
+	    AS NVARCHAR(MAX)), 
+	    ','
+	) 
+	FROM (
+	    SELECT DISTINCT 집계일자 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회(@startDate, @endDate, null, null, @model, @job)
+	) AS DateList;
+	
+	-- SELECT절 컬럼 생성
+	SELECT @selectColumns = STRING_AGG(
+	    CAST( 
+			'ISNULL(' + QUOTENAME(집계일자 + '_투입수량') + ', 0) AS ' + QUOTENAME(집계일자 + '_투입수량') + ',' +
+	        'ISNULL(' + QUOTENAME(집계일자 + '_Total_NG') + ', 0) AS ' + QUOTENAME(집계일자 + '_Total_NG') + ',' +
+	        'ISNULL(' + QUOTENAME(집계일자 + '_NG수량') + ', 0) AS ' + QUOTENAME(집계일자 + '_NG수량') + ',' +
+	        'ISNULL(' + QUOTENAME(집계일자 + '_수율제외수량') + ', 0) AS ' + QUOTENAME(집계일자 + '_수율제외수량') + ',' +
+	        'ISNULL(' + QUOTENAME(집계일자 + '_Rework진행여부수량') + ', 0) AS ' + QUOTENAME(집계일자 + '_Rework진행여부수량')
+	    AS NVARCHAR(MAX)), 
+	    ','
+	) 
+	FROM (
+	    SELECT DISTINCT 집계일자 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회(@startDate, @endDate, null, null, @model, @job)
+	) AS DateList;
+	
+	-- 동적 SQL 구성
+	SET @sql = '
+	WITH RawData AS (
+	    SELECT * 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회(''' + @startDate + ''', ''' + @endDate + ''', null, null, ' + @modelStr + ', ' + @jobStr + ')
+	),
+	BaseData AS (
+		SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        집계일자 + ''_투입수량'' AS 항목,
+	        CAST(투입수 AS INT) AS 수량
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        집계일자 + ''_Total_NG'' AS 항목,
+	        CAST(Total_NG AS INT) AS 수량
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        집계일자 + ''_NG수량'',
+	        CAST(NG수량 AS INT)
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        집계일자 + ''_수율제외수량'',
+	        CAST(수율제외수량 AS INT)
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        집계일자 + ''_Rework진행여부수량'',
+	        CAST(Rework진행여부수량 AS INT)
+	    FROM RawData
+	),
+	MergedData AS (
+	    SELECT A.*, B.SEQ 
+	    FROM BaseData A
+	    LEFT JOIN dw_재공재고Report순서 B 
+	        ON A.공정코드 = B.공정코드 AND A.공정명 = B.공정명
+	),
+	PivotRaw AS (
+	    SELECT area, 공정코드, 공정명, 불량코드, 불량명, ' + @columns + ', seq
+	    FROM MergedData
+	    PIVOT (
+	        SUM(수량) FOR 항목 IN (' + @columns + ')
+	    ) AS P
+	)
+	SELECT 
+	    area, 공정코드, 공정명, 불량코드, 불량명, ISNULL(seq, 9999) AS seq, ' + @selectColumns + '
+	FROM PivotRaw
+	ORDER BY ISNULL(seq, 9999), 공정코드, 불량코드;
+	';
+	
+	-- 동적 SQL 실행
+	EXEC sp_executesql @sql;
+    </select>
+    
+    <select id="R0000000_SchWeeklyErrorStatus" parameterType="Map" resultType="CamelMap">
+	DECLARE @endDate VARCHAR(8) = #{endDate};
+	DECLARE @model NVARCHAR(MAX) = #{model};
+	DECLARE @job NVARCHAR(MAX) = #{job};
+	
+	DECLARE @modelStr NVARCHAR(MAX);
+	DECLARE @jobStr NVARCHAR(MAX);
+	
+	SET @modelStr = CASE WHEN @model IS NULL THEN 'null' ELSE '''' + @model + '''' END;
+	SET @jobStr = CASE WHEN @job IS NULL THEN 'null' ELSE '''' + @job + '''' END;
+	
+	DECLARE @columns NVARCHAR(MAX);
+	DECLARE @selectColumns NVARCHAR(MAX);
+	DECLARE @sql NVARCHAR(MAX);
+	
+	-- PIVOT 컬럼 생성
+	SELECT @columns = STRING_AGG(
+	    CAST(
+			QUOTENAME(week + '_투입수량') + ',' + 
+	        QUOTENAME(week + '_Total_NG') + ',' +
+	        QUOTENAME(week + '_NG수량') + ',' +
+	        QUOTENAME(week + '_수율제외수량') + ',' +
+	        QUOTENAME(week + '_Rework진행여부수량')
+	    AS NVARCHAR(MAX)), 
+	    ','
+	) 
+	FROM (
+	    SELECT DISTINCT week 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회_주간(@endDate, '2', null, null, null, null)
+	) AS DateList;
+	
+	-- SELECT절 컬럼 생성
+	SELECT @selectColumns = STRING_AGG(
+	    CAST(
+			'ISNULL(' + QUOTENAME(week + '_투입수량') + ', 0) AS ' + QUOTENAME(week + '_투입수량') + ',' + 
+	        'ISNULL(' + QUOTENAME(week + '_Total_NG') + ', 0) AS ' + QUOTENAME(week + '_Total_NG') + ',' +
+	        'ISNULL(' + QUOTENAME(week + '_NG수량') + ', 0) AS ' + QUOTENAME(week + '_NG수량') + ',' +
+	        'ISNULL(' + QUOTENAME(week + '_수율제외수량') + ', 0) AS ' + QUOTENAME(week + '_수율제외수량') + ',' +
+	        'ISNULL(' + QUOTENAME(week + '_Rework진행여부수량') + ', 0) AS ' + QUOTENAME(week + '_Rework진행여부수량')
+	    AS NVARCHAR(MAX)), 
+	    ','
+	) 
+	FROM (
+	    SELECT DISTINCT week 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회_주간(@endDate, '2', null, null, null, null)
+	) AS DateList;
+	
+	-- 동적 SQL 구성
+	SET @sql = '
+	WITH RawData AS (
+	    SELECT * 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회_주간(''' + @endDate + ''', ''2'', null, null, ' + @modelStr + ', ' + @jobStr + ')
+	),
+	BaseData AS (
+		SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        week + ''_투입수량'' AS 항목,
+	        CAST(투입수 AS INT) AS 수량
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        week + ''_Total_NG'' AS 항목,
+	        CAST(Total_NG AS INT) AS 수량
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        week + ''_NG수량'',
+	        CAST(NG수량 AS INT)
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        week + ''_수율제외수량'',
+	        CAST(수율제외수량 AS INT)
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        week + ''_Rework진행여부수량'',
+	        CAST(Rework진행여부수량 AS INT)
+	    FROM RawData
+	),
+	MergedData AS (
+	    SELECT A.*, B.SEQ 
+	    FROM BaseData A
+	    LEFT JOIN dw_재공재고Report순서 B 
+	        ON A.공정코드 = B.공정코드 AND A.공정명 = B.공정명
+	),
+	PivotRaw AS (
+	    SELECT area, 공정코드, 공정명, 불량코드, 불량명, ' + @columns + ', seq
+	    FROM MergedData
+	    PIVOT (
+	        SUM(수량) FOR 항목 IN (' + @columns + ')
+	    ) AS P
+	)
+	SELECT 
+	    area, 공정코드, 공정명, 불량코드, 불량명, ISNULL(seq, 9999) AS seq, ' + @selectColumns + '
+	FROM PivotRaw
+	ORDER BY ISNULL(seq, 9999), 공정코드, 불량코드;
+	';
+	
+	-- 동적 SQL 실행
+	EXEC sp_executesql @sql;    
+    </select>
+    
+    <select id="R0000000_SchMonthlyErrorStatus" parameterType="Map" resultType="CamelMap">
+    DECLARE @endDate VARCHAR(8) = #{endDate};
+    DECLARE @model NVARCHAR(MAX) = #{model};
+	DECLARE @job NVARCHAR(MAX) = #{job};
+    
+    
+    DECLARE @modelStr NVARCHAR(MAX);
+	DECLARE @jobStr NVARCHAR(MAX);
+	
+	SET @modelStr = CASE WHEN @model IS NULL THEN 'null' ELSE '''' + @model + '''' END;
+	SET @jobStr = CASE WHEN @job IS NULL THEN 'null' ELSE '''' + @job + '''' END;
+	
+	DECLARE @columns NVARCHAR(MAX);
+	DECLARE @selectColumns NVARCHAR(MAX);
+	DECLARE @sql NVARCHAR(MAX);
+	
+	-- PIVOT 컬럼 생성
+	SELECT @columns = STRING_AGG(
+	    CAST( 
+			QUOTENAME(yyyymm + '_투입수량') + ',' +
+	        QUOTENAME(yyyymm + '_Total_NG') + ',' +
+	        QUOTENAME(yyyymm + '_NG수량') + ',' +
+	        QUOTENAME(yyyymm + '_수율제외수량') + ',' +
+	        QUOTENAME(yyyymm + '_Rework진행여부수량')
+	    AS NVARCHAR(MAX)), 
+	    ','
+	) 
+	FROM (
+	    SELECT DISTINCT yyyymm 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회_월간(@endDate, '1', null, null, null, null)
+	) AS DateList;
+	
+	-- SELECT절 컬럼 생성
+	SELECT @selectColumns = STRING_AGG(
+	    CAST(
+			'ISNULL(' + QUOTENAME(yyyymm + '_투입수량') + ', 0) AS ' + QUOTENAME(yyyymm + '_투입수량') + ',' + 
+	        'ISNULL(' + QUOTENAME(yyyymm + '_Total_NG') + ', 0) AS ' + QUOTENAME(yyyymm + '_Total_NG') + ',' +
+	        'ISNULL(' + QUOTENAME(yyyymm + '_NG수량') + ', 0) AS ' + QUOTENAME(yyyymm + '_NG수량') + ',' +
+	        'ISNULL(' + QUOTENAME(yyyymm + '_수율제외수량') + ', 0) AS ' + QUOTENAME(yyyymm + '_수율제외수량') + ',' +
+	        'ISNULL(' + QUOTENAME(yyyymm + '_Rework진행여부수량') + ', 0) AS ' + QUOTENAME(yyyymm + '_Rework진행여부수량')
+	    AS NVARCHAR(MAX)), 
+	    ','
+	) 
+	FROM (
+	    SELECT DISTINCT yyyymm 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회_월간(@endDate, '1', null, null, null, null)
+	) AS DateList;
+	
+	-- 동적 SQL 구성
+	SET @sql = '
+	WITH RawData AS (
+	    SELECT * 
+	    FROM Get_일별_공정별_불량현황_MODEL_작업구분_목록_DATA조회_월간(''' + @endDate + ''', ''1'', null, null, ' + @modelStr + ', ' + @jobStr + ')
+	),
+	BaseData AS (
+		SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        yyyymm + ''_투입수량'' AS 항목,
+	        CAST(투입수 AS INT) AS 수량
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        yyyymm + ''_Total_NG'' AS 항목,
+	        CAST(Total_NG AS INT) AS 수량
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        yyyymm + ''_NG수량'',
+	        CAST(NG수량 AS INT)
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        yyyymm + ''_수율제외수량'',
+	        CAST(수율제외수량 AS INT)
+	    FROM RawData
+	    UNION ALL
+	    SELECT 
+	        area, 공정코드, 공정명, 불량코드, 불량명,
+	        yyyymm + ''_Rework진행여부수량'',
+	        CAST(Rework진행여부수량 AS INT)
+	    FROM RawData
+	),
+	MergedData AS (
+	    SELECT A.*, B.SEQ 
+	    FROM BaseData A
+	    LEFT JOIN dw_재공재고Report순서 B 
+	        ON A.공정코드 = B.공정코드 AND A.공정명 = B.공정명
+	),
+	PivotRaw AS (
+	    SELECT area, 공정코드, 공정명, 불량코드, 불량명, ' + @columns + ', seq
+	    FROM MergedData
+	    PIVOT (
+	        SUM(수량) FOR 항목 IN (' + @columns + ')
+	    ) AS P
+	)
+	SELECT 
+	    area, 공정코드, 공정명, 불량코드, 불량명, ISNULL(seq, 9999) AS seq, ' + @selectColumns + '
+	FROM PivotRaw
+	ORDER BY ISNULL(seq, 9999), 공정코드, 불량코드;
+	';
+	
+	-- 동적 SQL 실행
+	EXEC sp_executesql @sql;
+    </select>
+
+
+	<select id="R0000000_SchErrorStatusJob" parameterType="Map" resultType="CamelMap">
+    	select code, code_name
+		from dw_common_code
+		where maj_code = '74'
+		and use_yn = '1'
+		order by sort_order,code
+    </select>
+
+</mapper>

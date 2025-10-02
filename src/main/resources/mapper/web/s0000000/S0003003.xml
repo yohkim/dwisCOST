@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.s0000000.mapper.S0003003Mapper">
+    <select id="getFacility" resultType="CamelMap">
+        select 설비약명, 설비번호
+        from dw_equipment_mast
+        where 1=1
+        <if test="code != null and code != ''">
+            and 공정코드 = #{code}
+        </if>
+        order by 설비약명
+    </select>
+</mapper>

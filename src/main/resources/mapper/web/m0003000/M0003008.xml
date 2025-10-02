@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0003000.mapper.M0003008Mapper">
+	<select id="selectModelList" resultType="CamelMap">
+	select 
+		model as text
+		,model as value
+	from dw_model_mast
+	</select>
+	
+	<select id="selectMboxSummary" parameterType="Map" resultType="CamelMap">
+	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+	select *
+	from GetReworkWaitCell(#{startDate},#{endDate},#{selectedModel},#{runNo},#{process})
+	Order by 공정순서
+	</select>
+
+	<select id="selectMboxList" parameterType="Map" resultType="CamelMap">
+	select *
+	from GetReworkWaitCell_List(#{startDate},#{endDate},#{selectedModel},#{runNo},#{selectedRw})
+	--Order by rw,1,2
+	</select>
+	
+	<select id="selectFQCList" parameterType="Map" resultType="CamelMap">
+	EXEC GetFQCWaitCell_List #{startDate},#{endDate},#{selectedModel},#{runNo},#{selectedRw}
+	</select>	
+		
+	<select id="selectEciList" parameterType="Map" resultType="CamelMap">
+	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+	select *
+	from GetEciWaitCell_List(#{startDate},#{endDate},#{selectedModel},#{runNo},#{selectedRw})
+	--Order by rw,1,2;
+	</select>	
+		
+	<select id="selectPaclList" parameterType="Map" resultType="CamelMap">
+	select *
+	from Get이물제거WaitCell_List(#{startDate},#{endDate},#{selectedModel},#{runNo},#{selectedRw})
+	Order by rw,1,2
+	</select>
+	
+	<select id="selectMboxSumList" parameterType="Map" resultType="CamelMap">
+	select *
+	from GetReworkWaitRun_List(#{startDate},#{endDate},#{selectedModel},#{runNo},#{selectedRw},#{process},#{prcOrder})
+	where 공정순서=#{prcOrder}	order by 공정순서,1
+	</select> 
+	
+	<select id="selectFQCSumList" parameterType="Map" resultType="CamelMap">
+	select *
+	from GetFQCWaitRun_List(#{startDate},#{endDate},#{selectedModel},#{runNo},#{selectedRw},#{process},#{prcOrder})
+	where 공정순서=#{prcOrder}	order by 공정순서,1
+	</select> 
+		
+	<select id="selectEciSumList" parameterType="Map" resultType="CamelMap">
+	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+	select *
+	from GetEciWaitRun_List(#{startDate},#{endDate},#{selectedModel},#{runNo},#{selectedRw},#{process},#{prcOrder})
+	where 공정순서=#{prcOrder}	order by 공정순서,1
+	</select>
+		
+	<select id="selectPaclSumList" parameterType="Map" resultType="CamelMap">
+	select *
+	from 
+		Get이물제거WaitRun_List(#{startDate},#{endDate},#{selectedModel},#{runNo},#{selectedRw},#{process},#{prcOrder})
+	 where 공정순서=#{prcOrder}	order by 공정순서,1
+	</select>
+	
+	<select id="selectEciWaitCellList" parameterType="Map" resultType="CamelMap">
+	select *
+	from ProcessEciWaitCell(#{startDate},#{endDate},#{selectedModel},#{cause})
+	</select>
+	
+	<select id="selectMboxWaitCellList" parameterType="Map" resultType="CamelMap">
+	select *
+	from ProcessMboxWaitCell(#{startDate},#{endDate},#{selectedModel},#{cause})
+	</select>
+	
+	<select id="selectFmrWaitCellList" parameterType="Map" resultType="CamelMap">
+	select *
+	from Process이물제거WaitCell(#{startDate},#{endDate},#{selectedModel},#{cause})
+	</select>
+	
+	<select id="selectFQCWaitCellList" parameterType="Map" resultType="CamelMap">
+	select *
+	from ProcessFQCWaitCell(#{startDate},#{endDate},#{selectedModel},#{cause},#{bareprocess})
+	order by Bare_Cell
+	</select>
+	
+	<select id="selectMboxGenCount" parameterType="Map" resultType="CamelMap">
+	select *	 
+	from MBOX_GenCount(#{startDate},#{endDate},#{selectedModel},#{selectedSelType},#{no});
+	</select>
+	
+	<select id="selectMboxGenList" parameterType="Map" resultType="CamelMap">
+	select	* 
+	from MBOX_GenList(#{startDate},#{endDate},#{selectedModel},UPPER(#{scrapCode}),#{selectedSelType},#{no})
+	</select>
+	
+	<select id="selectMboxGenSum" parameterType="Map" resultType="CamelMap">
+	select	* 
+	from MBOX_GenSum(#{startDate},#{endDate},#{selectedModel},#{selectedWorktype},UPPER(#{scrapCode}),#{selectedSelType},#{no}) 
+	</select>
+	
+	<select id="selectMboxNoGenList" parameterType="Map" resultType="CamelMap">
+	select	* 
+	from MBOX_NoGenList(#{startDate},#{endDate},#{selectedModel},#{selectedWorktype},UPPER(#{scrapCode}),#{selectedSelType},#{no})
+	  order by 상태 desc,mbox_no,before,cell_no
+	</select>
+	
+	<select id="selectMboxNoGenSum" parameterType="Map" resultType="CamelMap">
+	select	* 
+	from MBOX_NoGenSum(#{startDate},#{endDate},#{selectedModel},#{selectedWorktype},UPPER(#{scrapCode}),#{selectedSelType},#{no});
+	</select>
+	
+	<select id="selectMrunbox" parameterType="Map" resultType="CamelMap">
+	select
+		'M-BOX' as 상태,
+		MIN(STUFF(STUFF(STUFF(substring(Start_Time, 1, 13),5,0,'-'),8,0,'-'),14,0,':')) as 등록일시,
+		MBOX_NO,
+		SUM(수량) as 수량,
+		''AFT_RUNNO,
+		MAX(등록자) 등록자,
+		MAX(승인자) 승인자,
+		MAX(특이사항) 특이사항
+	from	d23_MRUNBOX파일
+	where	1 = 1
+		and d23_MRUNBOX파일.End_time <![CDATA[ >= ]]> #{startDate} + ' 080000'
+		and d23_MRUNBOX파일.End_time <![CDATA[ < ]]> CONVERT(VARCHAR(8), DATEADD(DAY, 1, CAST(#{endDate} AS DATE)), 112) + ' 080000'
+		and nullif(AFT_RUNNO,'') is null
+		and bef_runno like #{selectedModel}+'%'
+		and mbox_no like '%-'+ #{rwClass} +'___'
+	GROUP BY MBOX_NO
+	ORDER BY MBOX_NO
+	</select>
+	
+	<select id="selectMrunboxInfo" parameterType="Map" resultType="CamelMap">
+	select * 
+	from MRUN_MBOX_Info(#{startDate},#{endDate},#{selectedModel},#{selectedSelType},#{no})
+ 	order by 입고일자 desc,입고시각 desc
+	</select>
+	
+	<select id="execCheckMboxWaitCell" parameterType="Map" resultType="CamelMap">
+	exec Control_MBOXWaitCell #{selectedModel},#{selectedWorktype},#{cellId};
+	</select>
+	
+	<select id="execSaveBareCell" parameterType="Map" resultType="CamelMap">
+	exec Save_BareCell #{cellIds},#{runNo},#{manager},#{cause},#{bareprocess},#{comment};
+	</select>
+	
+	<select id="execSaveMboxWaitCell" parameterType="Map" resultType="CamelMap">
+	exec Save_MboxwaitCell #{cellIds},#{manager},#{cause},#{process};
+	</select>
+	
+	<update id="saveRemarks">
+	UPDATE d23_MRUN대기파일
+	SET 특이사항 = #{remarks}
+	WHERE CELL_ID = #{cellId}
+	</update>
+	
+	<delete id="deleteMrunWaitCell" parameterType="Map">
+	delete from d23_MRUN대기파일 where cell_id=#{cellId} and 공정코드=#{process}
+	</delete>
+	
+	<select id="selectMboxInfo" parameterType="Map" resultType="CamelMap">
+	EXEC MBOX_Info #{endDate},#{selectedModel},#{selectedWorktype} ,#{selectedRw};
+	</select>
+	
+	
+	<select id="selectMboxCellList" parameterType="Map" resultType="CamelMap">
+	select 
+		CELL_NO
+		,CASE WHEN org투입구분='P' then '양산'
+		 WHEN org투입구분='D' then '개발'
+		 WHEN org투입구분='M' then 'Rework'
+		 WHEN org투입구분='T' then '공정검사'
+		 WHEN org투입구분='Q' then '승인'
+		 WHEN org투입구분='C' then '검증'
+		 ELSE '기타' END AS 투입구분
+		,BEF_RUNNO as RUN_NO
+		,AGB_호기명
+		,PFL_설비명
+		,PFL_STAGE as STAGE
+		,이물_LINE
+		,특이사항
+		,AFT_RUNNO as MRUN_NO
+		,BEF_차수 AS rework판정
+	from d23_MRUNBOX파일 where mbox_no=#{mboxNo}
+	</select>
+	
+	<select id="selectMboxCellList1" parameterType="Map" resultType="CamelMap">
+	select 
+		CELL_NO
+		,BEF_RUNNO as RUN_NO
+		,AGB_호기명
+		,PFL_설비명
+		,PFL_STAGE as STAGE
+		,이물_LINE
+		,특이사항
+		,AFT_RUNNO as MRUN_NO
+	from d23_MRUNBOX파일 where mbox_no=(select mbox_No from d23_MRUNBOX파일 where cell_no=#{srchCellNo})
+	</select>
+	
+	<select id="selecNewMboxNo" parameterType="Map" resultType="String">
+	select * from  MBOX_NewNo(#{endDate},#{selectedModel},#{selectedWorktype} ,#{selectedRw})
+	</select>
+	
+	<select id="execSaveMboxCell" parameterType="Map">
+	EXEC Save_MboxBoxCell #{cellNos},#{mboxNo},#{manager},#{approver},#{selectedRw},#{rwCnt},#{runType};	
+	</select>
+	
+	<delete id="deleteMrunCell" parameterType="Map">
+	delete from d23_MRUNBOX파일 where cell_id=#{cellId}
+	</delete>
+	
+	<select id="getProcessPlan" resultType="CamelMap">
+	select 공정코드,공정명 from dw_process_plan where line='DFB1' and process_id='D1RW'
+	</select>
+	
+	<select id="execMrunGenerate" parameterType="Map" resultType="CamelMap">
+	EXEC MRUN_Generate #{mboxNoList},#{issuer};
+	</select>
+	
+	<select id="execMrunSave" parameterType="Map" resultType="CamelMap">
+	EXEC MRUN_Save #{mboxNoList}, #{note}, #{issuer};
+	</select>
+	
+	
+	<select id="execMrunDelete" parameterType="Map" resultType="CamelMap">
+	EXEC MRUN_Delete #{mrunNoList};
+	</select>
+	
+	<select id="execCancelMboxBoxCell" parameterType="Map">
+	EXEC Cancel_MboxBoxCell #{cellNos},#{mboxNo};
+	</select>
+	
+	<select id="selectMrunStatus" parameterType="Map" resultType="CamelMap">
+	select * from MRUN_Status(#{runNo})
+	</select>
+	
+	<select id="selectMrunMboxList" parameterType="Map" resultType="CamelMap">
+	/*selectMrunMboxList*/
+	select
+		a.공장코드
+		,a.run_no
+		,a.공정코드
+		,a.차수
+		,a.seq
+		,a.lot_no
+		,a.bef_공정코드
+		,a.NXT_공정코드
+		,a.박리작업구분
+		,a.작업자
+		,a.작업조
+		,a.작업시작
+		,a.시작시각
+		,a.shift
+		,a.f_cstno as CST_NO
+		,a.f_수량 as CST_CELL
+		,a.f_불량수량
+		,a.작업종료
+		,a.종료시각
+		,a.투입수량
+		,a.machine_code
+		,a.배출구
+		,a.t_runno
+		,a.in_cstno
+		,a.t_cstno
+		,a.t_수량
+		,a.t_cstno2
+		,a.t_수량2
+		,a.t_불량수량
+		,a.특이사항
+		,a.저장여부
+		,a.재공적용_여부
+		,a.mbox_no
+		,a.bef_runno
+		,a.mbox_no + '|' + a.f_cstno + '|' + a.t_cstno as pkey
+		,isnull(b.불량수량,0) as 불량수량
+	from GetRework카세트리스트(#{runNo}) a
+	left outer join (
+		select 차수, cst_no,CST_NO1,etc_no,sum(불량수량) 불량수량 
+		from d42_검사불량사유파일
+		where 공정코드 = '022'		
+		and lotrun_id = #{runNo} 
+		group by 차수,cst_no,CST_NO1,etc_no
+	) b on (a.차수 = b.차수 and a.f_cstno = b.cst_no and a.t_cstno = b.CST_NO1 and a.mbox_no = b.etc_no)
+	</select>
+	
+	<select id="selectDpfFailInfo" parameterType="Map" resultType="CamelMap">
+	/*selectDpfFailInfo*/
+	select
+		a.공장코드
+		,a.run_no
+		,a.공정코드
+		,a.차수
+		,a.seq
+		,a.lot_no
+		,a.bef_공정코드
+		,a.NXT_공정코드
+		,a.박리작업구분
+		,a.작업자
+		,a.작업조
+		,a.작업시작
+		,a.시작시각
+		,a.shift
+		,a.f_cstno
+		,a.f_수량
+		,a.f_불량수량
+		,a.작업종료
+		,a.종료시각
+		,a.투입수량
+		,a.machine_code
+		,a.배출구
+		,a.t_runno
+		,a.in_cstno
+		,a.t_cstno
+		,a.t_수량
+		,a.t_cstno2
+		,a.t_수량2
+		,a.t_불량수량
+		,a.특이사항
+		,a.저장여부
+		,a.재공적용_여부
+		,a.mbox_no
+		,a.bef_runno
+		,a.mbox_no + '|' + a.f_cstno + '|' + a.t_cstno as pkey
+		,count(t_수량) over(partition by a.t_cstno) as t_cnt
+		,a.t_수량 as t_org수량		
+	from GetRework카세트리스트(#{runNo}) a
+	</select>
+	
+	<select id="selectReworkMcList" parameterType="Map" resultType="CamelMap">
+	select 
+		설비번호 as value
+		,'['+설비번호+'] '+설비약명 as text
+		,설비약명
+		,Chamber as LINE_축 
+	from  dw_equipment_mast 
+	where 설비번호 in ('412','506')
+	and 사용여부=1
+	</select>
+	
+	<update id="reworkStartJob" parameterType="Map">
+	update d22_RUN제조VLR set
+		작업시작 = #{작업시작}
+		,시작시각 = #{시작시각}
+		,작업자 = #{worker}
+		,Machine_Code = #{mc}
+		,SHIFT = #{shift}
+		,투입수량 = #{투입수량}
+	where run_no = #{runNo}
+	and 공정코드 = #{process}
+	</update>
+	
+	<select id="selectPrintMRunCardInfo" parameterType="Map" resultType="CamelMap">
+	SELECT
+		A.RUN_NO,
+	    e.code_name 작업구분,
+		d.customer_name 고객명,
+		d.Inch 모델명,
+		b.자재두께 두께,
+		b.자재재질 Glass재질,
+		FORMAT(cast(b.자재두께 as INT),
+		'000')+ '-' + c.code as 'Glass BCR',
+		STUFF(STUFF(작업지시일자,5,	0,	'-'),	8,	0,	'-') as 발행일,
+		a.특기사항 특이사항,
+		FILM_전면색_1,
+		FILM_전면색_2,
+		FILM_전면색_3,
+		FILM_전면색_4,
+		FILM_배면색_1,
+		FILM_배면색_2,
+		FILM_배면색_3,
+		FILM_배면색_4
+	FROM
+		d22_RUN제조MST a
+	left join d04_자재마스터파일 b on
+		(a.자재코드 = b.자재코드)
+	left join dw_common_code c on
+		(c.maj_code = '09'	and b.자재재질 = c.code_name)
+	left join dw_product_mast d on
+		( a.제품코드 = d.prod_code)	
+	left join dw_common_code e on (e.maj_code = '31' and A.작업구분 = e.code)
+	left join (
+		select  model,code 제품유형,
+			FILM_전면색_1,
+				FILM_전면색_2,
+				FILM_전면색_3,
+				FILM_전면색_4,
+				FILM_배면색_1,
+				FILM_배면색_2,
+				FILM_배면색_3,
+				FILM_배면색_4
+		FROM dw_모델기본정보 a 
+		left join dw_common_code b on 
+			(b.maj_code = '36' and A.model = b.code_name)
+	)f on (a.제품유형 = f.제품유형) 
+	where	run_no = #{runNo};
+	</select>
+	<update id="updateEndJobVLR" parameterType="Map">
+	update d22_RUN제조VLR set 
+		작업종료 = #{작업종료}
+		,종료시각 = #{종료시각}		
+    	,불량수량 = #{불량수량}
+    	,양품수량 = #{양품수량}    	    	
+	where run_no = #{runNo}
+	and 공정코드 = #{process}
+	</update>
+	<insert id="insertReworkCst"  parameterType="Map">
+	INSERT INTO d22_RUN카세트파일 (
+		공장코드
+		,RUN_NO
+		,공정코드
+		,SEQ
+		,LOT_NO
+		,BEF_공정코드
+		,NXT_공정코드
+		,박리작업구분
+		,작업자
+		,작업조
+		,작업시작
+		,시작시각
+		,SHIFT
+		,F_CSTNO
+		,F_수량,F_불량수량,작업종료,종료시각,투입수량,Machine_Code
+		,IN_CSTNO,T_CSTNO,T_수량
+		,T_수량2,T_불량수량,원자재,작업중,RD깨짐,TR미박리,TR깨짐,센서검출,검사검출,설비오류,기타,저장여부,재공적용_여부,특이사항
+	) VALUES (
+		'2'
+		,#{runNo}
+		,#{process}
+		,#{seq}
+		,#{lotNo}
+		,#{bef공정코드}
+		,#{nxt공정코드}
+		,#{박리작업구분}
+		,#{작업자}
+		,#{작업조}
+		,#{작업시작}
+		,#{시작시각}
+		,#{shift}
+		,#{fCstno}
+		,#{f수량},#{f불량수량},#{작업종료},#{종료시각},#{투입수량},#{machineCode}
+		,#{inCstno},#{tCstno},#{t수량}
+		,0,0,0,0,0,0,0,0,0,0,0,0,0,#{특이사항}
+	)
+	</insert>
+	<select id="insertReworkBadCnt" parameterType="Map">
+	/*삭제 후 추가*/
+	delete
+	from d42_검사불량사유파일
+	where 공장코드 = '2'
+	and 공정코드 = #{process}
+	and LOTRUN_ID = #{runNo} 
+	and CST_NO in (#{tCstno},#{fCstno})
+	and 불량코드 = (
+		select
+			distinct 불량코드
+		from d29_공정별불량파일
+		where  공정코드 = #{process}
+		and 사용여부 = 1
+		and 불량명 = #{badNm}
+	);	
+		<if test="badCnt > 0">
+		insert into d42_검사불량사유파일 (
+			공장코드
+			, 공정코드
+			, LOTRUN_ID
+			, Machine_Code
+			, CST_NO
+			, 불량코드
+			, Block_SU
+			, 불량수량
+			, 검사시각
+		) 
+		select 			
+			'2' 		--공장코드
+			,b.공정코드	
+			,#{runNo}
+			,#{machineCode} 		--Machine_Code
+			,#{tCstno} 	--CST_NO
+			,b.불량코드
+			,0 			--Block_SU
+			,#{badCnt} 		--불량수량
+			,#{검사시각}
+		from (
+			select
+				distinct 공정코드,불량코드
+			from d29_공정별불량파일
+			where  공정코드 = #{process}
+			and 사용여부 = 1
+			--and 적용구분 = 0
+			and 불량명 = #{badNm}
+		) b;
+		</if>
+	</select>
+	<select id="selectBareCellProcess" parameterType="Map" resultType="CamelMap">
+	select 
+		공정약어 as text
+		,공정코드 as value
+	from dw_step_mast
+	where line='DFB1' 
+	and 공정코드 in ('054','055')
+	</select>
+	<select id="selectBareCellRw" parameterType="Map" resultType="CamelMap">
+	select 
+		code as value
+		,code_name as text
+	from dw_common_code_input 
+	where maj_code ='73' 
+	and code in ('31','9','6','250')
+	and use_yn = 1
+	order by sort_order,code
+	</select>
+	
+	<select id="runCheckBareCell" parameterType="Map" resultType="CamelMap">
+	exec Run_Check_BareCell #{runNo},#{bareprocess};
+	</select>
+	
+	<select id="selectBareCellList" parameterType="Map" resultType="CamelMap">
+	BEGIN 
+	DECLARE @RUN_ID VARCHAR(27) = #{runNo},
+			@가능수량 INT = #{qty},
+			@담당자  varchar(15) = #{manager},
+			@공정 varchar(4) = #{bareprocess},
+			@START_CELL_NO INT;
+	select @START_CELL_NO = coalesce(max(cast(replace(cell_id,@RUN_ID+'-','') as int)),0)+1
+	from d23_MRUN대기파일 
+	where run_id=@RUN_ID 
+	and CELL_ID like @RUN_ID+'%';
+	--select  @START_CELL_NO;
+	WITH GenerateSeries AS (
+	    SELECT @START_CELL_NO AS seq
+	    UNION ALL
+	    SELECT seq + 1
+	    FROM GenerateSeries
+	    WHERE seq  <![CDATA[ < ]]> @가능수량+ @START_CELL_NO -1
+	)
+	select 
+		@공정 as 공정,
+		@RUN_ID + '-' + FORMAT(seq,'000') Bare_Cell,
+		@RUN_ID as run_Id,
+		@담당자 as 담당자,
+		'저장시 자동입력'  작업시각,
+		--'1' as 특이사항,
+		row_number() over(order by @RUN_ID) NUM
+  	FROM GenerateSeries
+	END;
+	</select>
+	
+	<select id="deleteBareCellList" parameterType="Map" resultType="CamelMap">
+		exec Delete_BareCell #{cellList}
+	</select>
+	
+	<select id="execMboxDisassembly" parameterType="Map" resultType="CamelMap">
+		exec MboxDisassembly #{mboxNo}
+	</select>
+		
+	<select id="execMboxPaidSales" parameterType="Map" resultType="CamelMap">
+		exec Mbox_유상판매 #{mboxNo}, #{username}
+	</select>
+	
+	<select id="selectAgbList" parameterType="Map" resultType="String">
+	select 설비약명 
+	from dw_equipment_mast
+	WHERE 공정코드 = '056'
+	and 사용여부 = 1
+	</select>
+	
+	<insert id="insertMcstMrunbox" parameterType="Map">
+	/*cst 단건 입력 쿼리 예시*/
+	insert into d23_MRUNBOX파일
+	(공장코드,MBOX_NO,CELL_NO, CST_NO, 수량, BEF_RUNNO, 등록자, 등록여부, 승인자, 승인여부, start_time, end_time, AGB_호기명, SCRAP_Code, 특이사항, 저장여부, 재공적용_여부)
+	select
+		2 as 공장코드 
+		,#{mboxNo} as MBOX_NO
+		,'-' as CELL_NO
+		,TRIM(CHAR(9) + CHAR(32) FROM #{cstNo}) as CST_NO
+		,#{cell} as 수량
+		,TRIM(CHAR(9) + CHAR(32) FROM #{runNo})as BEF_RUNNO
+		,#{manager} as 등록자
+		,1 as 등록여부
+		,#{approver} as 승인자
+		,1 as 승인여부 
+	    ,format(getdate(),'yyyyMMdd HHmm') as start_time 
+	    ,format(getdate(),'yyyyMMdd HHmm') as end_time
+	    ,#{agb} as AGB_호기명
+	    ,#{scrapCode} as SCRAP_CODE 
+	    ,#{특이사항} as 특이사항
+	    ,1 as 저장여부
+	    ,0 as 재공적용_여부
+	</insert>
+</mapper>

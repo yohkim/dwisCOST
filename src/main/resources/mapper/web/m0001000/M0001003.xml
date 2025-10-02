@@ -1,0 +1,776 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0001000.mapper.M0001003Mapper">
+
+	<select id="selectMatUnit" resultType="CamelMap">
+		SELECT mat_type_name, unit
+		  FROM dw_mat_category 
+		 WHERE mat_category_code = #{matCategoryCode}
+		   AND mat_type_code = #{matTypeCode}
+	</select>
+	
+
+	<select id="selectMatToolIn" resultType="CamelMap">
+		SELECT
+			a.material_id,
+			a.mat_type_code,
+			a.sub_mat_type_code,
+			a.in_date,
+			a.in_time,
+			a.unit,
+			a.in_qty,
+			a.use_qty,
+			a.remain_qty,
+			a.use_yn,
+			a.worker_id,
+			a.worker_name,
+			a.comments,
+			b.comments as out_comments,
+			a.create_date,
+			a.create_user,
+			case when isnull(c.close_yn,'N') = 'N' and a.use_yn = 'N' then 'Y'
+			 	    else 'N'
+		    end as editable			
+		FROM DW_SUB_MAT_TOOL_IN a
+		LEFT OUTER JOIN DW_SUB_MAT_TOOL_OUT b
+		 ON a.material_id = b.material_id
+		left outer join ( select * from dw_mat_close_info where mat_category_code ='40' and mat_type_code='TOOL' ) c 
+		 on ( a.in_date = c.stock_date )		 
+		WHERE 1 = 1
+			<choose>
+				<when test="searchMaterialId != null and searchMaterialId.trim() != ''">
+					and a.material_id = #{searchMaterialId}
+				</when>
+				<otherwise>
+					  and a.in_date between #{fromDate} and #{toDate}
+					<if test="subMatTypeCode != null and subMatTypeCode.trim() != ''" >
+					  AND a.sub_mat_type_code = #{subMatTypeCode}	
+					</if>
+				</otherwise>			
+			</choose> 
+		order by a.in_date desc, a.in_time desc, a.material_id 
+	</select>
+	
+	<select id="selectBarcodeDupYn" resultType="String">
+		SELECT CASE WHEN count(1) <![CDATA[ > ]]>  0 THEN 'Y'
+		        ELSE 'N'
+		   END AS dupYn
+		FROM  DW_SUB_MAT_TOOL_IN a 
+		WHERE a.material_id =  #{materialId}
+	</select>
+	
+	<select id="checkUseInData" resultType="Map">
+		select COALESCE(STRING_AGG(material_id, '/'), 'NoData') AS materialId
+		from DW_SUB_MAT_TOOL_IN a
+		where upper(a.material_id) in
+		<foreach item="item" collection="vo" open="(" separator="," close=")" >
+			upper(#{item.materialId})
+		</foreach>
+		and a.use_yn = 'Y'
+	</select>			
+	
+	<select id="checkInsertInData" resultType="Map">
+		select COALESCE(STRING_AGG(material_id, '/'), 'NoData') AS materialId
+		from DW_SUB_MAT_TOOL_IN a
+		where upper(a.material_id) in
+		<foreach item="item" collection="vo" open="(" separator="," close=")" >
+			upper(#{item.materialId})
+		</foreach>
+	</select>		
+	
+	<insert id="insertInData">
+		INSERT INTO dw_sub_mat_tool_in
+		(
+			material_id,
+			mat_type_code,
+			sub_mat_type_code,
+			in_date,
+			in_time,
+			unit,
+			in_qty,
+			use_qty,
+			remain_qty,
+			use_yn,
+			worker_id,
+			worker_name,
+			comments,
+			create_date,
+			create_user
+		)
+		VALUES
+		(
+			#{materialId},
+			#{matTypeCode},
+			#{subMatTypeCode},
+			#{inDate},
+			#{inTime},
+			#{unit},
+			#{inQty},
+			#{useQty},
+			#{remainQty},
+			#{useYn},
+			#{workerId},
+			#{workerName},
+			#{comments},
+			getdate(),
+			#{workerId}
+		)
+	</insert>
+	
+	<update id="updateInData">
+		UPDATE dw_sub_mat_tool_in
+			SET sub_mat_type_code = #{subMatTypeCode},
+				worker_name = #{workerName},
+				comments = #{comments}
+		WHERE material_id = #{materialId}
+	</update>
+	
+	<update id="updateRemainQtyMinus">
+		UPDATE dw_sub_mat_tool_in
+			SET use_qty = use_qty + #{outQty},
+			    remain_qty = remain_qty - #{outQty},
+			    use_yn = 'Y'
+		WHERE material_id = #{materialId}
+	</update>
+	
+	<update id="updateRemainQtyPlus">
+		UPDATE dw_sub_mat_tool_in
+			SET use_qty = use_qty - #{outQty},
+			    remain_qty = remain_qty + #{outQty},
+			    use_yn = case when ( use_qty - #{outQty} ) <![CDATA[ <=0 ]]> then 'N'
+			             	  else 'Y'
+			              end	
+		WHERE material_id = #{materialId}
+	</update>	
+	
+	<delete id="deleteInData">
+		DELETE  FROM dw_sub_mat_tool_in
+		WHERE material_id = #{materialId}
+	</delete>
+	
+	<select id="selectMatToolOut" resultType="CamelMap">
+		SELECT
+			a.material_id,
+			a.mat_type_code,
+			a.sub_mat_type_code,
+			b.code_name as sub_mat_type_name,
+			a.work_date,
+			a.shift_code,
+			a.out_seq,
+			a.out_date,
+			a.out_time,
+			a.worker_name,
+			a.use_category,
+			a.line,
+			a.step_code,
+			a.step_nm,
+			a.equip_no,
+			a.equip_nm,
+			a.equip_nm as org_equip_nm,
+			a.unit,
+			isnull(a.out_qty,0) out_qty ,
+			isnull(a.error_work_qty,0) error_work_qty,
+			isnull(a.error_mat_qty,0) error_mat_qty,
+			a.사용구분,
+			isnull(a.최대사용횟수,0) 최대사용횟수,
+			isnull(a.사용횟수,0) 사용횟수,
+			a.사용완료여부,
+			a.폐기여부,
+			a.comments,
+			c.comments as in_comments,
+			a.create_date,
+			a.create_user,
+			case when isnull(d.close_yn, 'N') = 'N' and 
+			 		<![CDATA[
+						( ( datepart(hour,getdate())   <  8
+			              		and ( a.out_date = CONVERT(VARCHAR(8), getdate(), 112) ) or 
+							  		( a.out_date = CONVERT(VARCHAR(8), DATEADD(DAY, -1, getdate()), 112) and convert(int,substring(a.out_time, 1,2))   >   19)
+					     	) or 
+					     	( datepart(hour,getdate())   >=   8 and a.out_date = CONVERT(VARCHAR(8), getdate(), 112) 
+					     	) or
+					     	c.remain_qty > 0   
+					     ) and a.사용횟수 = 0  ]]>
+			        then 'Y'
+			        else 'N'
+			   end editable	
+		FROM dw_sub_mat_tool_out a 
+    	JOIN ( SELECT code, code_name from dw_common_code WHERE maj_code='79' ) b 
+		ON ( a.sub_mat_type_code = b.code )		
+		left outer join dw_sub_mat_tool_in c 
+		on ( a.material_id = c.material_id )
+		left outer join ( select * from dw_mat_close_info where mat_category_code ='40' and mat_type_code='TOOL'  ) d 
+		on ( a.work_date = d.stock_date )			
+		where 1 = 1
+			<choose>
+				<when test="searchMaterialId != null and searchMaterialId.trim() != ''">
+					and a.material_id = #{searchMaterialId}
+				</when>
+				<otherwise>
+					  and work_date between #{fromDate} and #{toDate}
+					<if test="shiftCode != null and shiftCode.trim() != ''" >		
+					  and shift_code = #{shiftCode}
+					</if>
+					<if test="useCategory != null and useCategory.trim() != ''" >	
+					  and use_category = #{useCategory}
+					</if>
+					<if test="equip != null and equip.trim() != ''" >	
+					  and line= #{line} and equip_no = #{equip}
+					</if>		
+				</otherwise>			
+			</choose> 
+		order by a.out_date desc,
+			    a.out_time desc,
+			    a.out_seq desc
+	</select>
+	
+	<select id="selectBarcodeInfo" resultType="CamelMap">	
+		select a.material_id, 
+				a.sub_mat_type_code, 
+				b.code_name as  sub_mat_type_name, 
+				a.remain_qty, 
+				a.use_yn,
+				case when a.sub_mat_type_code = 'FGRIND' then '정삭'
+				     else b.code_name
+				end as '사용구분',
+				b.etc1 as 최대사용횟수,
+				0 as 사용횟수,
+				'N' as 사용완료여부,
+				'N' as 폐기여부,
+				a.comments as in_comments
+		  from dw_sub_mat_tool_in a 
+		  JOIN ( SELECT code, code_name, etc1 from dw_common_code WHERE maj_code='79' and use_yn = '1' ) b 
+		    ON ( a.sub_mat_type_code = b.code )	  
+		where material_id = #{materialId} 
+	</select>	
+	
+	<select id="checkRemainQty" resultType="CamelMap">
+		select material_id
+		  from dw_sub_mat_tool_in a
+		 where upper(a.material_id) = upper(#{materialId})
+		   and remain_qty -  #{outQty} <![CDATA[ < 0 ]]>
+	</select>	
+	
+	<select id="checkEquipTool" resultType="CamelMap">
+		select count(*) as use_count
+		  from dw_sub_mat_tool_out 
+		 where line = #{line}
+		   and equip_no = #{equipNo}
+		   and 사용구분 = #{사용구분}
+		   and 사용완료여부 = 'N'
+		   and 폐기여부 = 'N'	
+	</select>	
+	
+	<insert id="insertOutData">
+		INSERT INTO dw_sub_mat_tool_out
+		(
+			material_id,
+			mat_type_code,
+			sub_mat_type_code,
+			work_date,
+			shift_code,
+			out_seq,
+			out_date,
+			out_time,
+			worker_name,
+			use_category,
+			line,
+			step_code,
+			step_nm,
+			equip_no,
+			equip_nm,
+			unit,
+			out_qty,
+			error_work_qty,
+			error_mat_qty,
+			사용구분,
+			최대사용횟수,
+			사용횟수,
+			사용완료여부,
+			폐기여부,
+			comments,
+			create_date,
+			create_user
+		)
+		VALUES
+		(
+			#{materialId},
+			#{matTypeCode},
+			#{subMatTypeCode},
+			#{workDate},
+			#{shiftCode},
+			(select COALESCE(max(out_seq),0)+1 from dw_sub_mat_tool_out where work_date=#{workDate} and mat_type_code='TOOL' and shift_code = #{shiftCode}),
+			#{outDate},
+			#{outTime},
+			#{workerName},
+			#{useCategory},
+			#{line},
+			#{stepCode},
+			#{stepNm},
+			#{equipNo},
+			#{equipNm},
+			#{unit},
+			isnull(#{outQty},0),
+			isnull(#{errorWorkQty},0),
+			isnull(#{errorMatQty},0),
+			#{사용구분},
+			#{최대사용횟수},
+			#{사용횟수},
+			case when #{최대사용횟수} = #{사용횟수} or #{사용완료여부} = 'Y'
+					 then 'Y'
+			   	else 'N'
+			end,
+			'N',
+			#{comments},
+			getdate(),
+			#{createUser}
+		)
+	</insert>
+	
+	<update id="updateOutData">
+		UPDATE dw_sub_mat_tool_out
+			SET worker_name = #{workerName},
+				use_category = #{useCategory},
+				line = #{line},
+				step_code = #{stepCode},
+				step_nm = #{stepNm},
+				equip_no = #{equipNo},
+				equip_nm = #{equipNm},
+				error_work_qty = #{errorWorkQty},
+				error_mat_qty = #{errorMatQty},	
+				사용구분 = #{사용구분},
+			    최대사용횟수 = #{최대사용횟수},	
+				사용횟수 = #{사용횟수},					 
+				comments = #{comments},
+				사용완료여부 = case when #{최대사용횟수} = #{사용횟수} or #{사용완료여부} = 'Y'
+										 then 'Y'
+							    	else 'N'
+							   end,
+			    폐기여부 = #{폐기여부}
+		WHERE material_id = #{materialId}
+	</update>
+	
+	<delete id="deleteOutData">
+		DELETE  FROM dw_sub_mat_tool_out
+		WHERE material_id = #{materialId}
+	</delete>	
+	
+	<!-- 재고실사 -->	
+	<select id="selectMaxStockDate" resultType="String">
+		SELECT CONVERT(VARCHAR(8), 
+			       	   ISNULL(max(stock_date), CONVERT(VARCHAR(8), DATEADD(HOUR, 9, GETUTCDATE()), 112)), 
+			       	   112) AS stockDate
+		FROM dw_sub_mat_tool_id_stock
+	</select>	
+	
+	<select id="selectConfirmN" resultType="int">
+		select count(1) as cnt
+		from dw_sub_mat_tool_id_stock
+		where stock_date = #{stockDate}
+		  and confirm_yn = 'N'
+	</select>
+	
+	<select id="selectSubMatToolIdStock" resultType="CamelMap">
+		SELECT 
+			a.stock_date,
+			a.material_id,
+			a.mat_type_code,
+			a.sub_mat_type_code,
+			b.code_name as sub_mat_type_name,
+			a.unit,
+			a.prev_stock_qty,
+			a.prev_real_stock_qty,
+			a.in_qty,
+			a.out_qty,
+			a.error_work_qty,
+			a.error_mat_qty,	
+			a.stock_qty,
+			a.real_stock_qty,
+			a.diff_qty,	
+			a.confirm_yn,
+			a.charger_id,
+			a.charger_name,
+			a.comments,
+			case when c.status = 'CLOSE' then 'N'
+			     else 'Y'
+			end as editable			
+		FROM dw_sub_mat_tool_id_stock a 
+		left outer join ( select code, code_name from dw_common_code where maj_code='79' ) b 
+		on ( a.sub_mat_type_code = b.code )
+		left outer join ( select * from dw_mat_close_info where mat_category_code='40' and mat_type_code='TOOL' ) c
+		on ( a.stock_date = c.stock_date  )	
+		where a.stock_date = #{stockDate}
+		<if test="materialId != null and materialId.trim() != ''" >
+		  and a.material_id = #{materialId}
+		</if>		
+		<if test="subMatType != null and subMatType.trim() != ''" >
+		  and a.sub_mat_type_code = #{subMatType}
+		</if>
+		<if test="confirmYn != null and confirmYn.trim() != ''" >
+		  and a.confirm_yn = #{confirmYn}
+		</if>
+		<if test="diffYn != null and diffYn.trim() != ''" >
+          AND (
+            	(#{diffYn} = 'N' AND a.diff_qty = 0) OR
+            	(#{diffYn} = 'Y' AND a.diff_qty != 0)
+           )
+		</if>
+		order by a.stock_date, a.material_id
+	</select>
+	
+	<select id="createTempMatStockTable">
+	    SELECT *
+	      INTO ${tempTableName}
+	      FROM dw_sub_mat_tool_id_stock
+	     WHERE stock_date = #{stockDate}
+	</select>	
+	
+	<delete id="dropTempMatStockTable">
+		DROP TABLE ${tempTableName}
+	</delete>		
+	
+	<delete id="deleteSubMatToolIdStock">
+		delete from dw_sub_mat_tool_id_stock
+		where stock_date = #{stockDate}
+	</delete>
+	
+	<insert id="insertSubMatToolIdStock">
+		INSERT INTO dw_sub_mat_tool_id_stock
+		(
+			stock_date,
+			material_id,
+			mat_type_code,
+			sub_mat_type_code,
+			unit,
+			prev_stock_qty,
+			prev_real_stock_qty,
+			in_qty,
+			out_qty,
+			error_work_qty,
+			error_mat_qty,
+			stock_qty,
+			real_stock_qty,
+			diff_qty,
+			confirm_yn,
+			charger_id,
+			charger_name,
+			comments,
+			create_date,
+			create_user
+		)		
+		select a.stock_date,
+				a.material_id,
+				a.mat_type_code,
+				a.sub_mat_type_code,
+				a.unit,
+				a.prev_stock_qty,
+				a.prev_real_stock_qty,
+				a.in_qty,
+				a.out_qty,
+				a.error_work_qty,
+				a.error_mat_qty,
+				( a.prev_stock_qty + a.in_qty - a.out_qty ) as stock_qty,				
+				case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then 
+							( a.prev_real_stock_qty + a.in_qty - a.out_qty ) 
+					 else b.real_stock_qty
+			    end as real_stock_qty,
+				case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then 
+							( a.prev_real_stock_qty + a.in_qty - a.out_qty ) - ( a.prev_stock_qty + a.in_qty - a.out_qty )
+					 else ( b.real_stock_qty ) - ( a.prev_stock_qty + a.in_qty - a.out_qty )
+			    end as diff_qty,	
+			    case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then 'Y'
+				     else b.confirm_yn
+				end as confirm_yn,
+				case when #{workerId} = 'SYSTEM' and #{workerName} = 'SYS_BATCH' and b.charger_id is not null then b.charger_id
+				     else #{workerId}
+				end as worker_id,
+				case when #{workerId} = 'SYSTEM' and #{workerName} = 'SYS_BATCH' and b.charger_id is not null then b.charger_name
+				     else #{workerName}
+				end as worker_name,
+			    case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then ''
+				     else b.comments
+				end as comments,	
+				getdate(),
+				#{workerId}
+		from 		
+		( 
+			select #{stockDate} as stock_date,
+					a.material_id,
+					a.mat_type_code,
+					a.sub_mat_type_code,
+					a.unit,
+					sum(case when gubun = 'PRE_STOCK' then qty else 0 end) as prev_stock_qty,
+					sum(case when gubun = 'PRE_STOCK' then real_qty else 0 end) as prev_real_stock_qty,
+					sum(case when gubun = 'IN' then qty else 0 end) as in_qty,
+					sum(case when gubun = 'OUT' then qty else 0 end) as out_qty,
+					sum(case when gubun = 'OUT' then error_work_qty else 0 end) as error_work_qty,
+					sum(case when gubun = 'OUT' then error_mat_qty else 0 end) as error_mat_qty
+			from 
+			(
+				SELECT 'PRE_STOCK' as gubun, 
+						a.material_id,
+						a.mat_type_code,
+						a.sub_mat_type_code,
+						unit,
+						sum(stock_qty) as qty,
+						sum(real_stock_qty) as real_qty,
+						0 as error_work_qty,
+						0 as error_mat_qty						
+				FROM dw_sub_mat_tool_id_stock a
+				where stock_date = convert(char(8), dateadd(DAY, -1, cast(#{stockDate} as date)), 112)
+				  and ( stock_qty > 0  or real_stock_qty > 0 )
+				GROUP by material_id, mat_type_code, sub_mat_type_code, unit
+				union all
+				SELECT 'IN' as gubun, 
+						a.material_id,
+						a.mat_type_code,
+						a.sub_mat_type_code,
+						unit,
+						sum(in_qty) as qty,
+						sum(in_qty) as real_qty,
+						0 as error_work_qty,
+						0 as error_mat_qty								
+			    FROM dw_sub_mat_tool_in a
+				where in_date + in_time between #{stockDate} + '08:00' and convert(char(8), dateadd(DAY, 1, cast(#{stockDate} as date)), 112) + '07:59'
+				GROUP by material_id, mat_type_code, sub_mat_type_code, unit
+				union all 
+				SELECT 'OUT' as gubun, 
+						material_id,
+						mat_type_code,
+						sub_mat_type_code,
+						unit,
+						sum(out_qty) as qty,
+						sum(out_qty) as real_qty,
+						sum(error_work_qty) as error_work_qty,
+						sum(error_mat_qty) as error_mat_qty							
+				FROM dw_sub_mat_tool_out a
+				where work_date = #{stockDate}
+				GROUP BY material_id, mat_type_code, sub_mat_type_code, unit
+			) a 
+			group by material_id, mat_type_code, sub_mat_type_code, unit
+		) a
+		left outer join 
+		(
+			select a.stock_date, a.material_id, a.real_stock_qty,  a.confirm_yn, a.comments, b.status, a.charger_id, a.charger_name
+			  from ${tempTableName} a 
+			left outer join 
+			( 
+				select * from dw_mat_close_info 
+				where stock_date = #{stockDate}
+				  and mat_category_code = '40' and mat_type_code='TOOL'
+			) b 
+			on ( a.stock_date = b.stock_date )
+			where a.stock_date = #{stockDate}
+		) b 
+		on ( a.stock_date = b.stock_date
+		     and a.material_id = b.material_id )				
+	</insert>
+	
+	<update id="updateSubMatToolIdStock">
+		update dw_sub_mat_tool_id_stock
+		   set charger_name = #{workerName}, 
+		   	   real_stock_qty = isnull(#{realStockQty},0),
+			   diff_qty =  isnull(#{realStockQty},0) - stock_qty,
+			   confirm_yn = #{confirmYn},
+			   comments = #{comments}
+		where stock_date = #{stockDate}
+		  and material_id = #{materialId}	
+	</update>
+	
+	<delete id="deleteSubMatToolStock">
+		delete from dw_sub_mat_tool_stock
+		where stock_date = #{stockDate}
+	</delete>
+	
+	<insert id="insertSubMatToolStock">
+		INSERT INTO dw_sub_mat_tool_stock
+		(
+			stock_date,
+			mat_type_code,
+			sub_mat_type_code,
+			unit,
+			prev_stock_qty,
+			prev_real_stock_qty,
+			in_qty,
+			out_qty,
+			error_work_qty,
+			error_mat_qty,			
+			stock_qty,			
+			real_stock_qty,
+			diff_qty,
+			create_date,
+			create_user
+		)		
+		select stock_date,
+			mat_type_code,
+			sub_mat_type_code,
+			unit,
+			sum(prev_stock_qty) as prev_stock_qty,
+			sum(prev_real_stock_qty) as prev_real_stock_qty,
+			sum(in_qty) as in_qty,
+			sum(out_qty) as out_qty,
+			sum(error_work_qty) as error_work_qty,
+			sum(error_mat_qty) as error_mat_qty,			
+			sum(stock_qty)as stock_qty,
+			sum(real_stock_qty) as real_stock_qty,
+			sum(diff_qty) as diff_qty,
+			getdate(),
+			#{workerId}
+		from dw_sub_mat_tool_id_stock
+		where stock_date = #{stockDate}
+		group by stock_date, mat_type_code, sub_mat_type_code, unit	
+	</insert>
+	
+	
+	<!-- Report -->
+	<select id="selectSubMatToolMonthReport" resultType="CamelMap">
+	    WITH BaseData AS (
+	        SELECT 
+	            sub_mat_type_code,
+	            stock_date,
+	            sort_order,
+	            gubun,
+	            CASE WHEN gubun = 'in_qty' THEN '1'
+	                 WHEN gubun = 'out_qty' THEN '2'
+	                 WHEN gubun = 'loss_qty' THEN '3'
+	                 WHEN gubun = 'stock_qty' THEN '6'
+	                 WHEN gubun = 'real_stock_qty' THEN '5'
+	                 WHEN gubun = 'diff_qty' THEN '7'
+	            END AS item_order,
+	            CASE WHEN gubun = 'in_qty' THEN '입고'
+	                 WHEN gubun = 'out_qty' THEN '투입'
+	                 WHEN gubun = 'loss_qty' THEN 'Loss'
+	                 ELSE '재고'
+	            END AS item_name1,  
+	            CASE WHEN gubun = 'in_qty' THEN ''
+	                 WHEN gubun = 'out_qty' THEN ''
+	                 WHEN gubun = 'loss_qty' THEN ''
+	                 WHEN gubun = 'stock_qty' THEN '전산'
+	                 WHEN gubun = 'real_stock_qty' THEN '실물'
+	                 WHEN gubun = 'diff_qty' THEN '차이'
+	            END AS item_name2,        
+	            qty
+	        FROM (
+	            SELECT 
+	                stock_date,
+	                sub_mat_type_code,
+	                1 AS sort_order,
+	                in_qty,
+	                out_qty,
+	                ( error_work_qty + error_mat_qty ) as loss_qty,
+	                stock_qty,
+	                real_stock_qty,
+	                diff_qty
+	            FROM dw_sub_mat_tool_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%')
+	            UNION ALL 
+	            SELECT 
+	                'Total' AS stock_date,
+	                sub_mat_type_code,
+	                1 AS sort_order,
+	                SUM(in_qty) AS in_qty,
+	                SUM(out_qty) AS out_qty,
+	                SUM(error_work_qty + error_mat_qty) AS loss_qty,
+	                SUM(stock_qty) AS stock_qty,
+	                SUM(real_stock_qty) AS real_stock_qty,
+	                SUM(diff_qty) AS diff_qty
+	            FROM dw_sub_mat_tool_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%')
+	            GROUP BY sub_mat_type_code
+	            UNION ALL 
+	            SELECT 
+	                stock_date,
+	                'Total' AS sub_mat_type_code,
+	                0 AS sort_order,
+	                SUM(in_qty) AS in_qty,
+	                SUM(out_qty) AS out_qty,
+	                SUM(error_work_qty + error_mat_qty) AS loss_qty,
+	                SUM(stock_qty) AS stock_qty,
+	                SUM(real_stock_qty) AS real_stock_qty,
+	                SUM(diff_qty) AS diff_qty
+	            FROM dw_sub_mat_tool_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%') 
+	            GROUP BY stock_date
+	            UNION ALL 
+	            SELECT 
+	                'Total' AS stock_date,
+	                'Total' AS sub_mat_type_code,
+	                0 AS sort_order,
+	                SUM(in_qty) AS in_qty,
+	                SUM(out_qty) AS out_qty,
+	                SUM(error_work_qty + error_mat_qty) AS loss_qty,
+	                SUM(stock_qty) AS stock_qty,
+	                SUM(real_stock_qty) AS real_stock_qty,
+	                SUM(diff_qty) AS diff_qty
+	            FROM dw_sub_mat_tool_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%') 
+	        ) a 
+	        UNPIVOT ( 
+	            qty FOR gubun IN (in_qty, out_qty, loss_qty, stock_qty, real_stock_qty, diff_qty)
+	        ) AS b
+	    )
+	    SELECT 
+	        a.*, 	        
+	        case when a.item_name1 = '재고' then isnull(b.qty , 0)
+	             else null
+	        end as pre_stock,
+	        case when a.sub_mat_type_code = 'Total' then a.sub_mat_type_code
+	             else c.code_name 
+	         end as sub_mat_type_name
+	    FROM 
+	    (
+	        SELECT 
+	            sub_mat_type_code,
+	            gubun,
+	            sort_order,
+	            item_order,
+	            item_name1,
+	            item_name2,
+	            case when item_name1 = '재고' then null 
+	                 else ISNULL([Total], 0) 
+	             end AS D_Total,  
+	            <foreach collection="days" item="item" separator=",">
+	                ISNULL([${item.day}], 0) AS D_${item.day}
+	            </foreach>
+	        FROM BaseData
+	        PIVOT (
+	            SUM(qty) FOR stock_date IN 
+	            ([Total],<foreach collection="days" item="item" separator=",">[${item.day}]</foreach>)
+	        ) AS pvt
+	    ) a 
+	    LEFT OUTER JOIN 
+	    (
+	        SELECT 
+	            sub_mat_type_code,
+	            gubun,
+	            qty
+	        FROM 
+	        (				
+	            SELECT 
+	                sub_mat_type_code,
+	                prev_stock_qty AS stock_qty,
+	                prev_real_stock_qty AS real_stock_qty,
+	                prev_real_stock_qty - prev_stock_qty AS diff_qty
+	            FROM dw_sub_mat_tool_stock 
+	            WHERE stock_date = CONCAT(#{month}, '01')
+	            UNION ALL 
+	            SELECT 
+	                'Total' AS sub_mat_type_code,
+	                SUM(prev_stock_qty) AS stock_qty,
+	                SUM(prev_real_stock_qty) AS real_stock_qty,
+	                SUM(prev_real_stock_qty - prev_stock_qty) AS diff_qty
+	            FROM dw_sub_mat_tool_stock 
+	            WHERE stock_date = CONCAT(#{month}, '01') 
+	        ) a 
+	        UNPIVOT (
+	            qty FOR gubun IN (stock_qty, real_stock_qty, diff_qty)
+	        ) AS b
+	    ) b
+	    ON (a.sub_mat_type_code = b.sub_mat_type_code 
+	        AND a.gubun = b.gubun)
+		left outer join ( select code, code_name, sort_order from dw_common_code where maj_code='79' ) c
+		on ( a.sub_mat_type_code = c.code )		        
+	    ORDER BY c.sort_order, a.sort_order, sub_mat_type_code, item_order, item_name2
+	</select>	
+</mapper>

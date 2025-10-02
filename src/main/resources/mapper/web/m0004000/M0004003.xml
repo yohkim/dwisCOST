@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0004000.mapper.M0004003Mapper">
+	<select id="searchHoldStatus" resultType="CamelMap">
+		select *
+		from dw_HOLD_설정해제내역
+		<choose>
+            <when test="runNo != null and runNo != ''">
+               where run_no = #{runNo}
+            </when>
+            <otherwise>
+              where left(hold일시,8) BETWEEN #{startDate} AND #{endDate}
+            </otherwise>
+        </choose>
+	</select>
+	
+	<select id="getRunNoStatus" resultType="CamelMap">
+		select * from Get_RunNo상태가져오기(#{runNo});
+	</select>
+	
+	<select id="getHoldInfo" resultType="CamelMap">
+		select * from Get_Hold기준정보(null);
+	</select>
+	
+	<select id="setHoldStatus" resultType="CamelMap">
+		exec Set_Hold설정
+		@RunNo = #{runNo},
+		@HOLD코드 = #{hold코드},
+		@HOLD사유= #{hold사유},
+		@담당자= #{담당자},
+		@비고 = #{비고}
+	</select>
+	
+	<select id="cancelHoldStatus" resultType="CamelMap">
+		exec Set_Hold해제
+		@RunNo = #{runNo},
+		@HOLD일시 = #{hold일시},
+		@HOLD해제처리자 = #{hold해제처리자},
+		@HOLD해제조치내역 = #{hold해제조치내역}
+	</select>
+</mapper>

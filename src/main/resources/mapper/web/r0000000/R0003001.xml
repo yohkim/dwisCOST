@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.r0000000.mapper.R0003001Mapper">
+    <select id="R0003001_Sch1" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명 from (
+        select *
+        from d73_박리공정LOG파일
+        where 1=1
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and start_time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_NO like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by run_no, lot_no, 공정코드, 설비호기, zone, ld_cst_slot_no, 불림수조_slot_no,  out_cstno, out_cst위치, out_cst행열, START_TIME, END_TIME;
+    </select>
+
+    <select id="R0003001_Sch2" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명 from (
+            select *
+            from d76_세정기공정LOG파일
+            where 1=1
+            and 공정코드 = #{processCode}
+            <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+                and start_time between #{startDate} and #{endDate}
+            </if>
+            <if test="runNo != null and runNo != ''">
+                and RUN_NO like CONCAT('%',#{runNo},'%')
+            </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by run_no, 설비호기,근무조,작업자,start_time,end_time,seq_id desc;
+    </select>
+
+    <select id="R0003001_Sch3" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명 from (
+        select *
+        from d77_TP세정기공정LOG파일
+        where 1=1
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and start_time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_NO like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by run_no, 설비호기,근무조,작업자,start_time,end_time,seq_id desc;
+    </select>
+
+    <select id="R0003001_Sch4" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+        from (
+            select *
+            from d75_강화전환적LOG파일
+            where 1=1
+            <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+                and start_time between #{startDate} and #{endDate}
+            </if>
+            <if test="runNo != null and runNo != ''">
+                and RUN_NO like CONCAT('%',#{runNo},'%')
+            </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by A.run_no, 설비호기,근무조,작업자,start_time,end_time,seq_id desc;
+    </select>
+
+    <select id="R0003001_Sch5" parameterType="Map" resultType="CamelMap">
+    </select>
+
+    <select id="R0003001_Sch6" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명
+        from (
+            select *
+            from d75_강화후환적LOG파일
+            where 1=1
+            <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+                and start_time between #{startDate} and #{endDate}
+            </if>
+            <if test="runNo != null and runNo != ''">
+                and RUN_NO like CONCAT('%',#{runNo},'%')
+            </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by A.run_no, 설비호기,근무조,작업자,start_time,end_time,seq_id desc;
+    </select>
+
+    <select id="R0003001_Sch8" parameterType="Map" resultType="CamelMap">
+        select A.*, C.설비약명 from (
+        select *
+        from d77_TP세정기공정LOG파일
+        where 1=1
+        <if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+            and start_time between #{startDate} and #{endDate}
+        </if>
+        <if test="runNo != null and runNo != ''">
+            and RUN_NO like CONCAT('%',#{runNo},'%')
+        </if>
+        ) A
+        left join dw_equipment_mast C
+        on A.설비호기 = C.설비번호
+        order by run_no, 설비호기,근무조,작업자,start_time,end_time,seq_id desc;
+    </select>
+
+    <update id="R0003001_Update1" parameterType="Map">
+        UPDATE d73_박리공정LOG파일
+        SET OUT_CSTNO = #{outCstno}
+        ,LOT_NO = #{lotNo}
+        WHERE SEQ_ID = #{seqId}
+        AND 공장코드 = #{공장코드}
+        AND 공정코드 = #{공정코드}
+        AND ZONE = #{zone}
+        AND RUN_NO = #{runNo}
+        AND start_time = #{startTime}
+        AND end_time = #{endTime}
+    </update>
+
+    <update id="R0003001_Update4" parameterType="Map">
+        UPDATE d75_강화전환적LOG파일
+        SET IN_CSTNO = #{inCstno}
+        ,OUT_CSTNO = #{outCstno}
+        ,RUN_NO = #{runNo}
+        WHERE SEQ_ID = #{seqId}
+        AND 공장코드 = #{공장코드}
+        AND 공정코드 = #{공정코드}
+        AND start_time = #{startTime}
+        AND end_time = #{endTime}
+    </update>
+
+    <update id="R0003001_Update6" parameterType="Map">
+        UPDATE d75_강화후환적LOG파일
+        SET IN_CSTNO = #{inCstno}
+        ,OUT_CSTNO = #{outCstno}
+        ,RUN_NO = #{runNo}
+        WHERE SEQ_ID = #{seqId}
+        AND 공장코드 = #{공장코드}
+        AND 공정코드 = #{공정코드}
+        AND start_time = #{startTime}
+        AND end_time = #{endTime}
+    </update>
+</mapper>

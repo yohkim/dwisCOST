@@ -1,0 +1,90 @@
+/*
+* 부자재-필터 > 공정투입
+*/
+const { ValueType, SelectionStyle, SelectionMode, GridFitStyle, RowMaskType} = require('realgrid');
+
+const grid = {
+	dataProvider: null,
+	gridView: null,
+	options: {
+		checkBar: { visible: true },
+		copy: { enabled: true, singleMode: false },
+		//dataDrop: {},
+		display: {
+			columnMovable: false,
+			editItemMerging: false,
+			selectionStyle: SelectionStyle.BLOCK,
+			selectionMode: SelectionMode.SINGLE,
+			fitStyle: GridFitStyle.EVEN_FILL,
+			rowHoverType: RowMaskType.ROW
+		},
+		edit: { editable: true },
+		//editor: {},
+		//filtering: {},
+		//filterMode: {},
+		//filterPanel: {},
+		//fixed: { colBarWidth: 1, colCount: 7 },
+		footer: { visible: true },
+		//footers: {},
+		//format: {},
+		header: { height: 40 },
+		//headerSummaries: {},
+		//headerSummary: {},
+		//hideDeletedRows: {},
+		paste: { 
+			enabled: true ,
+			checkReadOnly : true,
+
+		},
+		rowIndicator: { visible: true },
+		sorting: { enabled: false },
+		//sortMode: {},
+		stateBar: { visible: true },
+		//summaryMode: {},
+	},
+
+	fields: [
+
+
+		{ fieldName: 'outNo'         ,dataType: ValueType.TEXT },
+		{ fieldName: 'matTypeCode'	,dataType: ValueType.TEXT },
+		{ fieldName: 'subMatTypeCode',dataType: ValueType.TEXT },
+		{ fieldName: 'workDate'		,dataType: ValueType.TEXT },
+		{ fieldName: 'shiftCode'	,dataType: ValueType.TEXT },
+		{ fieldName: 'outSeq'		,dataType: ValueType.NUMBER },
+		{ fieldName: 'outDate'		,dataType: ValueType.TEXT },
+		{ fieldName: 'outTime'		,dataType: ValueType.TEXT },			
+		{ fieldName: 'filterName'	,dataType: ValueType.TEXT },	
+		{ fieldName: 'workerName'	,dataType: ValueType.TEXT },	
+		{ fieldName: 'line'			,dataType: ValueType.TEXT },	
+		{ fieldName: 'stepCode'		,dataType: ValueType.TEXT },
+		{ fieldName: 'stepNm'		,dataType: ValueType.TEXT },	
+		{ fieldName: 'equipNo'		,dataType: ValueType.TEXT },	
+		{ fieldName: 'equipNm'		,dataType: ValueType.TEXT },
+		{ fieldName: 'unit'			,dataType: ValueType.TEXT },			
+		{ fieldName: 'remainQty'	,dataType: ValueType.NUMBER },
+		{ fieldName: 'stockQty'		,dataType: ValueType.NUMBER },
+		{ fieldName: 'outQty'		,dataType: ValueType.NUMBER },		
+		{ fieldName: 'orgOutQty'    ,dataType: ValueType.NUMBER },		
+		{ fieldName: 'comments'		,dataType: ValueType.TEXT },	
+		{ fieldName: 'editable'     ,dataType: ValueType.TEXT },
+		{ fieldName: 'createUser'	,dataType: ValueType.TEXT },
+	],
+	columns: [
+		{ name: 'outNo'			 ,fieldName:'outNo'			,width: '120', header: { text: '투입번호' }, editable: false, autoFilter:true },
+		{ name:'workDate'        ,fieldName:'workDate'      ,width: '80'  ,header: { text: '작업일' }, editable: false, autoFilter:true, editor: { mask:{editMask:"0000-00-00"}}, "textFormat": "([0-9]{4})([0-9]{2})([0-9]{2});$1-$2-$3" },
+		{ name:'shiftCode'       ,fieldName:'shiftCode'     ,width: '60'  ,header: { text: '근무조' }, editable: false, autoFilter:true, lookupDisplay:true, editor: { type:"dropdown", textReadOnly:true }},
+		{ name:'outSeq'          ,fieldName:'outSeq'        ,width: '40'  ,header: { text: '투입\n순서', styleName: 'multiline-header' }, editable: false, autoFilter:true, numberFormat: '#,##0' },
+		{ name:'outDate'         ,fieldName:'outDate'       ,width: '80'  ,header: { text: '투입일' }, editable: false, autoFilter:true, editor: { mask:{editMask:"0000-00-00"}}, "textFormat": "([0-9]{4})([0-9]{2})([0-9]{2});$1-$2-$3" },
+		{ name:'outTime'         ,fieldName:'outTime'       ,width: '40'  ,header: { text: '시간' }, editable: false, autoFilter:true, editor: {mask:{editMask:"00:00"}}, "textFormat": "([0-9]{2})([0-9]{2});$1:$2" },        
+		{ name:'filterName'	 	,fieldName:'filterName'  	,width: '120'  ,header: { text: '품명' }, editable: false, autoFilter:true},
+		{ name:'workerName'      ,fieldName:'workerName'    ,width: '80'  ,header: { text: '작업자' }, editable: false, autoFilter:true }, 
+		{ name:'equipNm'         ,fieldName:'equipNm'       ,width: '150' ,header: { text: '투입설비' }, editable: false, autoFilter:true },               
+        { name:'unit'            ,fieldName:'unit'          ,width: '40'  ,header: { text: '단위' }, editable: false, autoFilter:true  },
+        { name:'stockQty'        ,fieldName:'stockQty'      ,width: '80'  ,header: { text: '투입가능\n재고수량', styleName:'multiline-header'  }, editable: false, autoFilter:true, numberFormat: '#,##0', styleName:'tr', footer: {text:"합계"}},
+        { name:'outQty'          ,fieldName:'outQty'        ,width: '60'  ,header: { text: '투입\n수량', styleName:'multiline-header'  }, editable: false, autoFilter:true, numberFormat: '#,##0', styleName:'tr', footer:{expression:"sum", numberFormat: "#,##0", styleName:"sum-footer1"} },		
+        { name:'comments'        ,fieldName:'comments'      ,width: '200' ,header: { text: '비고' }, editable: false, autoFilter:true, styleName:'tl' },
+	],	
+} 
+
+module.exports = grid;

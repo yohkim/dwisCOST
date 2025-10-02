@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0006000.mapper.M0006010Mapper">
+	<select id="checkProdCode" resultType="CamelMap">
+		select count(1) count 
+		FROM d05_제품개발이력마스터
+		where 제품코드 = #{제품코드}
+	</select>
+	
+	<select id="getCodeList1" resultType="CamelMap">
+		select code as value,code_name as text 
+		FROM dw_common_code
+		where maj_code = 86
+		and use_yn = '1'
+		order by sort_order
+	</select>
+	
+	<select id="getCodeList2" resultType="CamelMap">
+		select code as value,code_name as text 
+		FROM dw_common_code
+		where maj_code = 87
+		and use_yn = '1'
+		order by sort_order
+	</select>
+	
+	<select id="getCodeList3" resultType="CamelMap">
+		select code as value,code_name as text 
+		FROM dw_common_code
+		where maj_code = 88
+		and use_yn = '1'
+		order by sort_order
+	</select>
+	
+	<select id="getCodeList4" resultType="CamelMap">
+		select code as value,code_name as text 
+		FROM dw_common_code
+		where maj_code = 89
+		and use_yn = '1'
+		order by sort_order
+	</select>
+	
+	<select id="getGridData" resultType="CamelMap">
+		SELECT  seq_id,
+				구분,
+				모델,
+				제품코드,
+				Rev_No,
+				Lot_Rev_No,
+				Run_Rev_No,
+				양산이관_구분,
+				양산이관_CODE,
+				주요변경사항,
+				Lot_No,
+				Run_No,
+				변경접수일,
+				비고,
+				고객사,
+				고객사_Model,
+				고객사_CODE,
+				고객사_Part_CodeE,
+				Glass정보_제조사,
+				Glass정보_모델,
+				Glass정보_Size_대각_inch,
+				Glass정보_Size_mm,
+				Glass정보_Size_두께,
+				Glass정보_가공치수,
+				Film정보_전면_원단사,
+				Film정보_전면_원단,
+				Film정보_전면_Size_mm,
+				Film정보_전면_두께_mm,
+				Film정보_전면_손잡이,
+				Film정보_전면_타발사,
+				Film정보_전면_Ver,
+				Film정보_배면_원단사, 
+				Film정보_배면_원단,
+				Film정보_배면_Size_mm,
+				Film정보_배면_두께_mm,
+				Film정보_배면_손잡이,
+				Film정보_배면_타발사,
+				Film정보_배면_Ver,
+				Tray_제조사,
+				Tray_Model,
+				Tray_원단,
+				Tray_적재수량_형태,
+				Tray_원단두께_mm,
+				Tray_적재단수,
+				Tray_Ver,
+				특이사항
+		FROM d05_제품개발이력마스터
+		order by 1
+	</select>
+	
+	<insert id="insertData">
+		INSERT INTO d05_제품개발이력마스터
+		(
+			구분,
+			모델,
+			제품코드,
+			Rev_No,
+			Lot_Rev_No,
+			Run_Rev_No,
+			양산이관_구분,
+			양산이관_CODE,
+			주요변경사항,
+			Lot_No,
+			Run_No,
+			변경접수일,
+			비고,
+			고객사,
+			고객사_Model,
+			고객사_CODE,
+			고객사_Part_CodeE,
+			Glass정보_제조사,
+			Glass정보_모델,
+			Glass정보_Size_대각_inch,
+			Glass정보_Size_mm,
+			Glass정보_Size_두께,
+			Glass정보_가공치수,
+			Film정보_전면_원단사,
+			Film정보_전면_원단,
+			Film정보_전면_Size_mm,
+			Film정보_전면_두께_mm,
+			Film정보_전면_손잡이,
+			Film정보_전면_타발사,
+			Film정보_전면_Ver,
+			Film정보_배면_원단사,
+			Film정보_배면_원단,
+			Film정보_배면_Size_mm,
+			Film정보_배면_두께_mm,
+			Film정보_배면_손잡이,
+			Film정보_배면_타발사,
+			Film정보_배면_Ver,
+			Tray_제조사,
+			Tray_Model,
+			Tray_원단,
+			Tray_적재수량_형태,
+			Tray_원단두께_mm,
+			Tray_적재단수,
+			Tray_Ver,
+			특이사항
+		)
+		VALUES
+		(
+			#{구분},
+			#{모델},
+			#{제품코드},
+			#{revNo},
+			#{lotRevNo},
+			#{runRevNo},
+			#{양산이관구분},
+			#{양산이관Code},
+			#{주요변경사항},
+			#{lotNo},
+			#{runNo},
+			#{변경접수일},
+			#{비고},
+			#{고객사},
+			#{고객사Model},
+			#{고객사Code},
+			#{고객사PartCodee},
+			#{glass정보제조사},
+			#{glass정보모델},
+			#{glass정보Size대각Inch},
+			#{glass정보SizeMm},
+			#{glass정보Size두께},
+			#{glass정보가공치수},
+			#{film정보전면원단사},
+			#{film정보전면원단},
+			#{film정보전면SizeMm},
+			#{film정보전면두께Mm},
+			#{film정보전면손잡이},
+			#{film정보전면타발사},
+			#{film정보전면Ver},
+			#{film정보배면원단사},
+			#{film정보배면원단},
+			#{film정보배면SizeMm},
+			#{film정보배면두께Mm},
+			#{film정보배면손잡이},
+			#{film정보배면타발사},
+			#{film정보배면Ver},
+			#{tray제조사},
+			#{trayModel},
+			#{tray원단},
+			#{tray적재수량형태},
+			#{tray원단두께Mm},
+			#{tray적재단수},
+			#{trayVer},
+			#{특이사항}
+		);
+	</insert>
+	
+	<delete id="deleteData">
+		DELETE FROM d05_제품개발이력마스터
+		WHERE seq_id = #{seqId}
+	</delete>
+	
+	<update id="updateData">
+		UPDATE d05_제품개발이력마스터
+		   SET  구분 = #{구분},
+				모델 = #{모델},
+				제품코드 = #{제품코드},
+				Rev_No = #{revNo},
+				Lot_Rev_No = #{lotRevNo},
+				Run_Rev_No = #{runRevNo},
+				양산이관_구분 = #{양산이관구분},
+				양산이관_CODE = #{양산이관Code},
+				주요변경사항 = #{주요변경사항},
+				Lot_No = #{lotNo},
+				Run_No = #{runNo},
+				변경접수일 = #{변경접수일},
+				비고 = #{비고},
+				고객사 = #{고객사},
+				고객사_Model = #{고객사Model},
+				고객사_CODE = #{고객사Code},
+				고객사_Part_CodeE = #{고객사PartCodee},
+				Glass정보_제조사 = #{glass정보제조사},
+				Glass정보_모델 = #{glass정보모델},
+				Glass정보_Size_대각_inch = #{glass정보Size대각Inch},
+				Glass정보_Size_mm = #{glass정보SizeMm},
+				Glass정보_Size_두께 = #{glass정보Size두께},
+				Glass정보_가공치수 = #{glass정보가공치수},
+				Film정보_전면_원단사 = #{film정보전면원단사},
+				Film정보_전면_원단 = #{film정보전면원단},
+				Film정보_전면_Size_mm = #{film정보전면SizeMm},
+				Film정보_전면_두께_mm = #{film정보전면두께Mm},
+				Film정보_전면_손잡이 = #{film정보전면손잡이},
+				Film정보_전면_타발사 = #{film정보전면타발사},
+				Film정보_전면_Ver = #{film정보전면Ver},
+				Film정보_배면_원단사 = #{film정보배면원단사},
+				Film정보_배면_원단 = #{film정보배면원단},
+				Film정보_배면_Size_mm = #{film정보배면SizeMm},
+				Film정보_배면_두께_mm = #{film정보배면두께Mm},
+				Film정보_배면_손잡이 = #{film정보배면손잡이},
+				Film정보_배면_타발사 = #{film정보배면타발사},
+				Film정보_배면_Ver = #{film정보배면Ver},
+				Tray_제조사 = #{tray제조사},
+				Tray_Model = #{trayModel},
+				Tray_원단 = #{tray원단},
+				Tray_적재수량_형태 = #{tray적재수량형태},
+				Tray_원단두께_mm = #{tray원단두께Mm},
+				Tray_적재단수 = #{tray적재단수},
+				Tray_Ver = #{trayVer},
+				특이사항 = #{특이사항}
+		 WHERE seq_id = #{seqId}
+	</update>
+</mapper>

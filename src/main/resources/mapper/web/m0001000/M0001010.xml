@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0001000.mapper.M0001010Mapper">
+	<select id="M0001010_Sch1" parameterType="Map" resultType="CamelMap">
+		select * from d04_자재마스터파일
+		order by 자재코드,호환코드,자재품명
+	</select>
+
+	<delete id="M0001010_Delete1">
+		delete from d04_자재마스터파일
+		where 1=1
+		and 자재코드 = #{자재코드}
+		and 자재코드 is not null
+	</delete>
+
+	<insert id="M0001010_Insert1">
+		INSERT INTO d04_자재마스터파일
+		(
+			자재코드,호환코드,자재품명,P_CODE,자재재질,자재두께,자재규격,자재단위,단가,공급단위,사용량_cell,사용처,납기,매입처,비고,사용여부
+		)
+		VALUES
+		(
+		#{자재코드},
+		#{호환코드},
+		#{자재품명},
+		#{pCode},
+		#{자재재질},
+		#{자재두께},
+		#{자재규격},
+		#{자재단위},
+		#{단가},
+		#{공급단위},
+		#{사용량Cell},
+		#{사용처},
+		#{납기},
+		#{매입처},
+		#{비고},
+		#{사용여부}
+		)
+	</insert>
+
+	<update id="M0001010_Update1" parameterType="Map">
+		UPDATE d04_자재마스터파일
+		SET 호환코드 = #{호환코드}
+		,자재품명 = #{자재품명}
+		,P_CODE = #{pCode}
+		,자재재질 = #{자재재질}
+		,자재두께 = #{자재두께}
+		,자재규격 = #{자재규격}
+		,자재단위 = #{자재단위}
+		,단가 = #{단가}
+		,공급단위 = #{공급단위}
+		,사용량_cell = #{사용량Cell}
+		,사용처 = #{사용처}
+		,납기 = #{납기}
+		,매입처 = #{매입처}
+		,비고 = #{비고}
+		,사용여부 = #{사용여부}
+		WHERE 1=1
+		and 자재코드 = #{자재코드}
+		and 자재코드 is not null
+	</update>
+
+</mapper>

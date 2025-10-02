@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0004000.mapper.M0004002Mapper">
+	<select id="getModels" resultType="CamelMap">
+		select code_name 제품유형,code 코드 
+		from dw_common_code 
+		where maj_code='36'
+		order by code_name
+	</select>
+	
+	<select id="getWorkTypes" resultType="CamelMap">
+		select 내용 작업구분, 코드  
+		from d02_일반코드파일 
+		where 대분류='31'
+		order by 내용
+	</select>
+
+    <select id="getProcess" resultType="CamelMap">
+        select 공정코드, 공정명
+        from dw_재공재고Report순서
+        where 1=1
+		and 공정구분 = '9'
+		and 공정코드 between '010' and '020'
+        order by 공정코드
+    </select>
+	
+	<select id="searchLotChangeList" resultType="CamelMap">
+		SELECT 공장코드, CONVERT(DATE,변경일자) 변경일자, 구LOT_NO, 신LOT_NO, 처리수량, 담당자, 변환사유, 처리여부
+		FROM d21_LOTNO변경이력파일
+		where 1=1
+		<if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+			AND 변경일자 between #{startDate} and #{endDate}
+		</if>
+		<if test="modelCode != null and workCode != ''" >
+			AND 구Lot_NO like #{modelCode}+'%'
+		</if>
+		<if test="workType != null and workType != ''" >	
+			AND substring(구Lot_NO,11,1) = substring(#{workType},2,1)
+		</if>
+		;
+	</select>
+
+	<select id="searchDetailLotChangeList" resultType="CamelMap">
+		SELECT *
+		FROM dw_lot변경상세이력
+		where 1=1
+		<if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+			AND 변경일자 between #{startDate} and #{endDate}
+		</if>
+		;
+	</select>
+	
+	<select id="getLotProcCount" resultType="CamelMap">
+		select 지시수량 FROM d21_제조지시MST WHERE lot_no = #{oldLot};
+	</select>
+	
+	<select id="execLotChange" resultType="CamelMap">
+		EXEC dbo.lot_change
+			 @공장코드 = '2',
+			 @old_lot = #{구lotNo},
+			 @new_lot=  #{신lotNo},
+			 @po_no= #{poNo},
+			 @담당자= #{담당자},
+			 @변환사유= #{변환사유};
+	</select>
+	
+	<select id="checkLotNo" resultType="CamelMap">
+		select lot_no,cell수 
+		FROM d21_제조지시MST
+		WHERE lot_no in  <foreach collection="lotList" item="no" open="(" separator="," close=")"> #{no} </foreach> 
+	</select>
+
+	<select id="getOldLotNoList" resultType="CamelMap">
+		select lot_no, 공정코드 from Get_Lot변경_모델별_공정별_Lot리스트(#{oldLotModel}, #{process});
+	</select>
+
+	<select id="getNewLotNoList" resultType="CamelMap">
+		exec Get_Lot변경_신규Lot리스트 #{poNo}, #{count};
+	</select>
+
+	<select id="checkLotChangable" resultType="CamelMap">
+		select * from Get_Lot변경체크로직(#{oldLotNo}, #{newLotNo}, #{process});
+	</select>
+
+</mapper>

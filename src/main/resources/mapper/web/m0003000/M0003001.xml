@@ -1,0 +1,1839 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0003000.mapper.M0003001Mapper">
+	<select id="selectBack1ProdStat" parameterType="Map" resultType="CamelMap">
+	select 	/*Back#1 - 제품현황*/	
+		a.거래처코드
+		,b.거래처명
+		,a.제품코드
+		,c.제품모델	
+		,c.제품Inch
+		,c.제품버젼
+		,d.자재품명 --Glass
+		,c.제품규격 --Cell size
+		,convert(date, a.입고일자, 112) as 입고일자
+		,a.CELL수
+		,convert(date, e.작업종료, 112) as 작업종료
+		,e.양품수량	
+		,convert(date, a.작업지시일자, 112) as 작업지시일자
+		,a.발행자		 
+		,convert(date, a.승인일자, 112) as 승인일자
+		,a.승인자	
+		,e.특이사항
+		,e.양품수량 / NULLIF(a.CELL수,0) as yield
+	from d22_RUN제조MST a WITH (NOLOCK)
+	left outer join d03_거래처마스터파일 b on (a.거래처코드=b.거래처코드)
+	left outer join d05_제품마스터파일 c on (a.제품코드 = c.제품코드)
+	left outer join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+	left outer join d22_RUN제조VLR e WITH (NOLOCK) on (a.run_no = e.run_no and e.공정코드 = #{process})
+	inner join (
+		select max(차수) as 차수
+		from d22_RUN제조VLR WITH (NOLOCK)
+		where run_no = #{runNo}
+		and 공정코드 = #{process}
+	) f on (e.차수 = f.차수)
+	where a.run_no = #{runNo}
+	</select>
+	
+	<select id="selectRunProdVLR" parameterType="Map" resultType="CamelMap">
+	select /*selectRunProdVLR*/
+		a.공장코드
+		,a.RUN_NO
+		,a.공정코드
+		,레시피
+		,a.LOT_NO
+		,a.LOT_등분
+		,a.작업시작
+		,a.시작시각
+		,a.작업종료
+		,a.종료시각
+		,a.작업일자
+		,a.작업자
+		,a.작업조
+		,a.Machine_Code
+		,b.설비약명
+		,a.SHIFT
+		,a.책임자
+		,a.책임자시작
+		,a.책임자종료
+		,a.선임자
+		,a.P_CODE
+		,a.작업구분
+		,a.투입수량
+		,a.검사수량
+		,a.불량수량
+		,a.양품수량
+		,a.확인자
+		,c.특기사항 as 특이사항
+		,양품수량 / NULLIF(투입수량,0) * 100 as 수율
+		,a.차수
+	from d22_RUN제조VLR a WITH (NOLOCK)
+	left outer join dw_equipment_mast b on (a.공정코드 = b.공정코드 and a.Machine_Code = b.설비번호)
+	left outer join d22_RUN제조MST c WITH (NOLOCK) on (a.run_no = c.run_no)
+	inner join (
+		select max(차수) as 차수
+		from d22_RUN제조VLR WITH (NOLOCK)
+		where run_no = #{runNo}
+		and 공정코드 = #{process}
+	) d on (a.차수 = d.차수)
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	</select>
+	
+	<select id="selectProcessLog022" parameterType="Map" resultType="CamelMap">
+	/*rework - 022 작업시작 한번도 안했다면*/
+	select
+		a.공장코드
+		,a.run_no
+		,'022' as 공정코드
+		,a.차수		
+		,FORMAT(row_number() over (order by a.f_cstno),'00') as SEQ
+		,a.bef_공정코드
+		,a.NXT_공정코드
+		,a.박리작업구분
+		,a.작업자
+		,a.작업조
+		,a.작업시작
+		,a.시작시각
+		,a.shift
+		,a.f_cstno
+		,a.f_수량
+		,a.f_불량수량
+		,a.작업종료
+		,a.종료시각
+		,a.투입수량
+		,a.machine_code
+		,a.배출구
+		,a.t_runno
+		,a.in_cstno
+		,a.t_cstno		
+		,a.t_cstno2
+		,a.t_수량2
+		,a.t_불량수량
+		,a.특이사항
+		,a.저장여부
+		,a.재공적용_여부		
+		,a.mbox_no + '/'+a.bef_runno as lot_no
+		,a.mbox_no + '|' + a.f_cstno + '|' + a.t_cstno as pkey
+		,count(1) over(partition by a.t_cstno) as t_cnt
+		,sum(a.f_수량) over(partition by t_cstno) as t_수량
+		,a.f_수량 as t_org수량
+		,a.mbox_no
+		,a.bef_runno		
+	from GetRework카세트리스트(#{runNo}) a
+	</select>
+	
+	<select id="selectProcess022" parameterType="Map" resultType="CamelMap">
+	/*rework - 022 - 카세트 정보 있다면*/
+	select 
+		공장코드,	RUN_NO,			공정코드,		SEQ,
+		LOT_NO,		BEF_공정코드,	NXT_공정코드,	박리작업구분,
+		작업자,		작업조,			작업시작,		시작시각,
+		SHIFT,		F_CSTNO,		F_수량,			F_불량수량,
+		작업종료,	종료시각,		투입수량,		Machine_Code,
+		배출구,		T_RUNNO,		IN_CSTNO,		T_CSTNO,
+		특이사항	,차수	
+		,count(1) over(partition by t_cstno) as t_cnt
+		,sum(t_수량) over(partition by t_cstno) as t_수량 
+		,t_수량 as t_org수량
+		,case when len(isnull(lot_no,'')) > 0 then LEFT(LOT_NO, CHARINDEX('/', LOT_NO) - 1) else '' end as mbox_no
+        ,case when len(isnull(lot_no,'')) > 0 then SUBSTRING(LOT_NO, CHARINDEX('/', LOT_NO) + 1, LEN(LOT_NO)) else '' end as bef_runno 
+        ,case when len(isnull(lot_no,'')) > 0 then LEFT(LOT_NO, CHARINDEX('/', LOT_NO) - 1) + '|' + F_CSTNO + '|'+T_CSTNO else ''+'|'+F_CSTNO + '|'+T_CSTNO end as pkey
+	from d22_RUN카세트파일 a WITH (NOLOCK)
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	and a.차수 = #{차수}
+	order by a.seq,F_CSTNO,작업종료,종료시각
+	</select>
+	
+	
+	<select id="selectProcessLog023" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 박리(023) 작업시작 한번도 안했다면*/
+	select 
+		a.*
+		,FORMAT(row_number() over (order by a.zone,a.작업종료,a.종료시각,a.f_cstno),'00') as SEQ
+		,count(t_수량) over(partition by t_cstno) as t_cnt		
+		,설비cell수량 as t_org수량
+		,a.lot_no+'|'+ a.f_cstno + '|' + a.t_cstno as pkey
+		,sum(t_수량) over(partition by lot_no) as cal_cell
+	from (
+		select 
+			'2' as 공장코드
+			,run_no
+			,'023' as 공정코드
+			,lot_no
+			,lot기준_총Cell수량 as cell
+			,보정_Lot기준_설비처리총Cell수량 as adj_cell 
+			,설비cell수량
+			,case when CHARINDEX('add_cstno', t_cstno, 1) > 0 then null else t_cstno end as f_cstno
+			,0 as f_불량수량
+			--,조정된_카세트cell수량 as t_수량
+			,설비cell수량 as t_수량		
+			,불량예상수량
+			,LEFT(start_time, 8) AS 작업시작
+			,RIGHT(start_time, 6) AS 시작시각
+			,LEFT(end_time, 8) AS 작업종료
+			,RIGHT(end_time, 6) AS 종료시각
+		    ,case when CHARINDEX('add_cstno', t_cstno, 1) > 0 then null else t_cstno end as t_cstno
+		    ,'' as 특이사항		    
+			,'020' bef_공정코드
+			,1 as 박리작업구분
+			,t_cstno as cst_key
+			,작업자
+			,설비호기    
+			,근무조 
+			,zone
+		from Get자동박리카세트리스트(#{runNo}) 
+	) a
+	order by seq
+	</select>
+	
+	<select id="selectProcessM023" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 박리(023) 수동*/
+	select 
+		'2' as 공장코드
+		,run_no
+		,#{process} as 공정코드
+		,FORMAT(row_number() over (order by 설비cell수량 desc, lot_no),'00') as SEQ
+		,lot_no
+		,lot기준_총Cell수량 as cell
+		,보정_Lot기준_설비처리총Cell수량 as adj_cell 
+		,설비cell수량
+		,null as f_cstnoLotAndPreCstInfo
+		,조정된_카세트cell수량 as t수량		
+		,불량예상수량
+		,null as 작업시작	
+		,null as 시작시각
+	    ,null as 작업종료
+	    ,null as 종료시각
+	    ,null as t_cstno
+	    ,'' as 특이사항
+	    ,0 as f_불량수량
+	    ,0 as 불량합계
+		,'020' bef_공정코드
+		,0 as 박리작업구분
+		,t_cstno as cst_key
+		,sum(조정된_카세트cell수량) over(partition by lot_no) as cal_cell
+	from Get수동박리카세트리스트(#{runNo})	
+	order by SEQ
+	</select>
+	
+	<select id="selectProcess023" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 박리(023) 카세트가 있다면*/
+	with log_list as(
+		select * 
+		from Get자동박리카세트리스트(#{runNo})
+	)
+	select 
+		공장코드,RUN_NO,a.공정코드,seq,작업자,작업조,a.lot_no,cell,F_CSTNO,F_수량,F_불량수량
+		,시작시각,종료시각,a.T_CSTNO,특이사항		
+		,a.MACHINE_CODE,투입수량
+		,t_cnt
+		,t_수량
+		,t_org수량
+		,count(1) over (partition by a.lot_no) as lot_cnt
+		,'020' as bef_공정코드
+       	,'027' as nxt_공정코드
+       	,박리작업구분
+       	,배출구
+       	,작업시작
+       	,작업종료       	 
+       	,a.t_cstno as cst_key
+       	,case when b.CELL_EQ_QTY is null then c.CELL_EQ_QTY else b.CELL_EQ_QTY end as CELL_EQ_QTY
+       	,b.zone
+       	,d.설비명
+       	,a.shift
+       	,a.lot_no+'|'+a.F_CSTNO+'|'+a.T_CSTNO as pkey
+	from (
+		select
+			a.공장코드 	
+			,a.RUN_NO
+			,a.공정코드			
+			,a.seq
+			,a.작업자
+			,a.작업조
+			,a.lot_no
+			,a.MACHINE_CODE
+			,a.투입수량
+			,c.sum_input_lot_cell as cell
+			,a.F_CSTNO
+			,a.F_수량
+			,a.F_불량수량
+			,a.박리작업구분
+			,a.배출구
+			,a.작업시작
+			,a.작업종료
+			--,d.lot_cell_count
+			,a.시작시각 as 시작시각
+			,a.종료시각 as 종료시각
+			,T_CSTNO
+			,count(t_수량) over(partition by t_cstno) t_cnt
+			,sum(t_수량) over(partition by t_cstno) as t_수량
+			,t_수량 as t_org수량
+			,특이사항
+			,shift
+		from d22_RUN카세트파일 a WITH (NOLOCK)
+		left outer join (
+			select lot_no,
+			       case when run_no1 = #{runNo} then run_cell1 
+			            when run_no2 = #{runNo} then run_cell2
+			       end  sum_input_lot_cell     
+			from d21_제조지시MST WITH (NOLOCK)
+			where (run_no1 = #{runNo} or run_no2 = #{runNo})
+		) c on (a.lot_no = c.lot_no)
+		where a.run_no = #{runNo}
+		and a.공정코드 = #{process}
+	) a
+	left outer join (
+		select 
+			lot_no
+			,t_cstno
+			,설비cell수량 as CELL_EQ_QTY
+			,zone
+		from log_list
+	) b on (a.lot_no = b.lot_no and a.F_CSTNO = b.t_cstno)
+	left outer join (
+		select /*cstno 정의되지 않은것*/ 
+			lot_no	
+			,설비cell수량 as CELL_EQ_QTY
+		from log_list
+		where t_cstno like 'add%'
+	) c on (a.lot_no = c.lot_no)
+	left outer join dw_equipment_mast d on (a.Machine_Code = d.설비번호 and d.공정코드 = #{process})
+	order by a.seq
+	</select>
+	
+	<select id="selectProcess" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 작업시작 한번 작업완료 했다면*/
+	select 
+		공장코드,	RUN_NO,			공정코드,		SEQ,
+		LOT_NO,		BEF_공정코드,	NXT_공정코드,	박리작업구분,
+		작업자,		작업조,			작업시작,		시작시각,
+		SHIFT,		F_CSTNO,		F_수량,			F_불량수량,
+		작업종료,	종료시각,		투입수량,		Machine_Code,
+		배출구,		T_RUNNO,		IN_CSTNO,		T_CSTNO,
+		특이사항	,차수	
+		,count(t_수량) over(partition by t_cstno) as t_cnt
+		,sum(t_수량) over(partition by t_cstno) as t_수량 
+		,t_수량 as t_org수량
+		,F_CSTNO + '|'+T_CSTNO as pkey
+	from d22_RUN카세트파일 a WITH (NOLOCK)
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	and a.차수 = #{차수}
+	order by a.seq,F_CSTNO,작업종료,종료시각
+	</select>
+	
+	<select id="selectProcessTrans" parameterType="Map" resultType="CamelMap">
+	/*back#1 - (전,후 환적) 저장된 카세트 있다면*/
+	select 
+		공장코드,	
+		RUN_NO,			
+		a.공정코드,		
+		SEQ,
+		LOT_NO,		
+		BEF_공정코드,	
+		NXT_공정코드,	
+		박리작업구분,
+		작업자,		
+		작업조,			
+		작업시작,		
+		시작시각,
+		SHIFT,		
+		F_CSTNO,		
+		F_수량,			
+		F_불량수량,
+		작업종료,	
+		종료시각,		
+		투입수량,		
+		a.Machine_Code,
+		d.설비약명 as 설비명,
+		배출구,		
+		T_RUNNO,		
+		IN_CSTNO,		
+		a.T_CSTNO,
+		특이사항,		
+		c.CELL_EQ_QTY,
+		F_CSTNO + '|' + a.T_CSTNO as pkey,
+		count(t_수량) over(partition by a.t_cstno) as t_cnt, 
+		sum(t_수량) over(partition by a.t_cstno) as t_수량, 
+		t_수량 t_org수량
+	from d22_RUN카세트파일 a WITH (NOLOCK)
+	left outer join (
+		select 
+			t_cstno
+			,t_수량 as CELL_EQ_QTY
+		from Get이전공정OUT카세트(#{runNo},#{process},case when #{process} = '037' then '040' else '047' end)
+	) c on (a.f_cstno = c.t_cstno)
+	left outer join dw_equipment_mast d on (a.Machine_Code = d.설비번호 and d.공정코드 = #{process})
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	order by a.seq,t_CSTNO,작업종료,종료시각
+	</select>
+	
+	<select id="selectProcessLog027" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 박리 후 세정(027) 작업시작 한번도 안했다면*/
+	with cst as (
+		select 
+			max(공장코드) as 공장코드
+			,max(RUN_NO) as RUN_NO
+			,max(lot_no) as lot_no
+			,T_CSTNO as F_CSTNO
+			,sum(T_수량) as F_수량
+			,'027' as 공정코드
+			,max(SEQ) as seq
+			,'023' as BEF_공정코드
+			,'033' as NXT_공정코드
+			,0 as 박리작업구분
+			,max(작업자) as 작업자 
+			,max(작업조) as 작업조
+			,max(작업시작) as 작업시작 
+			,max(시작시각) as 시작시각
+			,max(shift) as shift
+			,sum(T_수량) as t_수량
+			,0 as F_불량수량 
+			,max(작업종료) as 작업종료
+			,max(종료시각) as 종료시각
+			,sum(T_수량) as 투입수량
+			,max(Machine_Code) as Machine_Code
+			,max(배출구) as 배출구
+			,max(T_RUNNO) as T_RUNNO
+			,max(T_CSTNO) as IN_CSTNO
+			,T_CSTNO
+		from d22_RUN카세트파일 WITH (NOLOCK)
+		where run_no = #{runNo}
+		and 공정코드 = '023'
+		group by T_CSTNO
+	)	
+	select
+		a.공장코드 	
+		,a.RUN_NO
+		,'-' as lot_no
+		,a.공정코드			
+		,a.seq
+		,a.작업자
+		,a.작업조
+		,a.shift
+		,a.MACHINE_CODE			
+		,a.F_CSTNO
+		,a.F_수량
+		,a.박리작업구분
+		,a.배출구
+		,null as 작업시작
+		,null as 작업종료		
+		,null as 시작시각
+		,null as 종료시각
+		,a.T_CSTNO
+		,t_수량 as 투입수량
+		,count(t_수량) over(partition by t_cstno) as t_cnt
+		,sum(t_수량) over(partition by t_cstno) as t_수량
+		,t_수량 as t_org수량
+		,'' as 특이사항
+		,a.BEF_공정코드
+		,a.NXT_공정코드
+		,a.F_불량수량 			
+		,a.F_CSTNO +'|'+ a.T_CSTNO as pkey
+	from cst a
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	order by a.seq,a.F_CSTNO,작업종료,종료시각
+	</select>
+	
+	<select id="selectProcessLog033" parameterType="Map" resultType="CamelMap">
+	/*back#1 - bTP(033) 저장된 카세트가 없다면*/
+	with cst as (
+		select 
+			max(공장코드) as 공장코드
+			,max(RUN_NO) as RUN_NO
+			,max(lot_no) as lot_no
+			,T_CSTNO as F_CSTNO
+			,sum(T_수량) as F_수량
+			,'033' as 공정코드
+			,max(seq) as SEQ
+			,'027' as BEF_공정코드
+			,'035' as NXT_공정코드
+			,0 as 박리작업구분
+			,max(작업자) as 작업자 
+			,max(작업조) as 작업조
+			,max(작업시작) as 작업시작 
+			,max(시작시각) as 시작시각
+			,max(shift) as shift
+			,sum(T_수량) as t_수량
+			,0 as F_불량수량 
+			,max(작업종료) as 작업종료
+			,max(종료시각) as 종료시각
+			,max(T_수량) as 투입수량
+			,max(Machine_Code) as Machine_Code
+			,max(배출구) as 배출구
+			,max(T_RUNNO) as T_RUNNO
+			,max(T_CSTNO) as IN_CSTNO
+			,T_CSTNO
+		from d22_RUN카세트파일 WITH (NOLOCK)
+		where run_no = #{runNo}
+		and 공정코드 = '027'
+		group by T_CSTNO
+	)
+	select
+		a.공장코드 	
+		,a.RUN_NO
+		,'-' as lot_no
+		,a.공정코드			
+		,a.seq
+		,a.작업자
+		,a.작업조
+		,a.shift
+		,a.MACHINE_CODE
+		,a.F_수량 as 투입수량
+		,a.F_CSTNO
+		,a.F_수량
+		,a.박리작업구분
+		,a.배출구
+		,null as 작업시작
+		,null as 작업종료
+		,null as 시작시각
+		,null as 종료시각
+		,a.T_CSTNO
+		,'' as 특이사항
+		,a.BEF_공정코드
+		,a.NXT_공정코드
+		,a.F_불량수량 
+		,count(t_수량) over(partition by t_cstno) as t_cnt
+		,sum(t_수량) over(partition by t_cstno) as t_수량
+		,t_수량 as t_org수량				
+		,a.F_CSTNO+'|'+a.T_CSTNO as pkey
+	from cst a
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	order by a.seq,a.t_CSTNO,a.작업종료, a.종료시각
+	</select>
+	
+	<select id="selectProcessLog035" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 재세정(035) 작업시작 한번도 안했다면*/
+	with cst as (
+		select 
+			max(공장코드) as 공장코드
+			,max(RUN_NO) as RUN_NO
+			,max(lot_no) as lot_no
+			,T_CSTNO as F_CSTNO
+			,sum(T_수량) as F_수량
+			,'035' as 공정코드
+			,max(seq) as SEQ
+			,'033' as BEF_공정코드
+			,'037' as NXT_공정코드
+			,0 as 박리작업구분
+			,max(작업자) as 작업자 
+			,max(작업조) as 작업조
+			,max(작업시작) as 작업시작 
+			,max(시작시각) as 시작시각
+			,max(shift) as shift
+			,sum(T_수량) as t_수량
+			,0 as F_불량수량 
+			,max(작업종료) as 작업종료
+			,max(종료시각) as 종료시각
+			,sum(T_수량) as 투입수량
+			,max(Machine_Code) as Machine_Code
+			,max(배출구) as 배출구
+			,max(T_RUNNO) as T_RUNNO
+			,max(T_CSTNO) as IN_CSTNO
+			,max(차수) as 차수
+			,T_CSTNO
+		from d22_RUN카세트파일 WITH (NOLOCK)
+		where run_no = #{runNo}
+		and 공정코드 = '033'
+		group by T_CSTNO
+	)
+	select
+		a.공장코드 	
+		,a.RUN_NO
+		,'-' as lot_no
+		,a.공정코드			
+		,a.seq
+		,a.작업자
+		,a.작업조
+		,a.shift
+		,a.MACHINE_CODE
+		,a.F_수량 as 투입수량
+		,a.F_CSTNO
+		,a.F_수량
+		,a.박리작업구분
+		,a.배출구
+		,null as 작업시작
+		,null as 작업종료
+		,null as 시작시각
+		,null as 종료시각
+		,a.T_CSTNO
+		,'' as 특이사항
+		,a.BEF_공정코드
+		,a.NXT_공정코드
+		,a.F_불량수량
+		,a.차수
+		,count(t_수량) over(partition by t_cstno) as t_cnt
+		,sum(t_수량) over(partition by t_cstno) as t_수량
+		,t_수량 as t_org수량	
+		,a.F_CSTNO + '|' + a.T_CSTNO as pkey	
+	from cst a
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	order by a.seq,a.작업종료, a.종료시각, a.F_CSTNO
+	</select>
+	
+	
+	<select id="selectProcessLog059" parameterType="Map" resultType="CamelMap">
+	/*Rework 재세정(059) 작업시작 한번도 안했다면*/
+	with cst as (
+		select 
+			max(공장코드) as 공장코드
+			,max(RUN_NO) as RUN_NO
+			,max(lot_no) as lot_no
+			,T_CSTNO as F_CSTNO
+			,sum(T_수량) as F_수량
+			,'059' as 공정코드
+			,FORMAT(row_number() over (order by T_CSTNO),'00') as SEQ
+			,'022' as BEF_공정코드
+			,'056' as NXT_공정코드
+			,0 as 박리작업구분
+			,max(작업자) as 작업자 
+			,max(작업조) as 작업조
+			,max(작업시작) as 작업시작 
+			,max(시작시각) as 시작시각
+			,max(shift) as shift
+			,sum(T_수량) as t_수량
+			,max(F_불량수량) as F_불량수량 
+			,max(작업종료) as 작업종료
+			,max(종료시각) as 종료시각
+			,sum(T_수량) as 투입수량
+			,max(Machine_Code) as Machine_Code
+			,max(배출구) as 배출구
+			,max(T_RUNNO) as T_RUNNO
+			,max(T_CSTNO) as IN_CSTNO
+			,T_CSTNO
+		from d22_RUN카세트파일 WITH (NOLOCK)
+		where run_no = #{runNo}
+		and 공정코드 = '022'
+		group by T_CSTNO
+	)
+	,bad as (
+		select 	
+			lotrun_id
+			,cst_no
+			,cst_no1
+			,sum(불량수량) as 불량수량
+		from d42_검사불량사유파일 WITH (NOLOCK) 
+		where lotrun_id = #{runNo}
+		and 공정코드 = #{process}
+		group by lotrun_id,cst_no,cst_no1
+	)
+	select
+		a.공장코드 	
+		,a.RUN_NO
+		,'-' as lot_no
+		,a.공정코드			
+		,a.seq
+		,a.작업자
+		,a.작업조
+		,a.shift
+		,a.MACHINE_CODE
+		,a.투입수량
+		--,c.sum_input_lot_cell as cell
+		,a.F_CSTNO
+		,a.F_수량
+		,a.박리작업구분
+		,a.배출구
+		,null as 작업시작
+		,null as 작업종료
+		--,d.lot_cell_count
+		,null as 시작시각
+		,null as 종료시각
+		,a.T_CSTNO
+		,a.T_수량 - isnull(b.불량수량 ,0) as T_수량
+		,'' as 특이사항
+		,a.BEF_공정코드
+		,a.NXT_공정코드
+		,a.F_불량수량
+		,b.불량수량 as 불량합계		
+	from cst a
+	left outer join bad b on (a.t_cstno = b.CST_NO1 and a.f_cstno = b.cst_no)
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	order by a.작업종료, a.종료시각, a.F_CSTNO
+	</select>
+	
+	<select id="selectProcessLog037" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 전환적(037) 저당된 카세트 없다면*/
+	select 
+		a.*
+		,count(t_수량) over(partition by t_cstno) as t_cnt
+		,sum(t_수량) over(partition by t_cstno) as t_수량
+		,t_수량 as t_org수량
+	from (
+	 	select 
+			공장코드	
+			,RUN_NO	
+			,a.공정코드	
+			,FORMAT(row_number() over (order by seq),'00') as SEQ	
+			,LOT_NO	
+			,BEF_공정코드	
+			,NXT_공정코드	
+			,박리작업구분	
+			,작업자				
+			,a.shift	as 근무조
+			,a.machine_code as 설비호기	
+			,작업시작	
+			,시작시각	
+			,SHIFT	
+			,F_CSTNO	
+			,F_수량	
+			,F_불량수량	
+			,작업종료	
+			,종료시각	
+			,투입수량	
+			,a.Machine_Code
+			,d.설비약명 as 설비명	
+			,배출구	
+			,T_RUNNO	
+			,IN_CSTNO	
+			,case when IN_CSTNO = T_CSTNO then null else T_CSTNO end as T_CSTNO
+			,a.T_수량
+			,특이사항	
+			,case when IN_CSTNO = T_CSTNO then 'Y' else 'N' end as not_log_yn
+			,SEQ as cst_key
+			,F_CSTNO + '|' + case when IN_CSTNO = T_CSTNO then null else T_CSTNO end as pkey
+		from Get이전공정OUT카세트(#{runNo},#{process},'040') a
+		left outer join dw_equipment_mast d on (a.Machine_Code = d.설비번호 and d.공정코드 = #{process})
+		where a.IN_CSTNO != a.T_CSTNO /*T_CSTNO is not null*/
+	) a	
+	order by a.seq,a.F_CSTNO,a.작업종료, a.종료시각
+	</select>
+	
+	<select id="selectProcessM037" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 전환적(037) 수동*/
+	select 
+		공장코드
+		,RUN_NO
+		,공정코드
+		,seq
+		,lot_no
+		,'035' as BEF_공정코드
+		,'040' as NXT_공정코드
+		,박리작업구분
+		,null as 작업자
+		,null as 작업조
+		,null as 작업시작
+		,null as 시작시각
+		,null as SHIFT
+		,t_cstno as F_CSTNO
+		,t_수량 as F_수량
+		,t_불량수량 as F_불량수량
+		,null as 작업종료
+		,null as 종료시각
+		,투입수량
+		,null as Machine_Code
+		,null as 설비명
+		,null as 배출구
+		,null as T_RUNNO
+		,t_cstno as IN_CSTNO
+		,null as T_CSTNO
+		,a.T_수량	
+		,null as 특이사항
+		,t_cstno as cst_key
+	from d22_RUN카세트파일 a WITH (NOLOCK)
+	where run_no = #{runNo}
+	and 공정코드 = '033'
+	order by a.seq,a.F_CSTNO,a.작업종료, a.종료시각
+	</select>
+	
+	<select id="selectProcessLog040" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 강화(040) 카세트가 저장되어 있지 않다면*/
+	with cst as (
+		select 
+			max(공장코드) as 공장코드
+			,max(RUN_NO) as RUN_NO
+			,max(lot_no) as lot_no
+			,T_CSTNO as F_CSTNO
+			,sum(T_수량) as F_수량
+			,'040' as 공정코드
+			,max(seq) as SEQ
+			,'037' as BEF_공정코드
+			,'043' as NXT_공정코드
+			,0 as 박리작업구분
+			,max(작업자) as 작업자 
+			,max(작업조) as 작업조
+			,max(작업시작) as 작업시작 
+			,max(시작시각) as 시작시각
+			,max(shift) as shift
+			,sum(T_수량) as t_수량
+			,0 as F_불량수량 
+			,max(작업종료) as 작업종료
+			,max(종료시각) as 종료시각
+			,sum(T_수량) as 투입수량
+			,max(Machine_Code) as Machine_Code
+			,max(배출구) as 배출구
+			,max(T_RUNNO) as T_RUNNO
+			,max(T_CSTNO) as IN_CSTNO
+			,T_CSTNO
+		from d22_RUN카세트파일 WITH (NOLOCK)
+		where run_no = #{runNo}
+		and 공정코드 = '037'
+		group by T_CSTNO
+	)
+	select
+		a.공장코드 	
+		,a.RUN_NO
+		,'-' as lot_no
+		,a.공정코드			
+		,a.seq
+		,a.작업자
+		,a.작업조
+		,a.shift
+		,a.MACHINE_CODE
+		,a.F_수량 as 투입수량
+		,a.F_CSTNO
+		,a.F_수량
+		,a.박리작업구분
+		,a.배출구
+		,null as 작업시작
+		,null as 작업종료
+		,null as 시작시각
+		,null as 종료시각
+		,a.T_CSTNO
+		,'' as 특이사항
+		,a.BEF_공정코드
+		,a.NXT_공정코드
+		,a.F_불량수량
+		,a.F_CSTNO + '|' + a.t_cstno as pkey
+		,count(t_수량) over(partition by t_cstno) as t_cnt
+		,sum(t_수량) over(partition by t_cstno) as t_수량
+		,t_수량 t_org수량
+	from cst a
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	order by a.seq,a.t_CSTNO,a.작업종료, a.종료시각
+	</select>
+	
+	<select id="selectProcessLog043" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 후환적(043) 작업시작 한번도 안했다면*/
+	select 
+		a.*
+		, count(t_수량) over(partition by t_cstno) as t_cnt
+		, sum(t_수량) over(partition by t_cstno) as t_수량
+		, t_수량 as t_org수량
+	from (	
+		select 
+			공장코드	
+			,RUN_NO	
+			,a.공정코드	
+			,FORMAT(row_number() over (order by seq),'00') as SEQ	
+			,LOT_NO	
+			,BEF_공정코드	
+			,NXT_공정코드	
+			,박리작업구분	
+			,작업자				
+			,a.shift as 근무조
+			,a.machine_code as 설비호기	
+			,작업시작	
+			,시작시각	
+			,SHIFT	
+			,F_CSTNO	
+			,F_수량	
+			,F_불량수량	
+			,작업종료	
+			,종료시각	
+			,F_수량 as 투입수량	
+			,a.Machine_Code	
+			,d.설비약명 as 설비명	
+			,배출구	
+			,T_RUNNO	
+			,IN_CSTNO	
+			,case when IN_CSTNO = T_CSTNO then null else T_CSTNO end as T_CSTNO	
+			,특이사항	
+			,case when IN_CSTNO = T_CSTNO then 'Y' else 'N' end as not_log_yn
+			,SEQ as cst_key
+			,t_수량
+			,f_cstno + '|' + case when IN_CSTNO = T_CSTNO then null else T_CSTNO end as pkey
+		from Get이전공정OUT카세트(#{runNo},#{process},'047') a
+		left outer join dw_equipment_mast d on (a.Machine_Code = d.설비번호 and d.공정코드 = #{process})
+		where a.IN_CSTNO != a.T_CSTNO /*T_CSTNO is not null*/	
+	) a 
+	order by a.seq,f_cstno,a.작업종료, a.종료시각
+	</select>
+	<select id="selectProcessM043" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 수동 후환적(043)*/
+	select 
+		공장코드
+		,RUN_NO
+		,공정코드
+		,seq
+		,lot_no
+		,'040' as BEF_공정코드
+		,'047' as NXT_공정코드
+		,박리작업구분
+		,null as 작업자
+		,null as 작업조
+		,null as 작업시작
+		,null as 시작시각
+		,null as SHIFT
+		,t_cstno as F_CSTNO
+		,t_수량 as F_수량
+		,t_불량수량 as F_불량수량
+		,null as 작업종료
+		,null as 종료시각
+		,투입수량
+		,null as Machine_Code
+		,null as 설비명
+		,null as 배출구
+		,null as T_RUNNO
+		,t_cstno as IN_CSTNO
+		,null as T_CSTNO
+		,null as 특이사항
+		,t_cstno as cst_key		
+	from d22_RUN카세트파일 a WITH (NOLOCK)
+	where run_no = #{runNo}
+	and 공정코드 = '040' /*강화*/	
+	order by a.seq,a.t_CSTNO,a.작업종료, a.종료시각
+	</select>
+	
+	<select id="selectProcessLog047" parameterType="Map" resultType="CamelMap">
+	/*back#1 - 강화 후 세정(047) 작업시작 한번도 안했다면*/
+	with cst as (
+		select 
+			max(공장코드) as 공장코드
+			,max(RUN_NO) as RUN_NO
+			,max(lot_no) as lot_no
+			,T_CSTNO as F_CSTNO
+			,sum(T_수량) as F_수량
+			,'047' as 공정코드
+			,max(seq) as SEQ
+			,'043' as BEF_공정코드
+			,'052' as NXT_공정코드
+			,0 as 박리작업구분
+			,max(작업자) as 작업자 
+			,max(작업조) as 작업조
+			,max(작업시작) as 작업시작 
+			,max(시작시각) as 시작시각
+			,max(shift) as shift
+			,sum(T_수량) as t_수량
+			,0 as F_불량수량 
+			,max(작업종료) as 작업종료
+			,max(종료시각) as 종료시각
+			,sum(T_수량) as 투입수량
+			,max(Machine_Code) as Machine_Code
+			,max(배출구) as 배출구
+			,max(T_RUNNO) as T_RUNNO
+			,max(T_CSTNO) as IN_CSTNO
+			,T_CSTNO
+		from d22_RUN카세트파일 WITH (NOLOCK)
+		where run_no = #{runNo}
+		and 공정코드 = '043'
+		group by T_CSTNO
+	)
+	select
+		a.공장코드 	
+		,a.RUN_NO
+		,'-' as lot_no
+		,a.공정코드			
+		,a.seq
+		,a.작업자
+		,a.작업조
+		,a.shift
+		,a.MACHINE_CODE
+		,a.F_수량 as 투입수량
+		,a.F_CSTNO
+		,a.F_수량
+		,a.박리작업구분
+		,a.배출구
+		,null as 작업시작
+		,null as 작업종료
+		,null as 시작시각
+		,null as 종료시각
+		,a.T_CSTNO
+		,'' as 특이사항
+		,a.BEF_공정코드
+		,a.NXT_공정코드
+		,a.F_불량수량
+		,a.F_CSTNO + '|' + a.T_CSTNO as pkey		
+		,count(t_수량) over(partition by t_cstno) as t_cnt
+		,sum(t_수량) over(partition by t_cstno) as t_수량
+		,t_수량 as t_org수량
+	from cst a
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	order by a.seq,a.t_CSTNO,a.작업종료, a.종료시각
+	</select>
+	
+	
+	<select id="selectProcessLog050" parameterType="Map" resultType="CamelMap">
+	/*back#1 - aPT(050) 작업시작 한번도 안했다면*/
+	with cst as (
+		select 
+			max(공장코드) as 공장코드
+			,max(RUN_NO) as RUN_NO
+			,max(lot_no) as lot_no
+			,T_CSTNO as F_CSTNO
+			,sum(T_수량) as F_수량
+			,'050' as 공정코드
+			,max(seq) as SEQ
+			,'047' as BEF_공정코드
+			,'050' as NXT_공정코드
+			,0 as 박리작업구분
+			,max(작업자) as 작업자 
+			,max(작업조) as 작업조
+			,max(작업시작) as 작업시작 
+			,max(시작시각) as 시작시각
+			,max(shift) as shift
+			,sum(T_수량) as t_수량
+			,0 as F_불량수량 
+			,max(작업종료) as 작업종료
+			,max(종료시각) as 종료시각
+			,sum(T_수량) as 투입수량
+			,max(Machine_Code) as Machine_Code
+			,max(배출구) as 배출구
+			,max(T_RUNNO) as T_RUNNO
+			,max(T_CSTNO) as IN_CSTNO
+			,T_CSTNO
+		from d22_RUN카세트파일 WITH (NOLOCK)
+		where run_no = #{runNo}
+		and 공정코드 = '043'
+		group by T_CSTNO
+	)
+	select
+		a.공장코드 	
+		,a.RUN_NO
+		,'-' as lot_no
+		,a.공정코드			
+		,a.seq
+		,a.작업자
+		,a.작업조
+		,a.shift
+		,a.MACHINE_CODE
+		,a.F_수량 as 투입수량
+		,a.F_CSTNO
+		,a.F_수량
+		,a.박리작업구분
+		,a.배출구
+		,null as 작업시작
+		,null as 작업종료
+		,null as 시작시각
+		,null as 종료시각
+		,a.T_CSTNO
+		,'' as 특이사항
+		,a.BEF_공정코드
+		,a.NXT_공정코드
+		,a.F_불량수량
+		,a.F_CSTNO + '|' + a.T_CSTNO as pkey		
+		, count(t_수량) over(partition by t_cstno) as t_cnt
+		, sum(t_수량) over(partition by t_cstno) as t_수량
+		, t_수량 as t_org수량
+	from cst a
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{process}
+	order by a.seq,a.t_cstno,a.작업종료, a.종료시각
+	</select>
+	
+	<update id="updateStartJobVLR" parameterType="Map">
+	/*d22_RUN제조VLR - 작업시작*/
+	UPDATE d22_RUN제조VLR SET 
+	    작업자 = #{worker}
+		,작업조 = (select Shift from Get주간야간구분())
+		,SHIFT = #{selectedShift}
+		,MACHINE_CODE = #{selectedMc}
+		,작업시작 = #{작업시작}
+		,시작시각 = #{시작시각}
+		,작업종료 = null
+		,종료시각 = null
+		,투입수량 = #{투입수량}
+		,검사수량 = #{검사수량} 	 		    	
+    	,불량수량 = case when #{불량수량} is null then 0 else #{불량수량} end 
+    	,양품수량 = case when #{양품수량} is null then 0 else #{양품수량} end 
+    	,특이사항 = #{특이사항}    	
+	where run_no = #{runNo}
+	and 공정코드 = #{process} 
+	and 차수 = #{차수}
+	</update>
+	
+	<update id="updateEndJobVLR" parameterType="Map">
+	update d22_RUN제조VLR set /*updateEndJobVLR*/
+		작업종료 = #{작업종료}
+		,종료시각 = #{종료시각}		
+    	,투입수량 = #{투입수량}
+		,검사수량 = #{검사수량}
+    	,불량수량 = case when #{불량수량} is null then 0 else #{불량수량} end 
+    	,양품수량 = case when #{양품수량} is null then 0 else #{양품수량} end     	
+    	,특이사항 = #{특이사항}
+    	,작업조 = (select Shift from Get주간야간구분())
+	where run_no = #{runNo}
+	and 공정코드 = #{process}
+	and 차수 = #{차수}
+	</update>
+	
+	<update id="updateTempSaveVLR" parameterType="Map">
+	update d22_RUN제조VLR set /*updateTempSaveVLR*/
+    	투입수량 = #{투입수량}
+		,검사수량 = #{검사수량}
+    	,불량수량 = case when #{불량수량} is null then 0 else #{불량수량} end 
+    	,양품수량 = case when #{양품수량} is null then 0 else #{양품수량} end    	
+	where run_no = #{runNo}
+	and 공정코드 = #{process}
+	and 차수 = #{차수}
+	</update>
+	
+	<update id="mergeRunCst" parameterType="Map">
+	MERGE INTO d22_RUN카세트파일 AS tg
+	USING (
+		select
+			'2' as 공장코드
+			,#{runNo} as RUN_NO
+			,#{process} as 공정코드
+			,#{seq} as SEQ	
+			,isnull(#{fCstno},CONVERT(VARBINARY, '')) as f_Cstno
+			,#{차수} as 차수
+	) AS src 
+	ON tg.공장코드 = src.공장코드 and tg.RUN_NO = src.RUN_NO and tg.공정코드 = src.공정코드 and tg.SEQ = src.SEQ and tg.f_CSTNO = src.f_Cstno and tg.차수 = src.차수
+	WHEN MATCHED THEN
+		UPDATE SET
+			IN_CSTNO = isnull(#{inCstno},CONVERT(VARBINARY, ''))
+			,T_CSTNO = isnull(#{tCstno},CONVERT(VARBINARY, '')) 
+			,F_수량 = #{f수량}
+			,F_불량수량 = case when #{f불량수량} is null then 0 else #{f불량수량} end
+			,T_수량 = #{tOrg수량}
+			,특이사항 = #{특이사항}
+			,seq = isnull(#{newSeq},CONVERT(VARBINARY, #{seq}))
+			,Machine_Code = isnull(#{machineCode},CONVERT(VARBINARY, '-'))
+			<if test="jobDiv == 'start'">
+			,작업자 = #{worker}
+			,SHIFT = #{shift}
+			,작업조 = (select Shift from Get주간야간구분())
+			,작업시작 = #{작업시작}
+			,시작시각 = #{시작시각}
+			</if>
+			<if test="jobDiv == 'end'">
+			,작업종료 = #{작업종료}
+			,종료시각 = #{종료시각}
+			</if>			
+	WHEN NOT MATCHED THEN
+		INSERT (
+			공장코드
+			,RUN_NO
+			,공정코드
+			,SEQ
+			,LOT_NO
+			,BEF_공정코드
+			,NXT_공정코드
+			,박리작업구분
+			,작업자
+			,작업조
+			,작업시작
+			,시작시각
+			,작업종료
+			,종료시각
+			,SHIFT
+			,F_CSTNO
+			,F_수량
+			,F_불량수량
+			,투입수량
+			,Machine_Code
+			,배출구
+			,IN_CSTNO
+			,T_CSTNO
+			,T_수량
+			,T_수량2
+			,T_불량수량
+			,원자재
+			,작업중
+			,RD깨짐
+			,TR미박리
+			,TR깨짐
+			,센서검출
+			,검사검출
+			,설비오류
+			,기타
+			,특이사항
+			,저장여부
+			,재공적용_여부
+			,차수
+		) VALUES (
+			'2'
+			,#{runNo}
+			,#{process}    	
+			,#{seq}
+			,isnull(#{lotNo},CONVERT(VARBINARY, ''))
+			,#{bef공정코드}
+			,#{nxt공정코드}
+			,#{박리작업구분}
+			,#{worker}
+			,(select Shift from Get주간야간구분())
+			,#{작업시작}
+			,#{시작시각}
+			,#{작업종료}
+			,#{종료시각}
+			,#{shift}
+			,isnull(#{fCstno},CONVERT(VARBINARY, ''))
+			,case when #{f수량} is null then 0 else #{f수량} end
+			,case when #{f불량수량} is null then 0 else #{f불량수량} end
+			,case when #{투입수량} is null then 0 else #{투입수량} end
+			,isnull(#{machineCode},CONVERT(VARBINARY, '-'))
+			,#{배출구}
+			,isnull(#{inCstno},CONVERT(VARBINARY, ''))
+			,isnull(#{tCstno},CONVERT(VARBINARY, ''))
+			,case when #{tOrg수량} is null then 0 else #{tOrg수량} end
+			,0
+			,0
+			,0
+			,0
+			,0
+			,0
+			,0
+			,0
+			,0
+			,0
+			,0
+			,#{특이사항}
+			,1
+			,1
+			,#{차수}
+		);
+	</update>
+	<insert id="insertSpecialNote" parameterType="Map">
+	/*2025.3.4 추가*/
+	INSERT INTO d39_공정별특이사항파일 (
+		공장코드
+		, 공정코드
+		, 관리번호
+		, CST_NO
+		, 의뢰일자
+		, 특이사항
+		, 차수
+	) VALUES (
+		'2'
+		, #{process}
+		, #{runNo}
+		, #{tCstno}
+		, FORMAT(GETDATE(), 'yyyyMMdd HHmmss')
+		, #{특이사항}
+		, #{차수}
+	);
+	</insert>
+	<update id="updateCstJobEndDateTime" parameterType="Map">
+	update d22_RUN카세트파일
+	set 
+		작업종료 = #{작업종료}
+		,종료시각 = #{종료시각} 
+	where run_no = #{runNo}
+	and 공정코드 = #{process}
+	and 차수 = #{차수}
+	</update>
+	
+	<select id="saveBadCnt" parameterType="Map">
+	/*삭제 후 추가*/
+	delete
+	from d42_검사불량사유파일
+	where 공장코드 = '2'
+	and 공정코드 = #{process}
+	and LOTRUN_ID = case when #{lotNo} = '-' then #{runNo} else #{lotNo} end 
+	and CST_NO in (#{tCstno},#{fCstno})
+	and 불량코드 = (
+		select
+			distinct 불량코드
+		from d29_공정별불량파일
+		where  공정코드 = #{process}
+		and 사용여부 = 1
+		--and 적용구분 = 0
+		and 불량명 = #{badNm}
+	);	
+		<if test="badCnt > 0">
+		insert into d42_검사불량사유파일 (
+			공장코드
+			, 공정코드
+			, LOTRUN_ID
+			, Machine_Code
+			, CST_NO
+			, 불량코드
+			, Block_SU
+			, 불량수량
+			, 검사시각
+		) 
+		select 			
+			'2' 		--공장코드
+			,b.공정코드	
+			,case when #{lotNo} = '-' then #{runNo} else #{lotNo} end 	--LOTRUN_ID
+			,#{machineCode} 		--Machine_Code
+			,#{tCstno} 	--CST_NO
+			,b.불량코드
+			,0 			--Block_SU
+			,#{badCnt} 		--불량수량
+			,FORMAT(GETDATE(), 'yyyyMMdd HHmmss') --검사시각
+		from (
+			select
+				distinct 공정코드,불량코드
+			from d29_공정별불량파일
+			where  공정코드 = #{process}
+			and 사용여부 = 1
+			--and 적용구분 = 0
+			and 불량명 = #{badNm}
+		) b;
+		</if>
+	</select>
+	
+	<select id="checkExistCst" parameterType="Map">
+	select top 1 run_no
+	from d22_RUN카세트파일 a WITH (NOLOCK)
+	inner join (
+		select max(차수) as 차수
+		from d22_RUN제조VLR
+		where run_no = #{runNo}
+		and 공정코드 = #{process}
+	) b on (a.차수 = b.차수)
+	where 공장코드 = 2 
+	and run_no = #{runNo}
+	and 공정코드 = #{process}	
+	</select>	
+	
+	<select id="selectBack1McList" parameterType="Map" resultType="CamelMap">
+	select /*selectBack1McList*/
+		설비번호 as value
+		,설비약명 as text
+	from dw_equipment_mast
+	where 공정코드 = #{process}
+	and 사용여부 = 1
+	order by 설비번호
+	</select>
+	
+	<select id="selectProcessesStatus" parameterType="Map" resultType="CamelMap">
+	select /*공정별 상태 조회*/
+		SYS_RESOURCE_ID 
+		,SYS_RESOURCE_NAME 
+		,seq
+		,b.투입수량
+		,b.양품수량
+		,b.불량수량
+		,b.양품수량 / NULLIF(b.투입수량,0) * 100 as yield
+		,case when nullif(b.작업시작,'') is null and nullif(b.작업종료,'') is null then '인계공정'
+			when nullif(b.작업종료,'') is null then '현공정'
+			else '완료공정' end status 
+	from DW_CM_SYS_RESOURCE a 
+	left outer join d22_RUN제조VLR b on (b.공장코드 = '2' and b.run_no = #{runNo} and a.SYS_RESOURCE_ID = b.공정코드) 
+	where UPPER_SYS_RESOURCE_ID = #{upperSysResourceId}
+	and prod_category = #{prodCategory}
+	and DEL_YN = 'N'
+	</select>
+	
+	<select id="selectLotCell" parameterType="Map" resultType="CamelMap">
+	select 
+		a.공정코드, a.run_no, a.차수, a.Machine_Code,a.lot_no, a.cst_no, a.cst_cell, a.f_불량수량, isnull(b.불량수량,0) as 불량수량, pkey
+		,seq,a.t_cstno
+	from (
+		select 
+			공정코드, run_no, a.차수, a.Machine_Code,a.lot_no, f_cstno cst_no, sum(f_수량) cst_cell, sum(f_불량수량) f_불량수량, max(a.lot_no+'|'+a.f_cstno+'|'+a.t_cstno) pkey
+			,max(seq) as seq
+			,max(a.t_cstno) as t_cstno
+		from d22_run카세트파일 a WITH (NOLOCK)
+		join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{process}) h on (h.차수 = a.차수)  
+		where 공장코드 = '2' 
+		and run_no = #{runNo} 
+		and 공정코드 = #{process}
+		group by 공정코드, run_no, a.차수, a.Machine_Code,lot_no, f_cstno	
+	) a		
+	left join (
+		select 차수, cst_no,etc_no,sum(불량수량) 불량수량 
+		from d42_검사불량사유파일 WITH (NOLOCK)
+		where 공정코드 = #{process}		
+		and lotrun_id = #{runNo} 
+		group by 차수,cst_no,etc_no
+	) b
+	on (a.cst_no = b.cst_no and a.lot_no = b.etc_no and a.차수 = b.차수)
+	order by a.seq	 
+	</select>
+	
+	<select id="selectInCstCell" parameterType="Map" resultType="CamelMap">
+		select 
+			a.공정코드, a.run_no, a.차수, a.Machine_Code, a.cst_no, a.cst_cell, a.f_불량수량, isnull(b.불량수량,0) as 불량수량, pkey,t_cstno
+		from (
+			select 
+				공정코드, run_no, a.차수, a.Machine_Code, f_cstno cst_no, sum(f_수량) cst_cell, sum(f_불량수량) f_불량수량, max(a.f_cstno+'|'+a.t_cstno) pkey
+				,max(seq) as seq
+				,max(a.t_cstno) as t_cstno
+			from d22_run카세트파일 a WITH (NOLOCK)
+			join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{process}) h on (h.차수 = a.차수)  
+			where 공장코드 = '2' 
+			and run_no = #{runNo} 
+			and 공정코드 = #{process}
+			group by 공정코드, run_no, a.차수, a.Machine_Code, f_cstno		
+		) a		
+		left join (
+			select 차수, cst_no, sum(불량수량) 불량수량 from d42_검사불량사유파일 WITH (NOLOCK)
+			where 공정코드 = #{process}		
+			and lotrun_id = #{runNo} 
+			group by 차수, cst_no
+		) b
+		on (a.cst_no = b.cst_no and a.차수 = b.차수)
+		order by CAST(a.seq AS INT)
+	</select>
+
+	<select id="selectVerInCstCell" parameterType="Map" resultType="CamelMap">
+		select 
+			a.공정코드, a.run_no, a.차수, a.Machine_Code, a.cst_no, a.cst_cell, a.f_불량수량, b.불량수량, pkey,t_cstno
+		from (
+			select 
+				공정코드, run_no, a.차수, a.Machine_Code, f_cstno cst_no, sum(f_수량) cst_cell, sum(f_불량수량) f_불량수량, max(a.f_cstno+'|'+a.t_cstno) pkey
+				,max(a.t_cstno) as t_cstno
+				,max(a.seq) as seq
+			from d22_run카세트파일 a WITH (NOLOCK)
+			where 공장코드 = '2' 
+			and run_no = #{runNo} 
+			and 공정코드 = #{process}
+			and 차수 = #{차수}
+			group by 공정코드, run_no, a.차수, a.Machine_Code, f_cstno		
+		) a		
+		left join (
+			select 차수, cst_no, sum(불량수량) 불량수량 from d42_검사불량사유파일 WITH (NOLOCK)
+			where 공정코드 = #{process}		
+			and lotrun_id = #{runNo} 
+			and 차수 = #{차수}
+			group by 차수, cst_no
+		) b
+		on (a.cst_no = b.cst_no and a.차수 = b.차수)
+		order by CAST(seq AS INT)
+	</select>
+	
+	<select id="selectNextProcess" parameterType="Map" resultType="CamelMap">
+	SELECT 
+		rslt.Value AS value
+		,b.공정명 as text
+	FROM dw_process_plan a
+	CROSS APPLY dbo.SplitString(a.다음공정, ',') AS rslt
+	left outer join (
+		select 
+			공정코드
+			,공정명
+		from dw_process_plan
+		where line = 'DFB1'
+		and process_id = 'D1UT'
+		and use_yn = 1
+	) b on (rslt.Value = b.공정코드)
+	WHERE a.line = 'DFB1'
+	AND a.process_id = 'D1UT'
+	AND a.공정코드 = #{process}
+	and b.공정명 is not null
+	</select>
+	
+	<select id="selectProdStatusInfoBack1" parameterType="Map" resultType="CamelMap">
+	/*selectProdStatusInfoBack1*/
+	select *
+	from (
+		select 
+			e.code_name as 투입구분
+			,d.자재재질 as 사양
+			,d.자재두께 as 두께
+			,c.제품모델 as model	
+			,c.제품Inch as inch
+			,a.적층수 as 층수
+		from d22_RUN제조MST a WITH (NOLOCK)
+		left outer join d05_제품마스터파일 c on (a.제품코드 = c.제품코드)
+		left outer join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+		left outer join (
+			select 
+				code 
+				,code_name
+			from dw_common_code
+			where maj_code = '74'
+		) e on (a.투입구분 = e.code) 
+		where a.run_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>) 
+	) a left outer join (	
+		select 
+			a.공정코드
+			,b.공정명
+			,a.Machine_Code
+			,c.설비약명 as mc
+			,a.작업종료
+			,a.종료시각
+			,a.양품수량
+			,a.특이사항
+		from d22_RUN제조VLR a WITH (NOLOCK)
+		inner join (
+			select top 1 a.공정코드,b.공정명
+			from d22_RUN카세트파일 a
+			inner join (
+				select 
+					distinct b.process_id
+					,c.공정코드
+					,c.공정명
+				from d22_RUN제조MST a WITH (NOLOCK)
+				left outer join dw_product_process b on (a.제품코드 = b.prod_code)
+				left outer join dw_process_plan c on (b.process_id = c.process_id)
+				where a.run_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+				and a.공장코드 = '2'
+				and c.use_yn = '1'
+				and c.다음공정 like '%'+#{process}+'%'
+			) b on (a.공정코드 = b.공정코드)
+			where a.run_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+			order by 작업종료 desc,종료시각 desc
+		) b on (a.공정코드 = b.공정코드)
+		left outer join dw_equipment_mast c on (a.Machine_Code = c.설비번호)
+		inner join (
+			select max(차수) as 차수
+			from d22_RUN제조VLR
+			where run_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+			and 공정코드 = #{process}
+		) d on (a.차수 = d.차수)
+		where a.run_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+	) b on (1 = 1)
+	</select>
+	
+	<select id="selectProdStatusInfoBack2" parameterType="Map" resultType="CamelMap">
+	/*selectProdStatusInfoBack2*/
+	select *
+	from (
+		select 
+			e.code_name as 투입구분
+			,d.자재재질 as 사양
+			,d.자재두께 as 두께
+			,c.제품모델 as model	
+			,c.제품Inch as inch
+			,a.적층수 as 층수
+		from d22_RUN제조MST a WITH (NOLOCK)
+		left outer join d05_제품마스터파일 c on (a.제품코드 = c.제품코드)
+		left outer join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+		left outer join (
+			select 
+				code 
+				,code_name
+			from dw_common_code
+			where maj_code = '74'
+		) e on (a.투입구분 = e.code) 
+		where a.run_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+	) a left outer join (	
+		select 
+			a.공정코드
+			,b.공정명
+			,a.Machine_Code
+			,c.설비약명 as mc
+			,a.작업종료
+			,a.종료시각
+			,a.양품수량
+			,a.특이사항
+		from d22_RUN제조VLR a WITH (NOLOCK)
+		inner join (
+			select top 1 a.공정코드,b.공정명
+			from dw_run_cell_data a
+			inner join (
+				select 
+					distinct b.process_id
+					,c.공정코드
+					,c.공정명
+				from d22_RUN제조MST a WITH (NOLOCK)
+				left outer join dw_product_process b on (a.제품코드 = b.prod_code)
+				left outer join dw_process_plan c on (b.process_id = c.process_id)
+				where a.run_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+				and a.공장코드 = '2'
+				and c.use_yn = '1'
+				and c.다음공정 like '%'+#{process}+'%'
+			) b on (a.공정코드 = b.공정코드)
+			where a.run_id in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+			order by end_time desc
+		) b on (a.공정코드 = b.공정코드)
+		left outer join dw_equipment_mast c on (a.Machine_Code = c.설비번호)
+		where a.run_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+	) b on (1 = 1)
+	</select>
+	
+	<select id="selectLotNoByRunNo" parameterType="Map" resultType="String">
+	select lot_no
+	from d21_제조지시MST WITH (NOLOCK)
+	where run_no1 = #{no} or run_no2 = #{no}
+	</select>
+	
+	<select id="selectProdStatusInfoFront" parameterType="Map" resultType="CamelMap">
+	/*selectProdStatusInfoFront*/
+	select *
+	from (
+		select
+			a.lot_no 
+			,e.code_name as 투입구분
+			,d.자재재질 as 사양
+			,d.자재두께 as 두께
+			,c.제품모델 as model	
+			,c.제품Inch as inch
+			,a.적층수 as 층수
+		from d21_제조지시MST a WITH (NOLOCK)
+		left outer join d05_제품마스터파일 c on (a.제품코드 = c.제품코드)
+		left outer join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+		left outer join (
+			select 
+				code 
+				,code_name
+			from dw_common_code
+			where maj_code = '74'
+		) e on (a.투입구분 = e.code) 
+		where a.lot_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+	) a left outer join (	
+		select
+			a.lot_no 
+			,b.공정코드
+			,b.공정명
+			,b.Machine_Code
+			,c.설비약명 as mc
+			,c.chamber as LINE_축
+			,b.작업종료
+			,b.종료시각
+			,case when #{process} = '010' or #{process} = '013' then a.block수 else b.양품수량 end block수	
+			,case when #{process} = '010' then a.sheet else d.양품수량 end sheet
+			,case when #{runNo} = a.run_no1 then a.run_cell1
+				when #{runNo} = a.run_no2 then a.run_cell2
+				else b.CELL수량 end CELL수량
+			,b.특이사항
+		from d21_제조지시MST a WITH (NOLOCK)
+		inner join (
+			select a.lot_no,a.공정코드,b.공정명,a.Machine_Code,a.cell수량,a.작업종료,a.종료시각,a.양품수량,a.특이사항
+			from d21_제조지시VLR a
+			inner join (
+				select 
+					distinct b.process_id
+					,c.공정코드
+					,c.공정명
+				from d21_제조지시MST a
+				left outer join dw_product_process b on (a.제품코드 = b.prod_code)
+				left outer join dw_process_plan c on (b.process_id = c.process_id)
+				where a.lot_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+				and a.공장코드 = '2'
+				and c.use_yn = '1'
+				and 다음공정 like '%'+#{process}+'%'
+			) b on (a.공정코드 = b.공정코드)
+			where a.lot_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)			
+		) b on (a.lot_no = b.lot_no)
+		left outer join dw_equipment_mast c on (b.Machine_Code = c.설비번호)
+		left outer join d21_제조지시VLR d on (a.lot_no = d.lot_no and d.공정코드 = '010')
+		where a.lot_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+		union all
+		select
+			a.lot_no 
+			,null 공정코드
+			,null 공정명
+			,null Machine_Code
+			,null  as mc
+			,null  as LINE_축
+			,null 작업종료
+			,null 종료시각
+			,a.block수	
+			,a.sheet
+			,a.CELL수 as CELL수량
+			,null 특이사항
+		from d21_제조지시MST a WITH (NOLOCK)
+		where a.lot_no in (<foreach collection="noList" item="no" open="" separator="," close=""> #{no} </foreach>)
+		and '010' = #{process}
+	) b on (a.lot_no = b.lot_no)
+	order by a.lot_no,작업종료 desc,종료시각 desc
+	</select>
+	
+	<select id="selectProcess023CellEqQty" parameterType="Map" resultType="CamelMap">
+	/*박리 - 설비셀수량 보여주기 위해 가져오기*/
+	select 
+		lot_no
+		,t_cstno
+		,설비cell수량 as CELL_EQ_QTY
+	from Get자동박리카세트리스트(#{runNo})
+	where t_cstno like '%add%'
+	</select>
+	
+	<select id="execQipFromPPB" parameterType="Map" resultType="CamelMap">
+	exec Gen품질검사대기From제조실적bareCell '431',#{userName},#{runNo},#{cellIds};
+	</select>
+	
+	<select id="selectPreProcNoInpuCst" parameterType="Map" resultType="String">
+	select 
+		F_cstno as cst_no 
+	from Check전공정미투입카세트(#{runNo},#{process})
+	</select>
+	
+	<select id="execCstChangeSt" parameterType="Map">
+	exec Cassette상태변경_제조실적입력 #{runNo},#{process}
+	</select>
+	
+	
+	<select id="checkReCleaning" parameterType="Map" resultType="CamelMap">
+	select *
+	from CheckValidation_전환적전재세정_DateTimeCheck(#{runNo},#{dateTimeStr});
+	</select>
+	
+	
+	<select id="checkForceWaitTime" parameterType="Map" resultType="CamelMap">
+	select * from CheckValidation_강화투입대기시간(#{runNo})
+	</select>
+	
+	<delete id="deleteCstList" parameterType="Map">
+	DELETE
+	FROM D22_RUN카세트파일 
+	WHERE RUN_NO = #{runNo}
+	AND 공정코드 = #{process}
+	</delete>
+	
+	<select id="checkCstValidation" parameterType="Map" resultType="CamelMap">
+	select * from CheckValidation_투입카세트(#{runNo},#{cstNo}) 
+	</select>
+	
+	
+	<select id="selectProdStatusInfoRework" parameterType="Map" resultType="CamelMap">
+	/*selectProdStatusInfoRework*/
+	select 
+		e.code_name as 투입구분
+		,d.자재재질 as 사양
+		,d.자재두께 as 두께
+		,c.제품모델 as model	
+		,c.제품Inch as inch
+		,a.적층수 as 층수
+		,g.공정명
+		,'' as mc
+		,f.작업종료
+		,f.종료시각
+		,f.시료수량
+		,f.특이사항
+	from d22_RUN제조MST a WITH (NOLOCK)
+	left outer join d05_제품마스터파일 c on (a.제품코드 = c.제품코드)
+	left outer join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+	left outer join (
+		select 
+			code 
+			,code_name
+		from dw_common_code
+		where maj_code = '74'
+	) e on (a.투입구분 = e.code) 
+	left outer join GetMRun이전공정이력(#{runNo}) f on(1=1)
+	left outer join dw_process_plan g on (f.process_id = g.process_id and f.공정코드 = g.공정코드)
+	where a.run_no = #{runNo}
+	</select>
+	
+	<select id="checkValidationOutCst" parameterType="Map" resultType="CamelMap">
+	select 
+		cst_no
+		,message
+	from CheckValidation_출하카세트(#{runNo},#{process})
+	</select>
+	
+	<select id="selectInCstCellInMbox" parameterType="Map" resultType="CamelMap">
+	/*selectInCstCellInMbox*/
+	select
+		a.공장코드
+		,a.run_no
+		,'022' as 공정코드
+		,a.차수
+		,a.seq
+		,a.lot_no
+		,a.bef_공정코드
+		,a.NXT_공정코드
+		,a.박리작업구분
+		,a.작업자
+		,a.작업조
+		,a.작업시작
+		,a.시작시각
+		,a.shift
+		,a.f_cstno as CST_NO
+		,a.f_수량 as CST_CELL
+		,a.f_불량수량
+		,a.작업종료
+		,a.종료시각
+		,a.투입수량
+		,a.machine_code
+		,a.배출구
+		,a.t_runno
+		,a.in_cstno
+		,a.t_cstno
+		,a.t_수량
+		,a.t_cstno2
+		,a.t_수량2
+		,a.t_불량수량
+		,a.특이사항
+		,a.저장여부
+		,a.재공적용_여부
+		,a.mbox_no
+		,a.bef_runno
+		,a.mbox_no + '|' + a.f_cstno + '|' + a.t_cstno as pkey
+		,isnull(b.불량수량,0) as 불량수량
+	from (
+		select 
+			a.*
+			,case when len(isnull(lot_no,'')) > 0 then LEFT(LOT_NO, CHARINDEX('/', LOT_NO) - 1) else '' end as mbox_no
+        	,case when len(isnull(lot_no,'')) > 0 then SUBSTRING(LOT_NO, CHARINDEX('/', LOT_NO) + 1, LEN(LOT_NO)) else '' end as bef_runno
+		from d22_RUN카세트파일 a WITH (NOLOCK)
+		where a.run_no = #{runNo} 
+		and 공정코드 = #{process}
+	) a
+	left outer join (
+		select 차수, cst_no,CST_NO1,etc_no,sum(불량수량) 불량수량 
+		from d42_검사불량사유파일 WITH (NOLOCK)
+		where 공정코드 = #{process}		
+		and lotrun_id = #{runNo} 
+		group by 차수,cst_no,CST_NO1,etc_no
+	) b on (a.차수 = b.차수 and a.f_cstno = b.cst_no and a.t_cstno = b.CST_NO1 and a.lot_no = b.etc_no)
+	</select>
+	
+	<select id="selectNextRunProdVLR" parameterType="Map" resultType="CamelMap">
+	select /*selectNextRunProdVLR*/
+		a.공장코드
+		,a.RUN_NO
+		,a.공정코드
+		,a.LOT_NO
+		,a.LOT_등분
+		,a.작업시작
+		,a.시작시각
+		,a.작업종료
+		,a.종료시각
+		,a.작업일자
+		,a.작업자
+		,a.작업조
+		,a.Machine_Code
+		,a.SHIFT
+		,a.책임자
+		,a.책임자시작
+		,a.책임자종료
+		,a.선임자
+		,a.P_CODE
+		,a.작업구분
+		,a.투입수량
+		,a.검사수량
+		,a.불량수량
+		,a.양품수량
+		,a.확인자
+	from d22_RUN제조VLR a WITH (NOLOCK)
+	inner join (
+		select max(차수) as 차수
+		from d22_RUN제조VLR
+		where run_no = #{runNo}
+		and 공정코드 = #{nextProcess}
+	) d on (a.차수 = d.차수)
+	where a.run_no = #{runNo}
+	and a.공정코드 = #{nextProcess}
+	</select>
+	
+	<select id="selectPreProcessCstInfo" parameterType="Map" resultType="CamelMap">
+	/*selectPreProcessCstInfo - 이전(완료)공정 카세트정보*/
+	select 
+		a.공정코드
+		,a.seq
+		,a.t_cstno
+		,a.t_수량
+	from d22_RUN카세트파일 a WITH (NOLOCK)
+	inner join (
+		select top 1
+			a.공장코드
+			,a.run_no
+			,a.공정코드
+			,a.차수
+		from d22_RUN제조VLR a WITH (NOLOCK)
+		inner join (
+			select max(차수) as 차수
+			from d22_RUN제조VLR WITH (NOLOCK)
+			where run_no = #{runNo}
+			and 공정코드 in (<foreach collection="processList" item="process" open="" separator="," close=""> #{process} </foreach>)
+		) d on (a.차수 = d.차수)
+		where a.run_no = #{runNo}
+		and a.공정코드 in (<foreach collection="processList" item="process" open="" separator="," close=""> #{process} </foreach>)	
+		and isnull(a.작업종료,'') != ''
+		and isnull(a.종료시각,'') != ''
+		order by 공정코드 desc
+	) b on (a.공장코드 = b.공장코드 and a.run_no = b.run_no and a.공정코드 = b.공정코드 and a.차수 = b.차수)	
+	order by a.seq
+	</select>
+	<select id="selectStartJobAlbe" parameterType="Map" resultType="String">
+	select isnull((select top 1 진행가능여부 from Get_이전공정정보_RunNo_공정코드(#{runNo},#{process})),'진행불가')
+	</select>
+</mapper>

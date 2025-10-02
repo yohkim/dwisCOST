@@ -1,0 +1,488 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 프로세스 플래닝 > 생산공정 관리 -->
+<mapper namespace="com.dowinsys.mes.web.m0002000.mapper.M0002003Mapper">
+
+	<select id="selectProdProcList" resultType="com.dowinsys.mes.common.CamelMap">
+	SELECT
+		a.line,
+		a.prod_code,
+		a.model,
+		c.description as model_name,
+		b.inch,
+		b.Glass_thick ,
+		b.Version as prod_version,
+		b.Sheet,
+		b.Block,
+		b.RUN_SIZE,
+		b.spec,
+		a.process_id,
+		a.version,
+		a.create_date,
+		a.create_name
+	FROM dw_product_process a 
+	left outer join dw_product_mast b 
+	on ( a.line = b.line and a.prod_code = b.prod_code )
+	left outer join dw_model_mast c 
+	on ( a.model = c.model )
+	WHERE a.line LIKE #{line} + '%'
+	  AND a.Prod_code LIKE #{prodType} + '%'		
+	</select>
+	
+	<select id="checkInsertProdProc" resultType="Map">
+	select  COALESCE(STRING_AGG(line+'-'+Prod_code+'-'+process_id, '/'), 'NoData') AS prodProcess
+	from dw_product_process a
+	where (line + '-' +  upper(Prod_code) + '-' +  upper(process_id)  ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + upper(#{item.prodCode}) + '-' + upper(#{item.processId})
+	</foreach>	
+	</select>		
+	
+    <insert id = "insertProdProc" parameterType = "Map">	
+	INSERT INTO dw_product_process
+	(
+		line,
+		prod_code,
+		model,
+		process_id,
+		version,
+		create_date,
+		create_name
+	)
+	VALUES
+	(
+		#{line},       
+		#{prodCode},  
+		#{model},      
+		#{processId}, 
+		#{version},  
+		GETDATE(),
+		#{createName}
+	)
+	</insert>	
+	
+	<update id="updateProdProc" parameterType="Map">
+	UPDATE dw_product_process
+	SET process_id = #{processId},
+		version = #{version}
+	WHERE line = #{line}
+	  AND prod_code = #{prodCode}
+	</update>
+	
+	<delete id="deleteProdProc" parameterType="Map">
+	DELETE FROM dw_product_process
+	WHERE line = #{line}
+	  AND prod_code = #{prodCode}
+	  and process_id = #{processId}
+	</delete>		
+	
+	<select id="selectProcessList" resultType="com.dowinsys.mes.common.CamelMap">
+	SELECT
+		line,
+		process_id,
+		description,
+		version,
+		create_date,
+		create_name
+	FROM dw_process_mast
+	</select>
+	
+	<select id="selectProcess" resultType="com.dowinsys.mes.common.CamelMap">
+	select line + '-' + process_id  + '-' + 'v' + cast(version as varchar) as process,
+			description
+	from dw_process_mast
+	</select>		
+	
+	<select id="checkDeleteProcess" resultType="Map">
+	select COALESCE(STRING_AGG(line+'-'+process_id, '/'), 'NoData') AS process
+	from dw_process_mast a
+	where (line + '-' +  process_id ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + #{item.processId}
+	</foreach>
+	  and exists ( select 1 
+				   from dw_product_process  b 
+				   where a.line = b.line
+				     and a.process_id = b.process_id
+				   )
+	</select>
+	
+	<select id="checkInsertProcess" resultType="Map">
+	select COALESCE(STRING_AGG(line+'-'+process_id, '/'), 'NoData') AS process
+	from dw_process_mast a
+	where (line + '-' +  upper(process_id) ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + upper(#{item.processId})
+	</foreach>
+	</select>	
+	
+	<insert id = "insertProcess" parameterType = "Map">
+	INSERT INTO dw_process_mast
+	(
+		line,
+		process_id,
+		description,
+		version,
+		create_date,
+		create_name
+	 )
+	VALUES
+	(
+		#{line},        
+		#{processId}, 
+		#{description}, 
+		#{version},   
+		GETDATE(),
+		#{createName}
+	)
+	</insert>	
+	
+	<update id="updateProcess" parameterType="Map">
+	UPDATE dw_process_mast
+	SET description = #{description},
+		version = #{version},
+		create_date = GETDATE(),
+		create_name = #{createName}
+	WHERE line = #{line}
+	  AND process_id = #{processId}
+	</update>
+	
+	<delete id="deleteProcess" parameterType="Map">
+	DELETE FROM dw_process_mast
+	WHERE line = #{line}
+	  AND process_id = #{processId}
+	</delete>	
+
+	<select id="selectProcessPlanList" resultType="com.dowinsys.mes.common.CamelMap">
+	WITH SplitNextProcess AS (
+	    SELECT 
+	        p.line,
+	        p.process_id,
+	        p.version,
+	        p.공정코드,
+	        p.공정명,
+	        p.공정약어,
+	        p.다음공정,
+	        p.Area,
+	        p.공정구분,
+	        p.use_yn,
+	        p.등록일,
+	        p.등록자,
+	        LTRIM(RTRIM(s.value)) AS 다음공정코드
+	    FROM dw_process_plan p
+	    CROSS APPLY STRING_SPLIT(p.다음공정, ',') s
+		WHERE 1 = 1
+		<if test="line != null and line != ''" >
+		  AND line = #{line}
+		</if>
+		<if test="processId != null and processId != ''" >
+		  AND process_id = #{processId}
+		</if>	
+		<if test="version != null and version != ''" >
+		  AND version = #{version}
+		</if>		
+		<if test="area != null and area != ''" >
+		  AND Area = #{area}
+		</if>	    
+	),
+	NextProcessNames AS (
+	    SELECT 
+	        sp.line,
+	        sp.process_id,
+	        sp.version,
+	        sp.공정코드,
+	        sp.공정명,
+	        sp.공정약어,
+	        sp.다음공정,
+	        sp.Area,
+	        sp.공정구분,
+	        sp.use_yn,
+	        sp.등록일,
+	        sp.등록자,
+	        sm.공정코드 AS 다음공정코드,
+	        sm.공정약어 AS 다음공정명
+	    FROM SplitNextProcess sp
+	    LEFT JOIN dw_step_mast sm
+	    ON sp.다음공정코드 = sm.공정코드
+	),
+	AggregatedResults AS (
+	    SELECT 
+	        line,
+	        process_id,
+	        version,
+	        공정코드,
+	        공정명,
+	        공정약어,
+	        다음공정,
+	        Area,
+	        공정구분,
+	        use_yn,
+	        등록일,
+	        등록자,
+	        STRING_AGG(다음공정명, ',') AS 다음공정명
+	    FROM NextProcessNames
+	    GROUP BY 
+	        line,
+	        process_id,
+	        version,
+	        공정코드,
+	        공정명,
+	        공정약어,
+	        다음공정,
+	        Area,
+	        공정구분,
+	        use_yn,
+	        등록일,
+	        등록자
+	)
+	SELECT 
+	    line,
+	    process_id,
+	    version,
+	    공정코드,
+	    공정명,
+	    공정약어,
+	    다음공정 as 다음공정코드,
+	    다음공정명,
+	    Area,
+	    공정구분 as area_code,
+	    case when use_yn = '1' then 'Y'
+	        else 'N'
+	    end use_yn,
+	    등록일,
+	    등록자  
+	FROM AggregatedResults
+	</select>
+	
+<!--	<select id="checkDeleteProcessPlan" resultType="Map">
+	select COALESCE(STRING_AGG(line+'-'+process_id, '/'), 'NoData') AS process
+	from dw_process_mast a
+	where (line + '-' +  process_id ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + #{item.processId}
+	</foreach>
+	  and exists ( select 1 
+				   from dw_prod_proc_mast  b 
+				   where a.line = b.line
+				     and a.process_id = b.process_id  )
+	</select>	-->
+	
+	<select id="checkInsertProcessPlan" resultType="Map">
+	select  COALESCE(STRING_AGG(line+'-'+process_id+'-'+cast(version as varchar)+'-'+공정코드, '/'), 'NoData') AS processPlan
+	from dw_process_plan a
+	where (line + '-' +  upper(process_id) + '-' +  cast(version as varchar) + '-' +  upper(공정코드) ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + upper(#{item.processId}) + '-' + #{item.version} + '-' + upper(#{item.공정코드})
+	</foreach>		
+	</select>		
+	
+	<insert id = "insertProcessPlan" parameterType = "Map">	
+	INSERT INTO dw_process_plan
+	(
+		line,   
+		process_id,
+		version,
+		공정코드,   
+		공정명,    
+		다음공정,   
+		공정약어,   
+		Area,   
+		공정구분,   
+		use_yn, 
+		등록일,    
+		등록자     
+	)
+	VALUES
+	(
+		#{line},   
+		#{processId},
+		#{version},
+		#{공정코드},   
+		#{공정명},    
+		#{다음공정코드},   
+		#{공정약어},   
+		#{area},   
+		#{areaCode},   
+	    case when #{useYn} = 'Y' then '1'
+	        else '0'
+	    end,
+		GETDATE(),
+		#{등록자}
+	)
+	</insert>	
+	
+	<update id="updateProcessPlan" parameterType="Map">
+	UPDATE dw_process_plan
+	SET 다음공정 = #{다음공정코드},
+		use_yn = case when #{useYn} = 'Y' then '1'
+	        		  else '0'
+	    		 end
+	WHERE line = #{line}
+	  AND process_id = #{processId}
+	  and version = #{version}
+	  AND 공정코드 = #{공정코드}
+	</update>
+	
+	<delete id="deleteProcessPlan" parameterType="Map">
+	DELETE FROM dw_process_plan
+	WHERE line = #{line}
+	  AND process_id = #{processId}
+	  and version = #{version}
+	  AND 공정코드 = #{공정코드}
+	</delete>		
+	
+	<select id="selectStepList" resultType="com.dowinsys.mes.common.CamelMap">
+	SELECT
+		a.line,
+		a.공정코드,
+		a.공정명,
+		a.공정약어,
+		a.공정구분 as area_code,
+		a.area,
+		case when a.치수관리 = '1' then 'Y'
+		     else 'N'
+		end as 치수관리,
+		a.작업순서,
+		a.목표치,
+		case when a.작업여부 = '1' then 'Y'
+		     else 'N'
+		end as 작업여부,
+		a.remark,
+		a.create_date,
+		a.create_name
+	FROM dw_step_mast a 
+	where 1 = 1
+	<if test="line != null and line != ''" >
+	  AND a.line = #{line}
+	</if>	
+	order by a.공정코드, a.공정구분, a.작업순서
+	</select>
+	
+	<select id="checkDeleteStep" resultType="Map">
+	
+	select COALESCE(STRING_AGG(공정코드, '/'), 'NoData') AS 공정코드
+	from dw_step_mast a
+	where (공정코드) in
+	 <foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.공정코드}
+	</foreach>
+	  and exists ( select 1 
+				   from dw_process_plan  b 
+				   where a.line = b.line 
+				     and a.공정코드 = b.공정코드 )	
+	</select>	
+	
+	<select id="checkInsertStep" resultType="Map">
+	
+	select COALESCE(STRING_AGG(공정코드, '/'), 'NoData') AS step
+	from dw_step_mast a
+	where (upper(공정코드)) in
+	 <foreach item="item" collection="vo" open="(" separator="," close=")" >
+		upper(#{item.공정코드})
+	</foreach>
+	</select>		
+	
+	<insert id = "insertStep" parameterType = "Map">	
+	INSERT INTO dw_step_mast
+	(
+		LINE,
+		공정코드,
+		공정명,
+		공정약어,
+		area,
+		공정구분,
+		치수관리,
+		작업순서,
+		목표치,
+		작업여부,
+		Remark,
+		create_date,
+		create_name
+	)
+	VALUES
+	(
+		#{line},
+		#{공정코드},
+		#{공정명},
+		#{공정약어},
+		#{area},
+		#{areaCode},
+        CASE
+            WHEN #{치수관리} = 'Y' THEN 1
+            WHEN #{치수관리} = 'N' THEN 0
+            ELSE 1
+        END,
+		ISNULL(#{작업순서},0),  
+		#{목표치},
+        CASE
+            WHEN #{작업여부} = 'Y' THEN 1
+            WHEN #{작업여부} = 'N' THEN 0
+            ELSE 1
+        END,
+		#{remark},
+		getdate(),
+		#{createName}
+	)
+	</insert>	
+	
+	<update id="updateStep" parameterType="Map">
+	UPDATE dw_step_mast
+	SET	공정명     = #{공정명},       
+		공정약어   = #{공정약어},       
+		area   	   = #{area},
+		공정구분   = #{areaCode},   
+		치수관리   = CASE WHEN #{치수관리} = 'Y' THEN 1
+            			  ELSE 0
+        			END,
+		작업순서   = ISNULL(#{작업순서},0),       
+		목표치     = ISNULL(#{목표치},0.0),    
+		작업여부   = CASE WHEN #{작업여부} = 'Y' THEN 1
+            			  ELSE 0
+        		  	END,   
+		Remark       = #{remark}  
+	where line = #{line}
+	  and 공정코드 = #{공정코드}	 
+	</update>
+	
+	<delete id="deleteStep" parameterType="Map">
+	DELETE FROM dw_step_mast
+	WHERE line = #{line}
+	  and 공정코드 = #{공정코드}	
+	</delete>
+	
+	<select id="selectSourceProcess" resultType="Map">
+		select  line,process_id,description 공정설명 
+		from dw_process_mast;
+	</select>		
+	
+	<select id="selectTargetProcess" resultType="Map">
+		select  line,process_id,description 공정설명
+		from dw_process_mast a
+		where not exists (select 1 from dw_process_plan b where a.process_id=b.process_id);
+	</select>		
+	
+	<insert id = "copyProcess" parameterType = "Map">	
+	insert into dw_process_plan
+	select
+	line,
+	#{targetProcess},
+	version,
+	공정코드,
+	공정명,
+	다음공정,
+	공정약어,
+	Area,
+	공정구분,
+	1 use_yn,
+	getdate() 등록일,
+	#{userName} 등록자
+	from dw_process_plan
+	where process_id = #{sourceProcess};
+	</insert>	
+	
+	<select id="saveNewProdProcess" resultType="CamelMap">	
+		exec Set_신규제품_공정마스터 @yyyymmdd = #{yyyymmdd};	
+	</select>
+	
+</mapper>

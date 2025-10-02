@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dowinsys.mes.common.log.mapper.LogMapper">
+	<insert id="insertSysLog" parameterType="com.dowinsys.mes.common.log.vo.SysLog">
+	/*SKIP_LOG*/
+	INSERT INTO dw_cm_sys_log (
+	    app_div,
+	    prod,
+	    user_id,
+	    menu_path,
+	    menu_url,
+	    tab_path,
+	    tab_id,
+	    uri,
+	    menu_id,
+	    query_id,
+	    ip,
+	    date_time
+	)
+	VALUES (
+	    #{appNm}
+	    ,#{prod}
+	    ,#{userId}
+	    ,#{menuPath}
+	    ,#{menuUrl}
+	    ,#{tabPath}
+	    ,#{tabId}
+	    ,#{requestUri}
+	    ,#{menuId}
+	    ,#{queryId}
+	    ,#{ip}
+	    ,#{dateTimeStr}
+	)
+	</insert>
+</mapper>

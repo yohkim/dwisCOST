@@ -1,0 +1,93 @@
+CREATE PROCEDURE Run_lot_generate(
+@LOT_LIST VARCHAR(1500)
+)
+AS
+BEGIN
+	BEGIN TRY
+		BEGIN TRANSACTION;
+			declare @LOT_NO_1ST varchar (24) =(SELECT top 1 value from STRING_SPLIT(@LOT_LIST, ','));  --조회결과 첫번쨰 LOT_NO
+			declare @LOT_TOTAL int = (SELECT count(value) from STRING_SPLIT(@LOT_LIST, ','));
+			declare @제품모델 varchar(4); --MODEL
+			declare @작업타입 varchar (1);  --(D) Development Run_개발
+			DECLARE @RUN_CELL INT;
+			SELECT @작업타입=a.투입구분,@제품모델=b.model, @RUN_CELL=c.Run_Size  FROM D21_제조지시MST a 
+					inner join dw_model_mast b on(a.제품유형=b.code)
+					inner join dw_product_mast c on (a.제품코드 = c.prod_code)
+						where lot_no=@LOT_NO_1ST;
+					--select @작업타입+@제품모델+@RUN_CELL;  end
+			declare @RUN_PREFIX varchar(27) = @제품모델 + 'B'	+ FORMAT(GETDATE(), 'yyMM')	+ '-' + @작업타입; 
+			DECLARE @RUN_BEGIN_SEQ varchar(4) = (
+						SELECT FORMAT(CAST(COALESCE(max(substring(run_no, CHARINDEX('-', run_no, 10)+ 2, 4)),0) as INT)+ 1,'0000')
+						from d22_RUN제조MST
+						where run_no like @제품모델 + 'B' + FORMAT(GETDATE(), 'yyMM')+ '-' + @작업타입 + '%');
+						
+			DECLARE @RUN_NO varchar(27);
+			DECLARE @PRE_RUN_NO varchar(27);
+			DECLARE @LOT_NO varchar(20);
+			DECLARE @lot_ord INT;
+			DECLARE @Run_Cell1 INT; 
+			DECLARE @Run_CELL2 INT; 
+			DECLARE @RUN_SEQ INT;
+			DECLARE @REMAIN INT;
+			-- 커서 선언
+			IF CURSOR_STATUS('global', 'run_lot_cursor') >= -1
+			BEGIN
+			   -- CLOSE run_lot_cursor;
+			   DEALLOCATE run_lot_cursor;
+			END 
+			DECLARE run_lot_cursor CURSOR FOR
+				WITH LOT_RUN0 AS ( 
+					select a.lot_no,
+						b.양품수량 * a.Sheet - Coalesce(Run_Cell1,0) as Cell,
+						Run_Cell1 as Is_Cell1,
+						SUM(b.양품수량 * a.Sheet - Coalesce(Run_Cell1,0)) OVER (ORDER BY a.LOT_NO)    AS CUM_CELL,
+						CAST(SUM(b.양품수량 * a.Sheet) OVER (ORDER BY a.LOT_NO)/@RUN_CELL AS INT) AS RUN_SEQ,
+						CAST(b.작업종료 AS DATE) DUV_END_time
+						from d21_제조지시MST a
+					   inner join d21_제조지시VLR b on (a.lot_no=b.lot_no and b.공정코드='020' AND b.작업종료 IS NOT NULL  )
+					  where a.LOT_NO in (SELECT value LOT_NO from STRING_SPLIT(@LOT_LIST, ','))
+				), LOT_RUN1 AS(
+					select
+						lot_no,	
+						CASE WHEN Is_Cell1 > 0 THEN 0 WHEN RUN_SEQ=COALESCE(LAG(RUN_SEQ) OVER (ORDER BY lot_no),0) Then Cell else Cell - (CUM_CELL - (@RUN_CELL * RUN_SEQ)) END as Run_Cell1, 
+						CASE WHEN Is_Cell1 > 0 THEN Cell  WHEN RUN_SEQ=COALESCE(LAG(RUN_SEQ) OVER (ORDER BY lot_no),0) Then 0 else (CUM_CELL - (@RUN_CELL * RUN_SEQ)) END AS Run_Cell2,
+						CUM_CELL, RUN_SEQ,
+						COALESCE(LAG(RUN_SEQ) OVER (ORDER BY lot_no),0) AS PRE_RUN_SEQ,
+						DUV_END_time
+					from LOT_RUN0
+				), lot_run2 as (
+				SELECT @RUN_PREFIX + FORMAT(@RUN_BEGIN_SEQ+RUN_SEQ,'0000') AS RUN_NO,			
+					   @RUN_PREFIX + FORMAT(@RUN_BEGIN_SEQ+RUN_SEQ-1,'0000') AS PRE_RUN_NO,
+					   row_number() over (order by lot_no) as lot_ord,
+					   @LOT_TOTAL as LOT_TOTAL,* 
+				from lot_run1
+				)
+				select RUN_NO,PRE_RUN_NO,lot_no,lot_ord,LOT_TOTAL,Run_Cell1,Run_CELL2,RUN_SEQ+1 AS RUN_SEQ,CAST(CUM_CELL as INT)%@RUN_CELL AS REMAIN
+				from lot_run2
+			-- 커서 열기
+			OPEN run_lot_cursor
+			-- 커서에서 첫 번째 행 가져오기
+			FETCH NEXT FROM run_lot_cursor INTO @RUN_NO,@PRE_RUN_NO,@lot_no,@lot_ord,@LOT_TOTAL,@Run_Cell1,@Run_CELL2,@RUN_SEQ,@REMAIN
+			-- SELECT @RUN_NO,@PRE_RUN_NO,@lot_no,@lot_ord,@LOT_TOTAL,@Run_Cell1,@Run_CELL2,@RUN_SEQ,@REMAIN
+			-- 커서가 열려 있을 때 데이터를 처리하기
+			WHILE @@FETCH_STATUS = 0
+			BEGIN 
+			    -- 여기서 @column_value를 사용하여 작업 수행
+				EXEC Run_lot_update @RUN_NO,@PRE_RUN_NO,@lot_no,@lot_ord,@LOT_TOTAL,@Run_Cell1,@Run_CELL2,@RUN_SEQ,@REMAIN
+				--select  @RUN_NO , @LOT_NO , cast(@Cell수 as varchar)
+			    -- 다음 행 가져오기
+			    FETCH NEXT FROM run_lot_cursor INTO @RUN_NO,@PRE_RUN_NO,@lot_no,@lot_ord,@LOT_TOTAL,@Run_Cell1,@Run_CELL2,@RUN_SEQ,@REMAIN
+				--SELECT @RUN_NO,@PRE_RUN_NO,@lot_no,@lot_ord,@LOT_TOTAL,@Run_Cell1,@Run_CELL2,@RUN_SEQ,@REMAIN
+			   END
+			-- 커서 닫기
+			CLOSE run_lot_cursor
+			-- 커서 해제
+			DEALLOCATE run_lot_cursor
+			COMMIT TRANSACTION;
+	END TRY
+	
+	BEGIN CATCH
+	    ROLLBACK TRANSACTION;
+	    SELECT ERROR_MESSAGE() AS ErrorMessage;
+	END CATCH;
+END;

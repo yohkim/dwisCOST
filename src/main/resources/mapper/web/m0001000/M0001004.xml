@@ -1,0 +1,1303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0001000.mapper.M0001004Mapper">
+
+	<select id="selectMatFilmIn" resultType="CamelMap">
+		SELECT
+			a.material_id,
+			a.mat_type_code,
+			a.sub_mat_type_code,
+			a.in_date,
+			a.in_time,
+			a.prod_category,
+			a.model_code,
+			a.film_name,
+			a.unit,
+			a.in_qty,
+			a.use_qty,
+			a.remain_qty,
+			a.use_yn,
+			a.worker_id,
+			a.worker_name,
+			a.comments,
+			b.out_comments,
+			a.create_date,
+			a.create_user,
+			case when isnull(c.close_yn,'N') = 'N' and a.use_yn = 'N' then 'Y'
+			 	    else 'N'
+		    end as editable					
+		FROM dw_sub_mat_film_in a
+		left outer join 
+		 (
+				SELECT a.material_id, 
+				       STRING_AGG(a.comments, ' / ') AS out_comments
+				FROM dw_sub_mat_film_out a  
+				GROUP BY a.material_id  
+		) b
+		on ( a.material_id = b.material_id )
+		left outer join ( select * from dw_mat_close_info where mat_category_code ='20' and mat_type_code='FILM' ) c 
+		on ( a.in_date = c.stock_date )	
+		WHERE 1 = 1
+			<choose>
+				<when test="searchMaterialId != null and searchMaterialId.trim() != ''">
+					and a.material_id = #{searchMaterialId}
+				</when>
+				<otherwise>
+					  and a.in_date between #{fromDate} and #{toDate}
+					<if test="subMatTypeCode != null and subMatTypeCode.trim() != ''" >
+					  AND a.sub_mat_type_code = #{subMatTypeCode}	
+					</if>
+				</otherwise>			
+			</choose> 
+		order by a.in_date desc, a.in_time desc, a.material_id 
+	</select>
+	
+	<select id="selectBarcodeModelInfo" resultType="CamelMap">
+		select  a.dup_yn,
+				#{materialId} as material_id,
+				COALESCE(b.model_code,'') as model_code,
+				b.division,  
+				b.sdc_code,
+				b.sub_mat_type_code,
+				c.code_name as film_name
+		from 
+		(
+				SELECT CASE WHEN count(1) <![CDATA[ > ]]> 0 THEN 'Y'
+				        ELSE 'N'
+				   END AS dup_yn
+				FROM  dw_sub_mat_film_in a 
+				WHERE a.material_id =  #{materialId}
+		) a 
+		left outer join
+		(
+			select  model_code, 
+					division, 
+					sdc_code, 
+					film_front_code, 
+					film_back_code,
+			       case when substring(#{materialId},1,10) = film_front_code then 'FRONT'
+			            when substring(#{materialId},1,10) = film_back_code then 'BACK'
+			       else ''
+			       end as sub_mat_type_code
+			from dw_model_code_info a
+			where film_front_code = substring(#{materialId},1,10) or film_back_code = substring(#{materialId},1,10)
+		) b 
+		on ( 1 = 1 )
+		left outer join 
+		( SELECT code, code_name from dw_common_code WHERE maj_code=#{majCode}) c
+		ON ( b.sub_mat_type_code = c.code )
+	</select>
+	
+	<select id="checkUseInData" resultType="Map">
+		select COALESCE(STRING_AGG(material_id, '/'), 'NoData') AS materialId
+		from dw_sub_mat_film_in a
+		where upper(a.material_id) in
+		<foreach item="item" collection="vo" open="(" separator="," close=")" >
+			upper(#{item.materialId})
+		</foreach>
+		and a.use_yn = 'Y'
+	</select>			
+	
+	<select id="checkInsertInData" resultType="Map">
+		select COALESCE(STRING_AGG(material_id, '/'), 'NoData') AS materialId
+		from dw_sub_mat_film_in a
+		where upper(a.material_id) in
+		<foreach item="item" collection="vo" open="(" separator="," close=")" >
+			upper(#{item.materialId})
+		</foreach>
+	</select>		
+	
+	<insert id="insertInData">
+		INSERT INTO dw_sub_mat_film_in
+		(
+			material_id,
+			mat_type_code,
+			sub_mat_type_code,
+			in_date,
+			in_time,
+			prod_category,
+			model_code,
+			film_name,
+			unit,
+			in_qty,
+			use_qty,
+			remain_qty,
+			use_yn,
+			worker_id,
+			worker_name,
+			comments,
+			create_date,
+			create_user
+		)
+		VALUES
+		(
+			#{materialId},
+			#{matTypeCode},
+			#{subMatTypeCode},
+			#{inDate},
+			#{inTime},
+			#{prodCategory},
+			#{modelCode},
+			#{filmName},
+			#{unit},
+			#{inQty},
+			0,
+			#{inQty},
+			#{useYn},
+			#{workerId},
+			#{workerName},
+			#{comments},
+			getdate(),
+			#{workerId}
+		)
+	</insert>
+	
+	<update id="updateInData">
+		UPDATE dw_sub_mat_film_in
+			SET sub_mat_type_code = #{subMatTypeCode},
+				worker_name = #{workerName},
+				in_qty = #{inQty},
+				remain_qty = #{inQty},
+				comments = #{comments}
+		WHERE material_id = #{materialId}
+	</update>
+	
+	<update id="updateRemainQtyMinus">
+		UPDATE dw_sub_mat_film_in
+			SET use_qty = use_qty + #{outQty},
+			    remain_qty = remain_qty - #{outQty},
+			    use_yn = 'Y'
+		WHERE material_id = #{materialId}
+	</update>
+	
+	<update id="updateRemainQtyPlus">
+		UPDATE dw_sub_mat_film_in
+			SET use_qty = use_qty - #{outQty},
+			    remain_qty = remain_qty + #{outQty},
+			    use_yn = case when ( use_qty - #{outQty} ) <![CDATA[ <=0 ]]> then 'N'
+			             	  else 'Y'
+			              end			             
+		WHERE material_id = #{materialId}
+	</update>	
+	
+	<update id="updateRemainDiffQty">
+		UPDATE dw_sub_mat_film_in
+			SET use_qty = use_qty + ( #{outQty} - #{orgOutQty} ),
+			    remain_qty = remain_qty - ( #{outQty} - #{orgOutQty} ),
+			    use_yn = case when ( use_qty + ( #{outQty} - #{orgOutQty} ) ) <![CDATA[ <=0 ]]> then 'N'
+			             	  else 'Y'
+			              end			             
+		WHERE material_id = #{materialId}
+	</update>	
+	
+	<delete id="deleteInData">
+		DELETE  FROM dw_sub_mat_film_in
+		WHERE material_id = #{materialId}
+	</delete>
+	
+	<select id="selectMatFilmOut" resultType="CamelMap">
+			   WITH pfl_log AS (
+			   		select sub_mat_type_code, 
+				   		   material_id,
+				   		   work_date,
+				   		   설비호기,
+				   		   count(distinct cell_id) log_qty
+			   		from 
+			   		( 
+				   		select sub_mat_type_code, 
+				   				material_id,
+				   				start_yyyymmdd,
+				   				start_hhmmss,
+				   				<![CDATA[
+				   				case when start_hhmmss < '080000' then CONVERT(CHAR(8), DATEADD(DAY, -1, CAST(start_yyyymmdd AS DATE)), 112)  
+				   					else start_yyyymmdd
+				   				end as work_date,
+				   				case when start_hhmmss < '080000' or start_hhmmss >= '200000' then 'N'  
+				   					else 'D'
+				   				end as shift_code,
+				   				 ]]>
+				   				설비호기,
+				   				cell_id
+				   		from 
+				   		( 
+						    select 'FRONT' sub_mat_type_code, film_id_하부 as material_id, left(start_time,8) start_yyyymmdd, right(start_time,6) start_hhmmss, 설비호기, cell_id  
+						    from d88_PFL공정LOG파일
+						    where start_time between CONVERT(CHAR(8), DATEADD(DAY, -1, CAST( #{fromDate} AS DATE)), 112) + ' 000000'
+						                         and CONVERT(CHAR(8), DATEADD(DAY, +1, CAST( #{toDate} AS DATE)), 112) + ' 000000'
+						    union all 
+						    select 'BACK' sub_mat_type_code, film_id_상부 as material_id, left(start_time,8) start_yyyymmdd, right(start_time,6) start_hhmmss, 설비호기, cell_id  
+						    from d88_PFL공정LOG파일	
+						    where start_time between CONVERT(CHAR(8), DATEADD(DAY, -1, CAST( #{fromDate} AS DATE)), 112) + ' 000000'
+						                         and CONVERT(CHAR(8), DATEADD(DAY, +1, CAST(#{toDate}  AS DATE)), 112) + ' 000000'
+						) a 
+					) a 
+					group by sub_mat_type_code, 
+				   		   material_id,
+				   		   work_date,
+				   		   설비호기
+			    )	
+		SELECT
+			a.out_no,
+			a.mat_type_code,
+			a.sub_mat_type_code,
+			a.work_date,
+			a.shift_code,
+			a.out_seq,
+			a.out_date,
+			a.out_time,
+			a.material_id,
+			a.prod_category,
+			c.code_name as prod_category_name,
+			a.model_code,
+			a.film_name,
+			a.worker_name,
+			a.line,
+			a.step_code,
+			a.step_nm,
+			a.equip_no,
+			a.equip_nm,
+			a.unit,
+			b.remain_qty,
+			b.remain_qty + a.out_qty as stock_qty,
+			a.out_qty,
+			a.out_qty as org_out_qty,
+			a.good_qty,
+			a.error_rate,
+			a.error_qty,
+			a.error_pm_qty,
+			a.error_drop_qty,
+			a.error_ngbox_qty,
+			a.error_equip_qty,
+			a.error_appearance_qty,
+			a.comments,
+			b.comments as in_comments,
+			a.create_date,
+			a.create_user,
+			f.log_qty,	
+			case when isnull(d.close_yn, 'N') = 'N' and 
+			 		<![CDATA[
+						( ( datepart(hour,getdate())   <  8
+			              		and ( a.out_date = CONVERT(VARCHAR(8), getdate(), 112) ) or 
+							  		( a.out_date = CONVERT(VARCHAR(8), DATEADD(DAY, -1, getdate()), 112) and convert(int,substring(a.out_time, 1,2))   >   19)
+					     	) or 
+					     	( datepart(hour,getdate())   >=   8 and a.out_date = CONVERT(VARCHAR(8), getdate(), 112) 
+					     	) or
+					     	b.remain_qty > 0   
+					     )  ]]>
+			        then 'Y'
+			        else 'N'
+			   end editable	
+		FROM dw_sub_mat_film_out a 
+		join dw_sub_mat_film_in b 
+		on ( a.material_id = b.material_id)		
+    	JOIN ( SELECT code, code_name from dw_common_code WHERE maj_code='74' ) c
+		ON ( a.prod_category = c.code )	
+		left outer join ( select * from dw_mat_close_info where mat_category_code ='20' and mat_type_code='FILM' ) d 
+		on ( a.work_date = d.stock_date )	
+		left outer join pfl_log f
+		on ( a.sub_mat_type_code = f.sub_mat_type_code 
+		     and a.material_id = f.material_id
+		     and a.work_date = f.work_date
+		     and a.equip_no = f.설비호기)		
+		where 1 = 1
+		<choose>
+			<when test="searchMaterialId != null and searchMaterialId.trim() != ''">
+				and a.material_id = #{searchMaterialId}
+			</when>
+			<otherwise>
+				  and a.work_date between #{fromDate} and #{toDate}
+				<if test="shiftCode != null and shiftCode.trim() != ''" >		
+				  and a.shift_code = #{shiftCode}
+				</if>
+				<if test="equip != null and equip.trim() != ''" >	
+				  and a.line= #{line} and a.equip_no = #{equip}
+				</if>	
+			</otherwise>			
+		</choose> 
+		order by a.out_date desc, 
+			    a.out_time desc,
+			    a.out_seq desc
+	</select>
+	
+	<select id="selectBarcodeInfo" resultType="CamelMap">	
+	select a.material_id, 
+			a.sub_mat_type_code, 
+			a.film_name,
+			a.prod_category,
+			c.code_name as prod_category_name,
+			a.model_code,
+			a.use_qty,
+			a.remain_qty,
+			a.remain_qty as stock_qty, 
+			a.use_yn,
+			a.comments as in_comments,
+			case when a.sub_mat_type_code = 'FRONT' 
+					then ( select count(distinct cell_id) from d88_PFL공정LOG파일 
+							where film_id_하부 = a.material_id
+							  and 설비호기 = #{equipNo}
+							  AND ( #{shiftCode} = 'D' and START_TIME BETWEEN #{workDate}+' 080000' AND #{workDate}+' 195959'
+					                or #{shiftCode} = 'N' and START_TIME BETWEEN #{workDate}+' 200000' AND CONVERT(VARCHAR(8), DATEADD(DAY, 1, #{workDate}), 112)+' 075959'
+					               )
+						  )
+				 when a.sub_mat_type_code = 'BACK'
+					then ( select count(distinct cell_id) from d88_PFL공정LOG파일 
+							where film_id_상부 = a.material_id
+							  and 설비호기 = #{equipNo}
+							  AND ( #{shiftCode} = 'D' and START_TIME BETWEEN #{workDate}+' 080000' AND #{workDate}+' 195959'
+					                or #{shiftCode} = 'N' and START_TIME BETWEEN #{workDate}+' 200000' AND CONVERT(VARCHAR(8), DATEADD(DAY, 1, #{workDate}), 112)+' 075959'
+					               )
+						  )
+				 else 0 
+			end as log_qty	
+	  from dw_sub_mat_film_in a 
+    	JOIN ( SELECT code, code_name from dw_common_code WHERE maj_code='74' ) c
+		ON ( a.prod_category = c.code )		  
+	where material_id = #{materialId} 
+	</select>	
+	
+	<select id="selectOutLogQty" resultType="CamelMap">
+	   select count(distinct cell_id) as log_qty
+	   from d88_PFL공정LOG파일 a
+	   where a.설비호기 = #{equipNo}
+	     and ( #{subMatTypeCode}='FRONT' AND a.film_id_하부 = #{materialId}
+	           or #{subMatTypeCode}='BACK' AND a.film_id_상부 = #{materialId}
+	          ) 
+		 AND ( #{shiftCode} = 'D' and START_TIME BETWEEN #{workDate}+' 080000' AND #{workDate}+' 195959'
+		       or #{shiftCode} = 'N' and START_TIME BETWEEN #{workDate}+' 200000' AND CONVERT(VARCHAR(8), DATEADD(DAY, 1, #{workDate}), 112)+' 075959'
+		      )	
+	</select>	
+	
+	<select id="checkRemainQty" resultType="CamelMap">
+		select material_id
+		  from dw_sub_mat_film_in a
+		 where upper(a.material_id) = upper(#{materialId})
+		   and remain_qty -  #{outQty} <![CDATA[ < 0 ]]>
+	</select>
+	
+	<select id="checkRemainDiffQty" resultType="CamelMap">
+		select material_id
+		  from dw_sub_mat_film_in a
+		 where upper(a.material_id) = upper(#{materialId})
+		   and remain_qty - ( #{outQty} - #{orgOutQty} )<![CDATA[ < 0 ]]>
+	</select>	
+	
+	<insert id="insertOutData">
+		INSERT INTO dw_sub_mat_film_out
+		(
+			out_no,
+			mat_type_code,
+			sub_mat_type_code,
+			work_date,
+			shift_code,
+			out_seq,
+			out_date,
+			out_time,
+			material_id,
+			prod_category,
+			model_code,
+			film_name,
+			worker_name,
+			line,
+			step_code,
+			step_nm,
+			equip_no,
+			equip_nm,
+			unit,
+			out_qty,
+			good_qty,			
+			error_rate,			
+			error_qty,
+			error_pm_qty,
+			error_drop_qty,
+			error_ngbox_qty,
+			error_equip_qty,
+			error_appearance_qty,	
+			comments,
+			create_date,
+			create_user
+		)
+		VALUES
+		(
+		   ( select case when  isnull(max(out_no),'') = '' then  'LO' + #{workDate} + #{shiftCode} + '001'
+			              else  'LO' + #{workDate} + #{shiftCode} + RIGHT('000' + cast((cast(substring(max(out_no),12,14) as int) + 1) as varchar),3)
+			         end as out_no
+				from dw_sub_mat_film_out 
+			   where work_date = #{workDate} and shift_code = #{shiftCode}
+			),	           
+			#{matTypeCode},    
+			#{subMatTypeCode},
+			#{workDate},        
+			#{shiftCode},       
+			(select COALESCE(max(out_seq),0)+1 from dw_sub_mat_film_out where work_date=#{workDate} and mat_type_code='FILM' and shift_code = #{shiftCode}),          
+			#{outDate},         
+			#{outTime},         
+			#{materialId},      
+			#{prodCategory},    
+			#{modelCode},       
+			#{filmName}  ,      
+			#{workerName},      
+			#{line},             
+			#{stepCode},        
+			#{stepNm},          
+			#{equipNo},         
+			#{equipNm},         
+			#{unit},             
+			isnull(#{outQty},0),
+			isnull(#{outQty},0) - ( isnull(#{errorPmQty},0) + isnull(#{errorDropQty},0) + isnull(#{errorNgboxQty},0) + isnull(#{errorEquipQty},0) + isnull(#{errorAppearanceQty},0) ),
+			case when isnull(#{outQty},0) = 0 then 0 
+			     else cast( ( isnull(#{errorPmQty},0) + isnull(#{errorDropQty},0) + isnull(#{errorNgboxQty},0) + isnull(#{errorEquipQty},0) + isnull(#{errorAppearanceQty},0) ) * 100.0 / isnull(#{outQty},0)  as decimal(5,2))
+			end,			
+			( isnull(#{errorPmQty},0) + isnull(#{errorDropQty},0) + isnull(#{errorNgboxQty},0) + isnull(#{errorEquipQty},0) + isnull(#{errorAppearanceQty},0) ),
+			isnull(#{errorPmQty},0),
+			isnull(#{errorDropQty},0),
+			isnull(#{errorNgboxQty},0),
+			isnull(#{errorEquipQty},0),
+			isnull(#{errorAppearanceQty},0),	
+			#{comments}, 
+			getdate(),
+			#{createUser}
+		)
+	</insert>
+	
+	<update id="updateOutData">
+		UPDATE dw_sub_mat_film_out
+			SET worker_name = #{workerName},
+				line = #{line},
+				step_code = #{stepCode},
+				step_nm = #{stepNm},
+				equip_no = #{equipNo},
+				equip_nm = #{equipNm},
+				out_qty = isnull(#{outQty},0),	
+				good_qty = isnull(#{outQty},0) - ( isnull(#{errorPmQty},0) + isnull(#{errorDropQty},0) + isnull(#{errorNgboxQty},0) + isnull(#{errorEquipQty},0) + isnull(#{errorAppearanceQty},0) ),
+				error_rate = case when isnull(#{outQty},0) = 0 then 0 
+			     				  else cast( ( isnull(#{errorPmQty},0) + isnull(#{errorDropQty},0) + isnull(#{errorNgboxQty},0) + isnull(#{errorEquipQty},0) + isnull(#{errorAppearanceQty},0) ) * 100.0 / isnull(#{outQty},0)  as decimal(5,2))
+							 end,
+				error_qty = isnull(#{errorPmQty},0) + isnull(#{errorDropQty},0) + isnull(#{errorNgboxQty},0) + isnull(#{errorEquipQty},0) + isnull(#{errorAppearanceQty},0),
+				error_pm_qty = isnull(#{errorPmQty},0),
+				error_drop_qty = isnull(#{errorDropQty},0),
+				error_ngbox_qty = isnull(#{errorNgboxQty},0),
+				error_equip_qty = isnull(#{errorEquipQty},0),
+				error_appearance_qty = isnull(#{errorAppearanceQty},0),
+				comments = #{comments}
+		WHERE out_no = #{outNo}
+	</update>
+	
+	<delete id="deleteOutData">
+		DELETE  FROM dw_sub_mat_film_out
+		WHERE out_no = #{outNo}
+	</delete>
+	
+	<select id="selectMatFilmError" resultType="CamelMap">
+	
+	select a.work_date,
+			  a.shift_code,
+			  c.code_name as shift_name,
+			  a.prod_category,
+			  d.code_name as prod_category_name,
+			  a.model_code,	  
+			  a.line,
+			  a.step_code,
+			  a.step_nm,
+			  a.equip_no,
+			  a.equip_nm,
+			  a.unit,
+			  a.worker_name,			  
+			  sum(case when a.sub_mat_type_code = 'BACK' then isnull(a.error_qty,0) else 0 end ) as back_error_qty,
+			  sum(case when a.sub_mat_type_code = 'BACK' then isnull(a.error_pm_qty,0) else 0 end ) as back_error_pm_qty,
+			  sum(case when a.sub_mat_type_code = 'BACK' then isnull(a.error_drop_qty,0) else 0 end ) as back_error_drop_qty,
+			  sum(case when a.sub_mat_type_code = 'BACK' then isnull(a.error_ngbox_qty,0) else 0 end ) as back_error_ngbox_qty,			  
+			  sum(case when a.sub_mat_type_code = 'BACK' then isnull(a.error_equip_qty,0) else 0 end ) as back_error_equip_qty,
+			  sum(case when a.sub_mat_type_code = 'BACK' then isnull(a.error_appearance_qty,0) else 0 end ) as back_error_appearance_qty,
+			  sum(case when a.sub_mat_type_code = 'FRONT' then isnull(a.error_qty,0) else 0 end ) as front_error_qty,
+			  sum(case when a.sub_mat_type_code = 'FRONT' then isnull(a.error_pm_qty,0) else 0 end ) as front_error_pm_qty,
+			  sum(case when a.sub_mat_type_code = 'FRONT' then isnull(a.error_drop_qty,0) else 0 end ) as front_error_drop_qty,
+			  sum(case when a.sub_mat_type_code = 'FRONT' then isnull(a.error_ngbox_qty,0) else 0 end ) as front_error_ngbox_qty,
+			  sum(case when a.sub_mat_type_code = 'FRONT' then isnull(a.error_equip_qty,0) else 0 end ) as front_error_equip_qty,
+			  sum(case when a.sub_mat_type_code = 'FRONT' then isnull(a.error_appearance_qty,0) else 0 end ) as front_error_appearance_qty  
+		from dw_sub_mat_film_out a
+		left outer join ( SELECT code, code_name from dw_common_code WHERE maj_code='75')  c 
+		on ( a.shift_code = c.code )
+		left outer join ( SELECT code, code_name from dw_common_code WHERE maj_code='74')  d
+		on ( a.prod_category = d.code )
+		where a.work_date between #{fromDate} and #{toDate}	
+			<if test="shiftCode != null and shiftCode.trim() != ''" >		
+		  	and a.shift_code = #{shiftCode}
+		  	</if>
+		group by a.work_date,
+			  a.shift_code,
+			  c.code_name,
+			  a.prod_category,
+			  d.code_name ,
+			  a.model_code,	  
+			  a.line,
+			  a.step_code,
+			  a.step_nm,
+			  a.equip_no,
+			  a.equip_nm,
+			  a.unit,
+			  a.worker_name
+		order by a.work_date desc, 
+				a.shift_code desc, 
+				a.prod_category desc,
+				a.model_code, 
+				a.line,
+				a.step_code, 
+				a.equip_no	
+
+<!--	select a.work_date,
+			  a.shift_code,
+			  c.code_name as shift_name,
+			  a.prod_category,
+			  d.code_name as prod_category_name,
+			  a.model_code,	  
+			  a.line,
+			  a.step_code,
+			  a.step_nm,
+			  a.equip_no,
+			  a.equip_nm,
+			  a.unit,
+			  b.error_date,
+			  b.error_time,
+			  b.worker_name,		  
+			  isnull(b.back_error_qty,0) as back_error_qty,
+			  isnull(b.back_error_pm_qty,0) as back_error_pm_qty,
+			  isnull(b.back_error_drop_qty,0) as back_error_drop_qty,
+			  isnull(b.back_error_ngbox_qty,0) as back_error_ngbox_qty,
+			  isnull(b.back_error_equip_qty,0) as back_error_equip_qty,
+			  isnull(b.back_error_appearance_qty,0) as back_error_appearance_qty,
+			  isnull(b.front_error_qty,0) as front_error_qty,
+			  isnull(b.front_error_pm_qty,0) as front_error_pm_qty,
+			  isnull(b.front_error_drop_qty,0) as front_error_drop_qty,
+			  isnull(b.front_error_ngbox_qty,0) as front_error_ngbox_qty,
+			  isnull(b.front_error_equip_qty,0) as front_error_equip_qty,
+			  isnull(b.front_error_appearance_qty,0) as front_error_appearance_qty,	  
+			  b.comments
+		from 
+		( 
+			select distinct 
+					work_date,
+					shift_code,			
+					prod_category,
+					model_code,
+					line,
+					step_code,
+					step_nm,
+					equip_no,
+					equip_nm,		
+					unit
+			from dw_sub_mat_film_out
+			where work_date between #{fromDate} and #{toDate}	
+			<if test="shiftCode != null and shiftCode.trim() != ''" >		
+			  and shift_code = #{shiftCode}
+			</if>			
+		) a 
+		left outer join dw_sub_mat_film_error b 
+		on ( a.work_date = b.work_date
+		     and a.shift_code = b.shift_code 
+		     and a.prod_category = b.prod_category 
+		 	 and a.model_code = b.model_code 
+		     and a.line = b.line 
+		     and a.step_code = b.step_code
+		     and a.equip_no = b.equip_no )
+		left outer join ( SELECT code, code_name from dw_common_code WHERE maj_code='75')  c 
+		on ( a.shift_code = c.code )
+		left outer join ( SELECT code, code_name from dw_common_code WHERE maj_code='74')  d
+		on ( a.prod_category = d.code )
+		order by a.work_date, 
+				a.shift_code, 
+				a.model_code, 
+				a.prod_category,
+				a.line,
+				a.step_code, 
+				a.equip_no 	-->
+	</select>
+	
+<!--	<update id="updateMatFilmError">
+	MERGE INTO dw_sub_mat_film_error AS target
+	USING 
+	( VALUES 
+	    (
+		    #{workDate}, #{shiftCode}, #{prodCategory}, #{modelCode}, 
+		    #{line}, #{stepCode}, #{stepNm}, #{equipNo}, #{equipNm}, 
+		    #{errorDate}, #{errorTime}, 
+		    #{workerName}, #{unit}, 
+		    #{backErrorQty}, 
+		    #{backErrorPmQty}, 
+		    #{backErrorDropQty}, 
+		    #{backErrorNgboxQty}, 
+		    #{backErrorEquipQty}, 
+		    #{backErrorAppearanceQty}, 
+		    #{frontErrorQty}, 
+		    #{frontErrorPmQty}, 
+		    #{frontErrorDropQty}, 
+		    #{frontErrorNgboxQty}, 
+		    #{frontErrorEquipQty}, 
+		    #{frontErrorAppearanceQty}, 
+		    #{comments}, 
+		    #{createUser}
+	    )
+	) AS source (
+	    work_date, shift_code, prod_category, model_code, 
+	    line, step_code, step_nm, equip_no, equip_nm, 
+	    error_date, error_time, 
+	    worker_name, unit, 
+	    back_error_qty, back_error_pm_qty, back_error_drop_qty, back_error_ngbox_qty, back_error_equip_qty, back_error_appearance_qty, 
+	    front_error_qty, front_error_pm_qty, front_error_drop_qty, front_error_ngbox_qty, front_error_equip_qty, front_error_appearance_qty, 
+	    comments, 
+	    create_user
+	)
+	ON (
+	    target.work_date = source.work_date AND 
+	    target.shift_code = source.shift_code AND 
+	    target.prod_category = source.prod_category AND 
+	    target.model_code = source.model_code AND 
+	    target.line = source.line AND 
+	    target.step_code = source.step_code AND 
+	    target.equip_no = source.equip_no
+	)
+	WHEN MATCHED THEN 
+	    UPDATE SET
+	        worker_name = source.worker_name,
+	        back_error_qty = isnull(source.back_error_pm_qty,0) + 
+	        				 isnull(source.back_error_drop_qty,0) + 
+	        				 isnull(source.back_error_ngbox_qty,0) +
+	        				 isnull(source.back_error_equip_qty,0) +
+	        				 isnull(source.back_error_appearance_qty,0),
+	        back_error_pm_qty = isnull(source.back_error_pm_qty,0),
+	        back_error_drop_qty = isnull(source.back_error_drop_qty,0),
+	        back_error_ngbox_qty = isnull(source.back_error_ngbox_qty,0),
+	        back_error_equip_qty = isnull(source.back_error_equip_qty,0),
+	        back_error_appearance_qty = isnull(source.back_error_appearance_qty,0),
+	        front_error_qty= isnull(source.front_error_pm_qty,0) + 
+	        				 isnull(source.front_error_drop_qty,0) + 
+	        				 isnull(source.front_error_ngbox_qty,0) +
+	        				 isnull(source.front_error_equip_qty,0) +
+	        				 isnull(source.front_error_appearance_qty,0),   
+	        front_error_pm_qty = isnull(source.front_error_pm_qty,0),
+	        front_error_drop_qty = isnull(source.front_error_drop_qty,0),
+	        front_error_ngbox_qty = isnull(source.front_error_ngbox_qty,0),
+	        front_error_equip_qty = isnull(source.front_error_equip_qty,0),
+	        front_error_appearance_qty = isnull(source.front_error_appearance_qty,0),
+	        comments = source.comments,
+	        update_date = GETDATE(),
+	        update_user = source.create_user
+	WHEN NOT MATCHED THEN
+	    INSERT (
+	        work_date, shift_code, prod_category, model_code, line, step_code, step_nm, equip_no, equip_nm, 
+	        error_date, error_time, worker_name, unit, 
+	        back_error_qty, back_error_pm_qty, back_error_drop_qty, back_error_ngbox_qty, back_error_equip_qty, back_error_appearance_qty, 
+	        front_error_qty, front_error_pm_qty, front_error_drop_qty, front_error_ngbox_qty, front_error_equip_qty, front_error_appearance_qty, 
+	        comments, create_date, create_user, update_date, update_user
+	    )
+	    VALUES (
+	        source.work_date, source.shift_code, source.prod_category, source.model_code, source.line, source.step_code, source.step_nm, source.equip_no, source.equip_nm, 
+	        CONVERT(VARCHAR(8), DATEADD(HOUR, 9, GETUTCDATE()), 112),
+	        FORMAT(DATEADD(HOUR, 9, GETUTCDATE()), 'HH:mm'),
+	        source.worker_name, source.unit, 
+	        isnull(source.back_error_qty,0),
+	        isnull(source.back_error_pm_qty,0), 
+	        isnull(source.back_error_drop_qty,0), 
+	        isnull(source.back_error_ngbox_qty,0), 
+	        isnull(source.back_error_equip_qty,0), 
+	        isnull(source.back_error_appearance_qty,0),
+	        isnull(source.front_error_qty,0),
+	        isnull(source.front_error_pm_qty,0),
+	        isnull(source.front_error_drop_qty,0),
+	        isnull(source.front_error_ngbox_qty,0), 
+	        isnull(source.front_error_equip_qty,0), 
+	        isnull(source.front_error_appearance_qty,0),
+	        source.comments, GETDATE(), source.create_user, GETDATE(), source.create_user
+	    );
+	</update>-->
+	
+	<!-- 재고실사 -->	
+	<select id="selectMaxStockDate" resultType="String">
+		SELECT CONVERT(VARCHAR(8), 
+			       	   ISNULL(max(stock_date), CONVERT(VARCHAR(8), DATEADD(HOUR, 9, GETUTCDATE()), 112)), 
+			       	   112) AS stockDate
+		FROM dw_sub_mat_film_id_stock
+	</select>	
+	
+	<select id="selectConfirmN" resultType="int">
+		select count(1) as cnt
+		from dw_sub_mat_film_id_stock
+		where stock_date = #{stockDate}
+		  and confirm_yn = 'N'
+	</select>
+	
+	<select id="selectSubMatFilmIdStock" resultType="CamelMap">
+		SELECT 
+			a.stock_date,
+			a.material_id,
+			a.mat_type_code,
+			a.sub_mat_type_code,
+			a.prod_category,
+			b.code_name as prod_category_name,
+			a.model_code,
+			a.film_name,
+			a.unit,
+			a.prev_stock_qty,
+			a.prev_real_stock_qty,
+			a.in_qty,
+			a.out_qty,
+			a.stock_qty,
+			a.real_stock_qty,
+			a.diff_qty,	
+			a.confirm_yn,
+			a.charger_id,
+			a.charger_name,
+			a.comments,
+			case when c.status = 'CLOSE' then 'N'
+			     else 'Y'
+			end as editable			
+		FROM dw_sub_mat_film_id_stock a 
+		left outer join ( select code, code_name from dw_common_code where maj_code='74' ) b 
+		on ( a.prod_category = b.code )
+		left outer join ( select * from dw_mat_close_info where mat_category_code='20' and mat_type_code='FILM' ) c
+		on ( a.stock_date = c.stock_date  )	
+		where a.stock_date = #{stockDate}
+		<if test="materialId != null and materialId.trim() != ''" >
+		  and a.material_id = #{materialId}
+		</if>		
+		<if test="subMatType != null and subMatType.trim() != ''" >
+		  and a.sub_mat_type_code = #{subMatType}
+		</if>
+		<if test="confirmYn != null and confirmYn.trim() != ''" >
+		  and a.confirm_yn = #{confirmYn}
+		</if>
+		<if test="diffYn != null and diffYn.trim() != ''" >
+          AND (
+            	(#{diffYn} = 'N' AND a.diff_qty = 0) OR
+            	(#{diffYn} = 'Y' AND a.diff_qty != 0)
+           )
+		</if>
+		order by a.stock_date, a.material_id
+	</select>
+	
+	<select id="createTempMatStockTable">
+	    SELECT *
+	      INTO ${tempTableName}
+	      FROM dw_sub_mat_film_id_stock
+	     WHERE stock_date = #{stockDate}
+	</select>	
+	
+	<delete id="dropTempMatStockTable">
+		DROP TABLE ${tempTableName}
+	</delete>		
+	
+	<delete id="deleteSubMatFilmIdStock">
+		delete from dw_sub_mat_film_id_stock
+		where stock_date = #{stockDate}
+	</delete>
+	
+	<insert id="insertSubMatFilmIdStock">
+		INSERT INTO dw_sub_mat_film_id_stock
+		(
+			stock_date,
+			material_id,
+			mat_type_code,
+			sub_mat_type_code,
+			prod_category,
+			model_code,
+			film_name,
+			unit,
+			prev_stock_qty,
+			prev_real_stock_qty,
+			in_qty,
+			out_qty,
+			stock_qty,
+			real_stock_qty,
+			diff_qty,
+			confirm_yn,
+			charger_id,
+			charger_name,
+			comments,
+			create_date,
+			create_user
+		)		
+		select a.stock_date,
+				a.material_id,
+				a.mat_type_code,
+				a.sub_mat_type_code,
+				a.prod_category,
+				a.model_code,
+				a.film_name,				
+				a.unit,
+				a.prev_stock_qty,
+				a.prev_real_stock_qty,
+				a.in_qty,
+				a.out_qty,
+				( a.prev_stock_qty + a.in_qty - a.out_qty ) as stock_qty,				
+				case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then 
+							( a.prev_real_stock_qty + a.in_qty - a.out_qty ) 
+					 else b.real_stock_qty
+			    end as real_stock_qty,
+				case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then 
+							( a.prev_real_stock_qty + a.in_qty - a.out_qty ) - ( a.prev_stock_qty + a.in_qty - a.out_qty )
+					 else ( b.real_stock_qty ) - ( a.prev_stock_qty + a.in_qty - a.out_qty )
+			    end as diff_qty,	
+			    case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then 'Y'
+				     else b.confirm_yn
+				end as confirm_yn,
+				case when #{workerId} = 'SYSTEM' and #{workerName} = 'SYS_BATCH' and b.charger_id is not null then b.charger_id
+				     else #{workerId}
+				end as worker_id,
+				case when #{workerId} = 'SYSTEM' and #{workerName} = 'SYS_BATCH' and b.charger_id is not null then b.charger_name
+				     else #{workerName}
+				end as worker_name,
+			    case when b.status is null or b.status = 'SUMMARY' or b.real_stock_qty is null then ''
+				     else b.comments
+				end as comments,	
+				getdate(),
+				#{workerId}
+		from 		
+		( 
+			select #{stockDate} as stock_date,
+					a.material_id,
+					a.mat_type_code,
+					a.sub_mat_type_code,
+					a.prod_category,
+					a.model_code,
+					a.film_name,							
+					a.unit,
+					sum(case when gubun = 'PRE_STOCK' then qty else 0 end) as prev_stock_qty,
+					sum(case when gubun = 'PRE_STOCK' then real_qty else 0 end) as prev_real_stock_qty,
+					sum(case when gubun = 'IN' then qty else 0 end) as in_qty,
+					sum(case when gubun = 'OUT' then qty else 0 end) as out_qty
+			from 
+			(
+				SELECT 'PRE_STOCK' as gubun, 
+						material_id,
+						mat_type_code,
+						sub_mat_type_code,
+						prod_category,
+						model_code,
+						film_name,							
+						unit,
+						sum(stock_qty) as qty,
+						sum(real_stock_qty) as real_qty	
+				FROM dw_sub_mat_film_id_stock a
+				where stock_date = convert(char(8), dateadd(DAY, -1, cast(#{stockDate} as date)), 112)
+				  and ( stock_qty > 0  or real_stock_qty > 0 )
+				GROUP by material_id, mat_type_code, sub_mat_type_code, prod_category, model_code, film_name, unit
+				union all
+				SELECT 'IN' as gubun, 
+						a.material_id,
+						a.mat_type_code,
+						a.sub_mat_type_code,
+						prod_category,
+						model_code,
+						film_name,								
+						unit,
+						sum(in_qty) as qty,
+						sum(in_qty) as real_qty						
+			    FROM dw_sub_mat_film_in a
+				where in_date + in_time between #{stockDate} + '08:00' and convert(char(8), dateadd(DAY, 1, cast(#{stockDate} as date)), 112) + '07:59'
+				GROUP by material_id, mat_type_code, sub_mat_type_code, prod_category, model_code, film_name, unit
+				union all 
+				SELECT 'OUT' as gubun, 
+						material_id,
+						mat_type_code,
+						sub_mat_type_code,
+						prod_category,
+						model_code,
+						film_name,							
+						unit,
+						sum(out_qty) as qty,
+						sum(out_qty) as real_qty					
+				FROM dw_sub_mat_film_out a
+				where work_date = #{stockDate}
+				GROUP BY material_id, mat_type_code, sub_mat_type_code, prod_category, model_code, film_name, unit
+			) a 
+			group by material_id, mat_type_code, sub_mat_type_code, prod_category, model_code, film_name, unit
+		) a
+		left outer join 
+		(
+			select a.stock_date, a.material_id, a.real_stock_qty, a.confirm_yn, a.comments, b.status, a.charger_id, a.charger_name
+			  from ${tempTableName} a 
+			left outer join 
+			( 
+				select * from dw_mat_close_info 
+				where stock_date = #{stockDate}
+				  and mat_category_code = '20' and mat_type_code='FILM'
+			) b 
+			on ( a.stock_date = b.stock_date )
+			where a.stock_date = #{stockDate}
+		) b 
+		on ( a.stock_date = b.stock_date
+		     and a.material_id = b.material_id )			
+	</insert>
+	
+	<update id="updateSubMatFilmIdStock">
+		update dw_sub_mat_film_id_stock
+		   set charger_name = #{workerName}, 
+		   	   real_stock_qty = isnull(#{realStockQty},0),
+			   diff_qty =  isnull(#{realStockQty},0) - stock_qty,
+			   confirm_yn = #{confirmYn},
+			   comments = #{comments}
+		where stock_date = #{stockDate}
+		  and material_id = #{materialId}	
+	</update>
+	
+	<delete id="deleteSubMatFilmStock">
+		delete from dw_sub_mat_film_stock
+		where stock_date = #{stockDate}
+	</delete>
+	
+	<insert id="insertSubMatFilmStock">
+		INSERT INTO dw_sub_mat_film_stock
+		(
+			stock_date,
+			mat_type_code,
+			sub_mat_type_code,
+			prod_category,
+			model_code,			
+			film_name,						
+			unit,
+			prev_stock_qty,
+			prev_real_stock_qty,
+			in_qty,
+			out_qty,
+			error_qty,
+			error_pm_qty,	
+			error_drop_qty,
+			error_ngbox_qty,
+			error_equip_qty,
+			error_appearance_qty,
+			stock_qty,			
+			real_stock_qty,
+			diff_qty,
+			create_date,
+			create_user
+		)
+		select a.stock_date,
+				a.mat_type_code,
+				a.sub_mat_type_code,
+				a.prod_category,
+				a.model_code,			
+				a.film_name,				
+				a.unit,	
+				isnull(a.prev_stock_qty,0),
+				isnull(a.prev_real_stock_qty,0),
+				isnull(a.in_qty,0),
+				isnull(a.out_qty,0),
+				isnull(b.error_qty,0),
+				isnull(b.error_pm_qty,0),
+				isnull(b.error_drop_qty,0),
+				isnull(b.error_ngbox_qty,0),
+				isnull(b.error_equip_qty,0),
+				isnull(b.error_appearance_qty,0),
+				isnull(a.stock_qty,0),
+				isnull(a.real_stock_qty,0),
+				isnull(a.diff_qty,0),
+				getdate(),
+				#{workerId}	
+		from 
+		( 
+			select stock_date,
+				mat_type_code,
+				sub_mat_type_code,
+				prod_category,
+				model_code,			
+				film_name,				
+				unit,
+				sum(prev_stock_qty) as prev_stock_qty,
+				sum(prev_real_stock_qty) as prev_real_stock_qty,
+				sum(in_qty) as in_qty,
+				sum(out_qty) as out_qty,				
+				sum(stock_qty)as stock_qty,
+				sum(real_stock_qty) as real_stock_qty,
+				sum(diff_qty) as diff_qty
+			from dw_sub_mat_film_id_stock
+			where stock_date = #{stockDate}
+			group by stock_date, mat_type_code, sub_mat_type_code, prod_category, model_code, film_name, unit
+		  ) a 
+		  left outer join 
+		  (
+		  		select work_date as stock_date,
+					prod_category,
+					model_code,
+					'BACK' as sub_mat_type_code,
+					sum(back_error_qty) as error_qty,
+					sum(back_error_pm_qty) as error_pm_qty,
+					sum(back_error_drop_qty) as error_drop_qty,
+					sum(back_error_ngbox_qty) as error_ngbox_qty,
+					sum(back_error_equip_qty) as error_equip_qty,
+					sum(back_error_appearance_qty) as error_appearance_qty
+		  		from dw_sub_mat_film_error a
+		  		where work_date = #{stockDate}
+		  		group by work_date, prod_category, model_code
+		  		union all 
+		  		select work_date as stock_date,
+					prod_category,
+					model_code,
+					'FRONT' as sub_mat_type_code,
+					sum(front_error_qty) as error_qty,
+					sum(front_error_pm_qty) as error_pm_qty,
+					sum(front_error_drop_qty) as error_drop_qty,
+					sum(front_error_ngbox_qty) as error_ngbox_qty,
+					sum(front_error_equip_qty) as error_equip_qty,
+					sum(front_error_appearance_qty) as error_appearance_qty
+		  		from dw_sub_mat_film_error a
+		  		where work_date = #{stockDate}
+		  		group by work_date, prod_category, model_code		  		
+		  ) b 
+		  on ( a.stock_date = b.stock_date 
+		       and a.prod_category = b.prod_category 
+		       and a.model_code = b.model_code  
+		       and a.sub_mat_type_code = b.sub_mat_type_code )		  
+	</insert>	
+	
+	<!-- Report -->
+	<select id="selectSubMatFilmMonthReport" resultType="CamelMap">
+		WITH BaseData AS (
+	        SELECT 
+	            prod_category,
+	            model_code,
+	            sub_mat_type_code,
+	            film_name,
+	            stock_date,
+	            sort_order,
+	            gubun,
+	            CASE WHEN gubun = 'in_qty' THEN '1'
+	                 WHEN gubun = 'out_qty' THEN '2'
+	                 WHEN gubun = 'loss_qty' THEN '3'
+	                 WHEN gubun = 'stock_qty' THEN '6'
+	                 WHEN gubun = 'real_stock_qty' THEN '5'
+	                 WHEN gubun = 'diff_qty' THEN '7'
+	            END AS item_order,
+	            CASE WHEN gubun = 'in_qty' THEN '입고'
+	                 WHEN gubun = 'out_qty' THEN '사용'
+	                 WHEN gubun = 'loss_qty' THEN 'Loss'
+	                 ELSE '재고'
+	            END AS item_name1,  
+	            CASE WHEN gubun = 'in_qty' THEN ''
+	                 WHEN gubun = 'out_qty' THEN ''
+	                 WHEN gubun = 'loss_qty' THEN ''
+	                 WHEN gubun = 'stock_qty' THEN '전산'
+	                 WHEN gubun = 'real_stock_qty' THEN '실물'
+	                 WHEN gubun = 'diff_qty' THEN '차이'
+	            END AS item_name2,        
+	            qty
+	        FROM 
+	        (
+	            SELECT
+	                prod_category,
+	                model_code,
+	                sub_mat_type_code,
+	                film_name,
+	                stock_date,
+	                1 AS sort_order,
+	                in_qty,
+	                out_qty,
+	                error_qty as loss_qty,
+	                stock_qty,
+	                real_stock_qty,
+	                diff_qty
+	            FROM dw_sub_mat_film_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%')
+	            UNION ALL 
+	            SELECT
+	                prod_category,
+	                model_code,
+	                sub_mat_type_code,
+	                film_name,
+	                'Total' AS stock_date,
+	                1 AS sort_order,
+	                SUM(in_qty) AS in_qty,
+	                SUM(out_qty) AS out_qty,
+	                SUM(error_qty) AS loss_qty,
+	                SUM(stock_qty) AS stock_qty,
+	                SUM(real_stock_qty) AS real_stock_qty,
+	                SUM(diff_qty) AS diff_qty
+	            FROM dw_sub_mat_film_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%')
+	            GROUP BY prod_category, model_code, sub_mat_type_code, film_name
+	            UNION ALL 
+	            SELECT
+	                prod_category,
+	                'Total' AS model_code,
+	                sub_mat_type_code,
+	                film_name,
+	                stock_date,
+	                0 AS sort_order,
+	                SUM(in_qty) AS in_qty,
+	                SUM(out_qty) AS out_qty,
+	                SUM(error_qty) AS loss_qty,
+	                SUM(stock_qty) AS stock_qty,
+	                SUM(real_stock_qty) AS real_stock_qty,
+	                SUM(diff_qty) AS diff_qty
+	            FROM dw_sub_mat_film_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%') 
+	            GROUP BY prod_category, sub_mat_type_code, film_name, stock_date
+	            UNION ALL 
+	            SELECT
+	                prod_category,
+	                'Total' AS model_code,
+	                sub_mat_type_code,
+	                film_name,
+	                'Total' AS stock_date,
+	                0 AS sort_order,
+	                SUM(in_qty) AS in_qty,
+	                SUM(out_qty) AS out_qty,
+	                SUM(error_qty) AS loss_qty,
+	                SUM(stock_qty) AS stock_qty,
+	                SUM(real_stock_qty) AS real_stock_qty,
+	                SUM(diff_qty) AS diff_qty
+	            FROM dw_sub_mat_film_stock
+	            WHERE stock_date LIKE CONCAT(#{month}, '%') 
+	            GROUP BY prod_category, sub_mat_type_code, film_name
+	        ) a 
+	        UNPIVOT ( 
+	            qty FOR gubun IN (in_qty, out_qty, loss_qty, stock_qty, real_stock_qty, diff_qty)
+	        ) AS b
+	    )
+	    SELECT 
+	    	c.code_name as prod_category_name,
+	        a.*, 	        
+	        case when a.item_name1 = '재고' then isnull(b.qty , 0)
+	             else null
+	        end as pre_stock
+	    FROM 
+	    (
+	        SELECT 
+	            prod_category,
+	            model_code,
+	            sub_mat_type_code,
+	            film_name,
+	            gubun,
+	            sort_order,
+	            item_order,
+	            item_name1,
+	            item_name2,
+	            case when item_name1 = '재고' then null 
+	                 else ISNULL([Total], 0) 
+	            end AS D_Total,  
+	            <foreach collection="days" item="item" separator=",">
+	                ISNULL([${item.day}], 0) AS D_${item.day}
+	            </foreach>       
+	        FROM BaseData
+	        PIVOT (
+	            SUM(qty) FOR stock_date IN 
+	            ([Total],<foreach collection="days" item="item" separator=",">[${item.day}]</foreach>)
+	        ) AS pvt
+	    ) a 
+	    LEFT OUTER JOIN 
+	    (
+	        SELECT 
+	            prod_category,
+	            model_code,
+	            sub_mat_type_code,
+	            film_name,
+	            gubun,
+	            qty
+	        FROM 
+	        (				
+	            SELECT 
+	                prod_category,
+	                model_code,
+	                sub_mat_type_code,
+	                film_name,
+	                prev_stock_qty AS stock_qty,
+	                prev_real_stock_qty AS real_stock_qty,
+	                prev_real_stock_qty - prev_stock_qty AS diff_qty
+	            FROM dw_sub_mat_film_stock 
+	            WHERE stock_date = CONCAT(#{month}, '01')
+	            UNION ALL 
+	            SELECT 
+	                prod_category,
+	                'Total' AS model_code,
+	                sub_mat_type_code,
+	                film_name,
+	                SUM(prev_stock_qty) AS stock_qty,
+	                SUM(prev_real_stock_qty) AS real_stock_qty,
+	                SUM(prev_real_stock_qty - prev_stock_qty) AS diff_qty
+	            FROM dw_sub_mat_film_stock 
+	            WHERE stock_date = CONCAT(#{month}, '01') 
+	            group by prod_category, sub_mat_type_code, film_name
+	        ) a 
+	        UNPIVOT (
+	            qty FOR gubun IN (stock_qty, real_stock_qty, diff_qty)
+	        ) AS b
+	    ) b
+	    ON ( a.prod_category = b.prod_category 
+	         AND a.model_code = b.model_code
+	         AND a.sub_mat_type_code = b.sub_mat_type_code
+	         and a.gubun = b.gubun )
+		left outer join ( select code, code_name, sort_order from dw_common_code where maj_code='74' ) c
+		on ( a.prod_category = c.code )		        
+	    ORDER BY c.sort_order, a.sort_order, model_code, film_name desc, item_order, item_name2
+	</select>		
+	
+	<select id="selectModelCodeInfo" resultType="CamelMap">
+		SELECT model_code,
+			division,
+			sdc_code,
+			film_front_code,
+			film_back_code	
+		FROM dw_model_code_info a 
+		where 1 = 1
+		<if test="division != null and division.trim() != ''" >
+			and a.division = #{division}
+		</if>		
+		<if test="modelCode != null and modelCode.trim() != ''" >
+			and upper(a.model_code) = upper(#{modelCode})
+		</if>
+		<if test="sdcCode != null and sdcCode.trim() != ''" >
+			and upper(a.sdc_code) like upper(#{sdcCode}) + '%'
+		</if>
+		<if test="filmCode != null and filmCode.trim() != ''" >
+			and ( upper(a.film_front_code) like upper(#{filmCode})+'%' or upper(a.film_back_code) like upper(#{filmCode})+'%' )
+		</if>	
+		order by model_code, division, sdc_code, film_front_code, film_back_code
+	</select>	
+	
+	<select id="checkModelData" resultType="Map">
+		select COALESCE(STRING_AGG(model_code+'-'+division, '/'), 'NoData') AS model
+		from dw_model_code_info a
+		where upper(a.model_code) + '-' + a.division in
+		<foreach item="item" collection="vo" open="(" separator="," close=")" > 
+			upper(#{item.modelCode}) + '-' + #{item.division}
+		</foreach>
+	</select>		
+	
+	<insert id = "insertModelCodeInfo">	
+	INSERT INTO dw_model_code_info
+	(
+ 		model_code,
+		division,
+		sdc_code,
+		film_front_code,
+		film_back_code,	
+		create_date,
+		create_user
+	)
+	VALUES
+	(
+ 		#{modelCode},
+		#{division},
+		#{sdcCode},
+		#{filmFrontCode},
+		#{filmBackCode},	
+		GETDATE(),
+		#{createUser}
+	)
+	</insert>	
+	
+	<update id="updateModelCodeInfo">
+		UPDATE dw_model_code_info
+			SET division = #{division},		
+				sdc_code = #{sdcCode},
+				film_front_code = #{filmFrontCode},
+				film_back_code = #{filmBackCode}
+		WHERE model_code = #{modelCode}
+	</update>		
+	
+	<delete id="deleteModelCodeInfo">
+		delete from dw_model_code_info
+		where model_code = #{modelCode}
+	</delete>
+
+</mapper>

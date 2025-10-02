@@ -1,0 +1,1888 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dowinsys.mes.web.m0003000.mapper.M0003002Mapper">
+
+	<select id="M0003002_Sch1" parameterType="Map" resultType="CamelMap">
+		select b.공정코드, b.공정명 
+		from Get_다음공정정보_RunNo_공정코드_다음공정코드_지정(#{runNo},#{공정코드},null) a  
+		left join dw_process_plan b
+		on (a.process_id = b.process_id and a.공정코드 = b.공정코드)
+		order by b.공정코드
+	</select>
+	
+	<select id="M0003002_Sch2" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="code != null and (code == '061' or code == '067')">
+				select 
+				    c.거래처명, e.제품모델, e.제품inch, e.제품버젼, e.제품규격, 
+					a.입고일자, a.작업일자, 특기사항, 승인자, b.machine_code, f.설비명, f.설비약명, f.chamber,
+					a.승인일자, a.세정차수, b.shift, b.책임자, b.선임자, coalesce(b.작업조, (select shift from Get주간야간구분())) 작업조, b.책임자시작, b.책임자종료, b.작업자,
+					b.작업시작, b.시작시각, b.작업종료, b.종료시각,
+					b.투입수량, b.검사수량, b.불량수량, b.양품수량, b.특이사항, b.시료수량, j.작업시작 next작업시작, b.차수, k.nxt_공정코드, coalesce(i.카세트_최대_적재수량, 30) 적재수량,
+					case when j.작업종료+''+j.종료시각 <![CDATA[<]]> b.작업시작+''+b.시작시각 then 'TRUE' else 'FALSE' end next_flag,
+					t.양품수량 as pre_양품수량
+				from d22_run제조mst a 
+				left join d22_run제조vlr b on (a.run_no = b.run_no and b.공정코드= #{공정코드})
+				join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = b.차수)
+				left join d03_거래처마스터파일 c on (a.거래처코드=c.거래처코드)
+				left join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+				left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)		
+				left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+				left join (
+					select top 1 NXT_공정코드 
+					from d22_RUN카세트파일 c
+					join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) k on (k.차수 = c.차수)
+					where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and nxt_공정코드 is not null and nxt_공정코드 != '-'					
+				) k on (1=1)
+				left join (
+					select 작업시작, 공정코드, 작업종료, 종료시각 from Get_다음공정정보_RunNo_공정코드_다음공정코드_지정(#{runNo},#{공정코드}, null)
+				) j on (j.공정코드 = k.NXT_공정코드)				
+				left join (
+					select k.카세트_최대_적재수량 
+					from d22_run제조mst a
+					left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)		
+					left join (
+						select 
+							code 
+							,code_name
+						from dw_common_code
+						where maj_code = '74'
+					) j on (a.투입구분 = j.code) 
+					left join dw_모델기본정보 k on (e.제품모델 = k.model and k.구분 = j.code_name)
+					where a.run_no = #{runNo}
+				) i on (1=1)
+				left join ( 
+					select 양품수량 from Get_전공정정보_RunNo_공정코드(#{runNo},#{공정코드})
+				) t on (1=1)	
+				where 1=1
+				and a.run_no = #{runNo};
+			</when>	
+			<otherwise>
+				select 
+				    c.거래처명, e.제품모델, e.제품inch, e.제품버젼, e.제품규격, 
+					a.입고일자, a.작업일자, 특기사항, 승인자, b.machine_code, f.설비명, f.설비약명, f.chamber,
+					a.승인일자, a.세정차수, b.shift, b.책임자, b.선임자, coalesce(b.작업조, (select shift from Get주간야간구분())) 작업조, b.책임자시작, b.책임자종료, b.작업자,
+					b.작업시작, b.시작시각, b.작업종료, b.종료시각,
+					b.투입수량, b.검사수량, b.불량수량, b.양품수량, b.특이사항, h.작업시작 next작업시작, b.차수, g.nxt_공정코드, coalesce(k.카세트_최대_적재수량, 30) 적재수량, t.작업종료 pre작업종료, t.진행가능여부,
+					case when h.작업종료+''+h.종료시각 <![CDATA[<]]> b.작업시작+''+b.시작시각 then 'TRUE' else 'FALSE' end next_flag,
+					t.양품수량 as pre_양품수량
+				from d22_run제조mst a 
+				left join d22_run제조vlr b on (a.run_no = b.run_no and b.공정코드= #{공정코드})
+				join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) i on (i.차수 = b.차수)
+				left join d03_거래처마스터파일 c on (a.거래처코드=c.거래처코드)
+				left join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+				left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)		
+				left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+				left join (
+					select top 1 NXT_공정코드 
+					from d22_RUN카세트파일 c
+					join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) k on (k.차수 = c.차수)
+					where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and nxt_공정코드 is not null and nxt_공정코드 != '-'					
+				) g on (1=1)
+				left join (
+					select 작업시작, 공정코드, 작업종료, 종료시각 from Get_다음공정정보_RunNo_공정코드_다음공정코드_지정(#{runNo},#{공정코드}, null)
+				) h on (h.공정코드 = g.NXT_공정코드)
+				left join (
+					select k.카세트_최대_적재수량 
+					from d22_run제조mst a
+					left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)		
+					left join (
+						select 
+							code 
+							,code_name
+						from dw_common_code
+						where maj_code = '74'
+					) j on (a.투입구분 = j.code) 
+					left join dw_모델기본정보 k on (e.제품모델 = k.model and k.구분 = j.code_name)
+					where a.run_no = #{runNo}
+				) k on (1=1)
+				left join ( 
+					select * from Get_전공정정보_RunNo_공정코드(#{runNo},#{공정코드})
+				) t on (1=1)	
+				where 1=1
+				and a.run_no = #{runNo}
+            </otherwise>
+		</choose>
+	</select>
+	
+	<update id="M0003002_RunStart" parameterType="Map">
+	
+		delete from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+		delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+		delete from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+		
+		insert into d22_run카세트파일
+	  	(공장코드,run_no,공정코드,seq,lot_no,bef_공정코드,nxt_공정코드,박리작업구분,작업자,작업조,작업시작,시작시각,shift,f_cstno,f_수량,f_불량수량,작업종료,종료시각,투입수량,machine_code,배출구,t_runno,in_cstno,t_cstno,t_수량,t_cstno2,t_수량2,t_불량수량,원자재,작업중,rd깨짐,tr미박리,tr깨짐,센서검출,검사검출,설비오류,기타,특이사항,저장여부,재공적용_여부,차수)
+	    select 공장코드, run_no, 공정코드, seq, lot_no, bef_공정코드, NXT_공정코드, 박리작업구분, 작업자, (SELECT shift FROM Get주간야간구분1(#{시작시각})), 작업시작, 시작시각, #{shift} as shift, f_cstno, f_수량, 
+		       f_불량수량, 작업종료, 종료시각, 투입수량, machine_code, 배출구, t_runno, in_cstno, t_cstno, t_수량, t_cstno2, t_수량2, t_불량수량, 원자재, 작업중, rd깨짐, tr미박리, tr깨짐, 센서검출, 검사검출, 설비오류, 기타, 특이사항, 저장여부, 재공적용_여부, #{차수}
+	    from Get이전공정OUT카세트_차수(#{runNo},#{공정코드},coalesce(#{nxt공정코드}, '-'));
+		
+		update d22_run제조vlr
+		set 
+			 shift = #{shift}, 
+			 책임자 = #{책임자}, 
+			 선임자 = #{선임자}, 
+			 작업조 = (SELECT shift FROM Get주간야간구분1(#{시작시각})),
+			 책임자시작 = 1,
+			 작업시작 = #{작업시작},
+			 시작시각 = #{시작시각},
+			 투입수량 = isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+			 검사수량 = 0,
+			 불량수량 = 0,
+			 양품수량 = isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0)
+		where run_no = #{runNo}
+		and 공정코드 = #{공정코드}
+		and 차수 = #{차수};
+	</update>
+	
+	<update id="M0003002_RunEnd" parameterType="Map">
+		update d22_run제조vlr
+		set  
+			책임자종료 = 1,
+			작업종료 = #{작업종료},
+			종료시각 = #{종료시각}
+		where run_no = #{runNo}
+		and 공정코드 = #{공정코드}
+		and 차수 = #{차수};
+		
+		update d22_run카세트파일
+		set  
+			NXT_공정코드 = coalesce(#{nxt공정코드}, '-')
+		where run_no = #{runNo}
+		and 공정코드 = #{공정코드}
+		and 차수 = #{차수};
+		
+		
+	</update>
+
+	<update id="M0003002_EndCassetteStatus" parameterType="Map">
+		exec Cassette상태변경_제조실적입력 #{runNo},#{공정코드};
+	</update>
+	
+	<update id="M0003002_Start" parameterType="Map">
+		<choose>
+			<when test="code != null and code == '054'">
+				update d22_run카세트파일
+				set 
+					작업자 = #{작업자}
+					,shift = #{shift}
+					,작업시작 = #{작업시작}
+					,시작시각 = #{시작시각}
+					,NXT_공정코드 = coalesce(#{nxt공정코드}, '-')					
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and f_cstno = #{fCstno}	
+				and 차수 = #{차수}
+			</when>
+			<when test="code != null and (code == '055' or code == '056' or code == '061' or code == '067')">
+				with START_DATE as (
+				    select 							
+						coalesce(SUBSTRING(MIN(작업시작+시작시각), 0, 9), #{작업시작}) 작업시작, coalesce(SUBSTRING(MIN(작업시작+시작시각), 9, 13), #{시작시각}) 시작시각
+				    from d22_run카세트파일
+				    where 공장코드 = '2' 
+				    and run_no = #{runNo}
+				    and 공정코드 = #{공정코드}
+				    and 차수 = #{차수}
+				)
+				update d22_run제조vlr
+				set 
+					 shift = #{shift},
+					 작업자 = #{작업자}, 
+					 작업조 = (SELECT shift FROM Get주간야간구분1(#{시작시각})),
+					 작업시작 = (SELECT 작업시작 FROM START_DATE),
+					 시작시각 = (SELECT 시작시각 FROM START_DATE)
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+				
+				update d22_run카세트파일
+				set 
+					NXT_공정코드 = coalesce(#{nxt공정코드}, '-')			
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};	
+			</when>
+			<when test="code != null and (code == '058' || code == '059')">
+				update d22_run제조vlr
+				set 
+					 shift = #{shift},
+					 작업자 = #{작업자}, 
+					 작업조 = (SELECT shift FROM Get주간야간구분1(#{시작시각})),
+					 작업시작 = #{작업시작},
+					 시작시각 = #{시작시각},
+					 Machine_Code = #{machineCode}
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+				
+				update d22_run카세트파일
+				set 
+					작업자 = #{작업자}
+					,작업조 = (SELECT shift FROM Get주간야간구분1(#{시작시각})) 
+					,shift = #{shift}
+					,작업시작 = #{작업시작}
+					,시작시각 = #{시작시각}
+					,NXT_공정코드 = coalesce(#{nxt공정코드}, '-')
+					,Machine_Code = #{machineCode}					
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};	
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>			
+	</update>
+	
+	<update id="M0003002_End" parameterType="Map">
+		<choose>
+			<when test="code != null and code == '054'">
+				update d22_run카세트파일
+				set 
+					작업종료 = #{작업종료}
+					,종료시각 = #{종료시각}
+					,NXT_공정코드 = coalesce(#{nxt공정코드}, '-')   
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and f_cstno = #{fCstno}
+				and 차수 = #{차수};	
+			</when>
+			<when test="code != null and (code == '055' or code == '056' or code == '061' or code == '067')">
+				with END_DATE as (
+				    select 							
+						SUBSTRING(MAX(작업종료+종료시각), 0, 9) 작업종료, SUBSTRING(MAX(작업종료+종료시각), 9, 13) 종료시각
+				    from d22_run카세트파일
+				    where 공장코드 = '2' 
+				    and run_no = #{runNo}
+				    and 공정코드 = #{공정코드}
+				    and 차수 = #{차수}
+				)
+				update d22_run제조vlr
+				set 
+					 작업종료 = (SELECT 작업종료 FROM END_DATE),
+					 종료시각 = (SELECT 종료시각 FROM END_DATE)
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+				
+				update d22_run카세트파일
+				set  
+					NXT_공정코드 = coalesce(#{nxt공정코드}, '-')
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+
+			</when>
+			<when test="code != null and (code == '058' || code == '059')">
+				update d22_run제조vlr
+				set 
+					 shift = #{shift},
+					 작업자 = #{작업자}, 
+					 작업종료 = #{작업종료},
+					 종료시각 = #{종료시각},
+					 Machine_Code = #{machineCode}
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+				
+				update d22_run카세트파일
+				set  
+					작업종료 = #{작업종료}
+					,종료시각 = #{종료시각}
+					,NXT_공정코드 = coalesce(#{nxt공정코드}, '-')
+					,Machine_Code = #{machineCode}
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+				
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>		
+	</update>
+	
+	<select id="M0003002_LogChk" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="code != null and code == '055'">
+			    select 
+					count(*) cnt		
+			    from GetISM카세트리스트_차수(#{runNo},#{공정코드},coalesce(#{nxt공정코드}, '-'));				
+			</when>
+			<when test="code != null and code == '056'">
+			    select 
+					count(*) cnt		
+			    from GetAGB카세트리스트_차수(#{runNo},#{공정코드},coalesce(#{nxt공정코드}, '-'));
+			</when>
+			<when test="code != null and (code == '058' || code == '059')">
+				select 
+			    	count(*) cnt 
+			    from Get이전공정OUT카세트_차수(#{runNo},#{공정코드},coalesce(#{nxt공정코드}, '-'));			    
+			</when>
+			<when test="code != null and (code == '061' || code == '067')">
+				select 
+			    	count(*) cnt 
+			    from GetPFL카세트리스트_차수(#{runNo},#{공정코드},coalesce(#{nxt공정코드}, '-'));			    
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>
+	</select>
+	
+	<update id="M0003002_Log" parameterType="Map">
+		<choose>
+			<when test="code != null and code == '055'">
+				delete from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+				delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+				delete from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+		
+				insert into d22_run카세트파일
+			  	(공장코드,run_no,공정코드,seq,lot_no,bef_공정코드,nxt_공정코드,박리작업구분,작업자,작업조,작업시작,시작시각,shift,f_cstno,f_수량,f_불량수량,작업종료,종료시각,투입수량,machine_code,배출구,t_runno,in_cstno,t_cstno,t_수량,t_cstno2,t_수량2,t_불량수량,원자재,작업중,rd깨짐,tr미박리,tr깨짐,센서검출,검사검출,설비오류,기타,특이사항,저장여부,재공적용_여부,차수)
+			    select 
+						공장코드, run_no, 공정코드, seq, lot_no, bef_공정코드, NXT_공정코드, 박리작업구분, 작업자, 작업조, 작업시작, 시작시각, shift, f_cstno, f_수량, 
+				       f_불량수량, 작업종료, 종료시각, 투입수량, machine_code, 배출구, t_runno, in_cstno, t_cstno, t_수량, t_cstno2, t_수량2, t_불량수량, 원자재, 작업중, rd깨짐, tr미박리, tr깨짐, 센서검출, 검사검출, 설비오류, 기타, 특이사항, 저장여부, 재공적용_여부, #{차수}		
+			    from GetISM카세트리스트_차수(#{runNo},#{공정코드},coalesce(#{nxt공정코드}, '-'));
+				
+				
+				with START_DATE as (
+				    select 							
+						SUBSTRING(MIN(작업시작+시작시각), 0, 9) 작업시작, SUBSTRING(MIN(작업시작+시작시각), 9, 13) 시작시각
+				    from d22_run카세트파일
+				    where 공장코드 = '2' 
+				    and run_no = #{runNo}
+				    and 공정코드 = #{공정코드}
+				    and 차수 = #{차수}
+				),
+				SummedData as (
+				    select sum(f_수량) as total, max(Machine_Code) Machine_Code
+				    from (
+						select 
+							f_수량, max(Machine_Code) Machine_Code
+				    	from d22_run카세트파일
+				    	where 공장코드 = '2' 
+				      	and run_no = #{runNo}
+				      	and 공정코드 = #{공정코드}
+				      	and 차수 = #{차수}
+				    	group by f_cstno, f_수량
+				    ) a
+				)
+				update d22_run제조vlr
+				set 
+					 shift = #{shift},
+					 작업자 = #{작업자}, 
+					 작업조 = (SELECT shift FROM Get주간야간구분1(coalesce((select 시작시각 from START_DATE), 시작시각))),
+					 작업시작 = coalesce((select 작업시작 from START_DATE), 작업시작),
+					 시작시각 = coalesce((select 시작시각 from START_DATE), 시작시각),	 
+					 투입수량 = isnull((select total from SummedData), 0),
+					 검사수량 = isnull((select total from SummedData), 0),
+					 불량수량 = isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0),
+			 		 양품수량 = (isnull((select total from SummedData), 0)-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0)),
+					 Machine_Code = isnull((select Machine_Code from SummedData), null)
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+				
+				merge into d42_검사불량사유파일 as t
+				using (
+					select 
+					   b.공정코드, b.run_no lotrun_id, a.불량코드, b.불량수량, b.검사시각, b.f_cstno cst_no,  #{차수} 차수
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					join (
+					   select  
+					      공정코드, run_no, incst_no f_cstno, 
+					      case when scrap = '4' then '파편붙음' 
+						  		when scrap = '0' then '검사전깨짐' 
+								when scrap = '3' or scrap = 'Chipping' then 'Chip' 
+							else scrap end 불량명, 
+					      count(*) 불량수량, max (종료시간) 검사시각
+					   from d84_ISM검사LOG파일 da
+					   where run_no = #{runNo}
+					   and 공장코드 = '2'
+					   and 공정코드 =  #{공정코드}
+					   and result = '제거'
+					   group by 공정코드, run_no, incst_no, scrap   
+					) b on (a.불량명 = b.불량명)
+				) as s (공정코드, lotrun_id, 불량코드, 불량수량, 검사시각, cst_no, 차수)
+				on t.공정코드 = s.공정코드 
+				   and t.lotrun_id = s.lotrun_id 
+				   and t.불량코드 = s.불량코드
+				   and t.cst_no = s.cst_no
+				   and t.차수 = s.차수
+				when matched then
+				    update set
+				        t.불량수량 = s.불량수량,
+				        t.block_su = 0
+				when not matched then
+				    insert (공장코드, 공정코드, lotrun_id, 불량코드, block_su, 불량수량, 검사시각, cst_no, 차수)
+				    values ('2', s.공정코드, s.lotrun_id, s.불량코드, 0, s.불량수량, s.검사시각, s.cst_no, s.차수);
+				    
+				merge into d42_검사불량사유파일_cell as t
+				using (
+					select 
+						공정코드, lotrun_id, 불량코드, 불량위치, 설비호기, sum(불량수량) 불량수량, max(검사시각) 검사시각, cst_no, 차수
+					from (
+						select 
+						   b.공정코드, b.run_no lotrun_id, a.불량코드, b.설비호기, 1 불량수량, b.검사시각, b.불량위치, b.f_cstno cst_no, #{차수} 차수, chk
+						from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+	    				join (
+	    					select  
+						     공정코드, run_no, incst_no f_cstno, 설비호기, point_x + '-' + point_y 불량위치, case when point_x + '-' + point_y LIKE '[1-9]-[1-9]' then 'true' else 'false' end chk,
+						     case when scrap = '4' then '파편붙음' when scrap = '0' then '검사전깨짐' else scrap end 불량명,
+						     종료시간 검사시각
+						   from d84_ISM검사LOG파일 da
+						   where run_no = #{runNo}
+						   and 공장코드 = '2'
+						   and 공정코드 =  #{공정코드}
+						   and result = '제거'
+						) b on (a.불량명 = b.불량명)
+						where chk = 'true'
+					) a 
+					group by 공정코드, lotrun_id, 불량코드, 불량위치, 설비호기, cst_no, 차수 
+				) as s (공정코드, lotrun_id, 불량코드, 불량위치, 설비호기, 불량수량, 검사시각, cst_no, 차수)
+				on t.공정코드 = s.공정코드 
+				   and t.lotrun_id = s.lotrun_id 
+				   and t.불량코드 = s.불량코드
+				   and t.불량위치 = s.불량위치
+				   and t.cst_no = s.cst_no
+				   and t.차수 = s.차수
+				when not matched then
+				    insert (공장코드,공정코드,lotrun_id,cst_no,machine_code,불량위치,불량코드,불량수량,검사시각,차수)
+				    values ('2',s.공정코드,s.lotrun_id,s.cst_no,s.설비호기,s.불량위치,s.불량코드,s.불량수량,s.검사시각,s.차수);
+			</when>
+			<when test="code != null and code == '056'">
+				delete from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+				
+				insert into d22_run카세트파일
+			  	(공장코드,run_no,공정코드,seq,lot_no,bef_공정코드,nxt_공정코드,박리작업구분,작업자,작업조,작업시작,시작시각,shift,f_cstno,f_수량,f_불량수량,작업종료,종료시각,투입수량,machine_code,배출구,t_runno,in_cstno,t_cstno,t_수량,t_cstno2,t_수량2,t_불량수량,원자재,작업중,rd깨짐,tr미박리,tr깨짐,센서검출,검사검출,설비오류,기타,특이사항,저장여부,재공적용_여부,차수)
+			    select 
+						공장코드, run_no, 공정코드, seq, lot_no, bef_공정코드, NXT_공정코드, 박리작업구분, 작업자, 작업조, 작업시작, 시작시각, shift, f_cstno, f_수량, 
+				       f_불량수량, 작업종료, 종료시각, 투입수량, machine_code, 배출구, t_runno, in_cstno, t_cstno, t_수량, t_cstno2, t_수량2, t_불량수량, 원자재, 작업중, rd깨짐, tr미박리, tr깨짐, 센서검출, 검사검출, 설비오류, 기타, 특이사항, 저장여부, 재공적용_여부, #{차수}		
+			    from GetAGB카세트리스트_차수(#{runNo},#{공정코드},coalesce(#{nxt공정코드}, '-'));
+				
+				with START_DATE as (
+				    select 							
+						SUBSTRING(MIN(작업시작+시작시각), 0, 9) 작업시작, SUBSTRING(MIN(작업시작+시작시각), 9, 13) 시작시각
+				    from d22_run카세트파일
+				    where 공장코드 = '2' 
+				    and run_no = #{runNo}
+				    and 공정코드 = #{공정코드}
+				    and 차수 = #{차수}
+				),
+				SummedData as (
+				    select sum(f_수량) as total, max(Machine_Code) Machine_Code
+				    from (
+						select 
+							f_수량, max(Machine_Code) Machine_Code
+				    	from d22_run카세트파일
+				    	where 공장코드 = '2' 
+				      	and run_no = #{runNo}
+				      	and 공정코드 = #{공정코드}
+				      	and 차수 = #{차수}
+				    	group by f_cstno, f_수량
+				    ) a
+				)
+				update d22_run제조vlr
+				set 
+					 shift = #{shift},
+					 작업자 = #{작업자},
+					 작업조 = (SELECT shift FROM Get주간야간구분1(coalesce((select 시작시각 from START_DATE), 시작시각))), 
+					 작업시작 = coalesce((select 작업시작 from START_DATE), 작업시작),
+					 시작시각 = coalesce((select 시작시각 from START_DATE), 시작시각),	 
+					 투입수량 = isnull((select total from SummedData), 0),
+					 검사수량 = isnull((select total from SummedData), 0),
+					 불량수량 = isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0),
+			 		 양품수량 = (isnull((select total from SummedData), 0)-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0)),					 
+					 Machine_Code = isnull((select Machine_Code from SummedData), null)
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+				
+				merge into d42_검사불량사유파일 as t
+				using (
+					select 
+					   b.공정코드, b.run_no lotrun_id, a.불량코드, b.불량수량, b.검사시각, b.f_cstno cst_no,  #{차수} 차수
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					join (
+						select   
+					      공정코드, run_no, cassette_ld f_cstno, upper(불량명) 불량명, count(*) 불량수량, max (end_time) 검사시각
+						from d85_AGB공정LOG파일 da
+						where run_no = #{runNo}
+						and 공장코드 = '2'
+						and 공정코드 = #{공정코드}
+						and nullif(cassette_uld, '') is null
+						group by 공정코드, run_no, cassette_ld, 불량명   
+					) b on (a.불량명 like '%'+b.불량명+'%' and nullif(b.불량명, '') is not null)
+				) as s (공정코드, lotrun_id, 불량코드, 불량수량, 검사시각, cst_no, 차수)
+				on t.공정코드 = s.공정코드 
+				   and t.lotrun_id = s.lotrun_id 
+				   and t.불량코드 = s.불량코드
+				   and t.cst_no = s.cst_no
+				   and t.차수 = s.차수
+				when matched then
+				    update set
+				        t.불량수량 = s.불량수량,
+				        t.block_su = 0
+				when not matched then
+				    insert (공장코드, 공정코드, lotrun_id, 불량코드, block_su, 불량수량, 검사시각, cst_no, 차수)
+				    values ('2', s.공정코드, s.lotrun_id, s.불량코드, 0, s.불량수량, s.검사시각, s.cst_no, s.차수);
+			</when>
+			<when test="code != null and (code == '058' || code == '059')">
+				delete from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+				delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+				
+				insert into d22_run카세트파일
+			  	(공장코드,run_no,공정코드,seq,lot_no,bef_공정코드,nxt_공정코드,박리작업구분,작업자,작업조,작업시작,시작시각,shift,f_cstno,f_수량,f_불량수량,작업종료,종료시각,투입수량,machine_code,배출구,t_runno,in_cstno,t_cstno,t_수량,t_cstno2,t_수량2,t_불량수량,원자재,작업중,rd깨짐,tr미박리,tr깨짐,센서검출,검사검출,설비오류,기타,특이사항,저장여부,재공적용_여부,차수)
+			    select 
+			    	공장코드,run_no,공정코드,seq,lot_no,bef_공정코드,nxt_공정코드,박리작업구분,#{작업자},#{작업조},#{작업시작},#{시작시각},#{shift},f_cstno,f_수량,f_불량수량,null,null,투입수량,#{machineCode},배출구,t_runno,in_cstno,t_cstno,t_수량,t_cstno2,t_수량2,t_불량수량,원자재,작업중,rd깨짐,tr미박리,tr깨짐,센서검출,검사검출,설비오류,기타,특이사항,저장여부,재공적용_여부,#{차수} 
+			    from Get이전공정OUT카세트_차수(#{runNo},#{공정코드},coalesce(#{nxt공정코드}, '-'));
+			    
+			    with START_DATE as (
+				    select 							
+						SUBSTRING(MIN(작업시작+시작시각), 0, 9) 작업시작, SUBSTRING(MIN(작업시작+시작시각), 9, 13) 시작시각
+				    from d22_run카세트파일
+				    where 공장코드 = '2' 
+				    and run_no = #{runNo}
+				    and 공정코드 = #{공정코드}
+				    and 차수 = #{차수}
+				)
+				update d22_run제조vlr
+				set  
+					 shift = #{shift},
+					 작업자 = #{작업자}, 
+					 작업조 = (SELECT shift FROM Get주간야간구분1(coalesce((select 시작시각 from START_DATE), 시작시각))),
+					 작업시작 = coalesce((select 작업시작 from START_DATE), 작업시작),
+					 시작시각 = coalesce((select 시작시각 from START_DATE), 시작시각),	 
+					 투입수량 = isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+					 검사수량 = isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+					 불량수량 = 0,
+					 양품수량 = isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+					 machine_code = #{machineCode}
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</when>
+			<when test="code != null and (code == '061' or code == '067')">
+				delete from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+				delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+	
+		
+				insert into d22_run카세트파일
+			  	(공장코드,run_no,공정코드,seq,lot_no,bef_공정코드,nxt_공정코드,박리작업구분,작업자,작업조,작업시작,시작시각,shift,f_cstno,f_수량,f_불량수량,작업종료,종료시각,투입수량,machine_code,배출구,t_runno,in_cstno,t_cstno,t_수량,t_cstno2,t_수량2,t_불량수량,원자재,작업중,rd깨짐,tr미박리,tr깨짐,센서검출,검사검출,설비오류,기타,특이사항,저장여부,재공적용_여부,차수)
+			    select 
+			    	공장코드,run_no,공정코드,seq,lot_no,bef_공정코드,nxt_공정코드,박리작업구분,작업자, 작업조, 작업시작, 시작시각, shift,f_cstno,f_수량,f_불량수량,작업종료,종료시각,투입수량,machine_Code,배출구,t_runno,in_cstno,t_cstno,t_수량,t_cstno2,t_수량2,t_불량수량,원자재,작업중,rd깨짐,tr미박리,tr깨짐,센서검출,검사검출,설비오류,기타,특이사항,저장여부,재공적용_여부,#{차수} 
+			    from GetPFL카세트리스트_차수(#{runNo},#{공정코드},coalesce(#{nxt공정코드}, '-'));
+	    
+	    		with START_DATE as (
+				    select 							
+						SUBSTRING(MIN(작업시작+시작시각), 0, 9) 작업시작, SUBSTRING(MIN(작업시작+시작시각), 9, 13) 시작시각
+				    from d22_run카세트파일
+				    where 공장코드 = '2' 
+				    and run_no = #{runNo}
+				    and 공정코드 = #{공정코드}
+				    and 차수 = #{차수}
+				),
+				SummedData as (
+				    select sum(f_수량) as total, max(Machine_Code) Machine_Code
+				    from (
+						select 
+							f_수량, max(Machine_Code) Machine_Code
+				    	from d22_run카세트파일
+				    	where 공장코드 = '2' 
+				      	and run_no = #{runNo}
+				      	and 공정코드 = #{공정코드}
+				      	and 차수 = #{차수}
+				    	group by f_cstno, f_수량
+				    ) a
+				)
+				update d22_run제조vlr
+				set 
+					 작업시작 = coalesce((select 작업시작 from START_DATE), 작업시작),
+					 시작시각 = coalesce((select 시작시각 from START_DATE), 시작시각),	 
+					 작업조 = (SELECT shift FROM Get주간야간구분1(coalesce((select 시작시각 from START_DATE), 시작시각))),
+					 투입수량 = isnull((select total from SummedData), 0),
+					 검사수량 = isnull((select total from SummedData), 0),
+					 불량수량 = isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0),
+			 		 양품수량 = (isnull((select total from SummedData), 0)-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0)),					 
+					 Machine_Code = isnull((select Machine_Code from SummedData), null)
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+				
+				<choose>
+					<when test="code != null and code == '061'">
+						merge into dw_run_cell_data as t
+						using (
+							select x.*
+							from
+							(
+								select 
+									공장코드, '061' 공정코드, run_id, cst_no, cell_id, 
+									ROW_NUMBER() over (partition by run_id, cell_id order by end_time desc) 차수, 설비호기, 근무조, 작업자,
+									start_time, end_time, '양품' result, null 불량코드, null scrap, null 시료일자, null 신뢰성작업확인, null 신뢰성시료유형,
+									null 맵핑유무, null 특이사항
+								from d88_PFL공정LOG파일
+								where 공장코드 = '2'
+								and run_id = #{runNo}
+								and 가동여부 = '가동'
+							) x
+							where 차수 = #{차수}
+						) as s
+						on t.공장코드 = s.공장코드 
+						   and t.공정코드 = s.공정코드 
+						   and t.run_id = s.run_id
+						   and t.cell_id = s.cell_id
+						   and t.차수 = s.차수
+						when not matched then
+						    insert (공장코드, 공정코드, run_id, cst_no, cell_id, 차수, 설비호기, 근무조, 작업자, start_time, end_time, result, 불량코드, scrap, 시료일자, 신뢰성작업확인, 신뢰성시료유형, 맵핑유무, 특이사항)
+						    values (s.공장코드, s.공정코드, s.run_id, s.cst_no, s.cell_id, s.차수, s.설비호기, s.근무조, s.작업자, s.start_time, s.end_time, s.result, s.불량코드, s.scrap, s.시료일자, s.신뢰성작업확인, s.신뢰성시료유형, s.맵핑유무, s.특이사항);						
+					</when>
+					<when test="code != null and code == '067'">
+						merge into dw_run_cell_data as t
+						using (
+							select x.*
+							from
+							(
+								select 공장코드, a.공정코드, 
+								       run_no AS run_id, cst_no, cell_no AS cell_id, 
+								       case when cell_no = 'EMPTY' then 1 else ROW_NUMBER() over (partition by run_no, cell_no order by 종료시각 desc) end 차수,
+								       설비호기, 근무조, 작업자, 
+								       시작시각 start_time, 
+								       종료시각 end_time,
+								       case when nullif(scrap,'') is null then '양품' else '불량' end result,
+								       '' 불량코드,
+								       scrap,
+								       null 시료일자,
+								       null 신뢰성작업확인,
+								       null 신뢰성시료유형, null 맵핑유무, null 특이사항
+								from d84_DPFBFL_CELL파일 a
+								where run_no = #{runNo}
+								and 공장코드 = '2'	
+							) x
+							where cell_id != 'EMPTY'
+							and 차수 = #{차수}
+						) as s
+						on t.공장코드 = s.공장코드 
+						   and t.공정코드 = s.공정코드 
+						   and t.run_id = s.run_id
+						   and t.cell_id = s.cell_id
+						   and t.차수 = s.차수
+						when not matched then
+						    insert (공장코드, 공정코드, run_id, cst_no, cell_id, 차수, 설비호기, 근무조, 작업자, start_time, end_time, result, 불량코드, scrap, 시료일자, 신뢰성작업확인, 신뢰성시료유형, 맵핑유무, 특이사항)
+						    values (s.공장코드, s.공정코드, s.run_id, s.cst_no, s.cell_id, s.차수, s.설비호기, s.근무조, s.작업자, s.start_time, s.end_time, s.result, s.불량코드, s.scrap, s.시료일자, s.신뢰성작업확인, s.신뢰성시료유형, s.맵핑유무, s.특이사항);
+					</when>
+					<otherwise>														
+					</otherwise>
+				</choose>
+				
+				with error_cnt as (
+				    select 
+						cst_no, isNull(sum(b.불량수량), 0) 불량수량 
+					from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+					left join d42_검사불량사유파일 b
+					on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runNo} and b.차수 = #{차수})
+					group by cst_no
+				)
+				, sample AS (
+					select a.cst_no, sum(qty) qty from (				
+						select 
+							a.cst_no, a.cell_id, a.신뢰성시료유형, case when nullif(a.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from (
+							select 
+								a.*
+							from dw_run_cell_data a
+							where a.공장코드 = '2' and a.공정코드 = #{공정코드} and a.run_id = #{runNo} and a.차수 = #{차수}
+						) a
+						group by a.cst_no, a.cell_id, a.신뢰성시료유형
+					) a
+					group by a.cst_no
+				)				
+				update d22_run카세트파일
+				set 
+					f_불량수량 = ISNULL(ec.불량수량, 0),
+					t_수량 = (f_수량 - ISNULL(ec.불량수량, 0) - ISNULL(s.qty, 0))
+				from d22_run카세트파일 d
+				left join error_cnt ec on d.f_cstno = ec.cst_no
+				left join sample s on d.f_cstno = s.cst_no
+				where d.run_no = #{runNo}
+				  AND d.공정코드 = #{공정코드}
+				  AND d.f_수량 > 0
+				  AND d.차수 = #{차수};
+		    	
+				with sample AS (
+					select sum(qty) qty from (				
+						select 
+							a.cst_no, a.cell_id, a.신뢰성시료유형, case when nullif(a.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from (
+							select 
+								a.*
+							from dw_run_cell_data a
+							where a.공장코드 = '2' and a.공정코드 = #{공정코드} and a.run_id = #{runNo} and a.차수 = #{차수}
+						) a
+						group by a.cst_no, a.cell_id, a.신뢰성시료유형
+					) a					
+				)
+				update d22_run제조vlr
+				set 
+		    		불량수량 = isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0),
+		    		양품수량 = (투입수량-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and f_수량 > 0), 0)-isnull((select qty from sample), 0))
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</when>			
+			<otherwise>
+			</otherwise>
+		</choose>		
+	</update>
+	
+	<update id="M0003002_RunTemp" parameterType="Map">
+		<choose>
+			<when test="code != null and (code == '055' or code == '056' or code == '061' or code == '067')">
+				update d22_run제조vlr
+				set 
+					 shift = #{shift},
+					 작업자 = #{작업자}					 
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};				
+			</when>
+			<when test="code != null and (code == '058' or code == '059')">
+				update d22_run제조vlr
+				set 
+					 shift = #{shift},
+					 작업자 = #{작업자},		
+					 Machine_Code = #{machineCode}			 
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};				
+			</when>
+			<otherwise>
+				<if test="code != null and code == '054'">
+					update d22_run제조vlr
+					set 
+						 shift = #{shift}, 
+						 책임자 = #{책임자}, 
+						 선임자 = #{선임자} 
+					where run_no = #{runNo}
+					and 공정코드 = #{공정코드}
+					and 차수 = #{차수};
+				
+				</if>				
+			</otherwise>
+		</choose>
+	</update>
+	
+	<update id="M0003002_Temp" parameterType="Map">
+		<choose>
+			<when test="code != null and (code == '055' or code == '056' or code == '061' or code == '067')">
+				update d22_run카세트파일
+				set
+					특이사항 = #{특이사항},
+				    NXT_공정코드 = coalesce(#{nxt공정코드}, '-'),
+				    f_수량 = #{f수량},		    
+				    t_수량 = #{t수량}
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and f_cstno = #{fCstno}
+				and t_cstno = #{tCstno}
+				and 차수 = #{차수}
+			</when>
+			<otherwise>
+				update d22_run카세트파일
+				set
+					특이사항 = #{특이사항},
+					작업자 = #{작업자},
+					작업시작 = #{작업시작},
+					시작시각 = #{시작시각},
+					작업종료 = #{작업종료},
+					종료시각 = #{종료시각},
+					shift = #{shift}, 
+					NXT_공정코드 = coalesce(#{nxt공정코드}, '-')
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and f_cstno = #{fCstno}
+				and t_cstno = #{tCstno}
+				and 차수 = #{차수}
+			</otherwise>
+		</choose>
+	</update>
+	
+	<select id="M0003002_Sch4" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="code != null and (code == '055' or code == '056')">
+				select 
+					seq, run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드,
+					작업시작, 시작시각, 작업종료, 종료시각,
+					f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, count(t_수량) over(partition by t_cstno) t_cnt, sum(t_수량) over(partition by t_cstno) t_수량, t_수량 t_org수량, f_수량-t_불량수량 t_양품수량, t_불량수량, t_cstno, 특이사항, a.차수, f_cstno+'|'+t_cstno pkey
+				from d22_run카세트파일 a
+				join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = a.차수) 
+				where 공장코드 = '2' 
+				and run_no = #{runNo} 
+				and 공정코드 = #{공정코드}
+				order by CAST(seq AS INT), t_cstno, f_cstno			
+			</when>
+			<otherwise>
+				select 
+					seq, run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드, in_cstno, a.차수,
+					작업시작, 시작시각, 작업종료, 종료시각, 
+					f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, count(t_수량) over(partition by t_cstno) t_cnt, t_수량, f_수량-t_불량수량 t_양품수량, t_수량 t_org수량, t_불량수량, t_cstno, 특이사항, a.차수, f_cstno+'|'+t_cstno pkey 
+				from d22_run카세트파일 a
+				join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = a.차수) 
+				where 공장코드 = '2' 
+				and run_no = #{runNo} 
+				and 공정코드 = #{공정코드}
+				order by CAST(seq AS INT)
+			</otherwise>
+		</choose>
+	</select>
+
+	
+	<select id="M0003002_Sch5" parameterType="Map" resultType="CamelMap">
+		select 
+			불량코드, 불량명, 사용여부
+		from d29_공정별불량파일
+		where 공정코드 = #{공정코드}
+		order by 적용순서
+	</select>
+	
+	<select id="M0003002_Sch8" parameterType="Map" resultType="CamelMap">
+		select 
+			공정코드, lotrun_id, machine_code, cst_no, 불량위치, 불량코드, 검사시각, 불량수량, 'none' state, 차수
+		from d42_검사불량사유파일_cell
+		where 공장코드 = '2'
+		and 공정코드 = #{공정코드}
+		and lotrun_id = #{runNo}
+		and cst_no = #{cstNo}
+		and 불량코드 = #{불량코드}
+		and 차수 = #{차수}
+		order by 불량위치, 불량코드
+	</select>
+	
+	<delete id="M0003002_Delete1" parameterType="Map">
+		delete from d42_검사불량사유파일_cell
+		where 공장코드 = '2'
+		and 공정코드 = #{공정코드}
+		and lotrun_id = #{lotrunId}
+		and cst_no = #{cstNo}
+		and 불량위치 = #{불량위치}
+		and 불량코드 = #{불량코드}
+		and 차수 = #{차수}
+	</delete>
+	
+	<insert id="M0003002_Insert1" parameterType="Map">
+    	insert into d42_검사불량사유파일_cell(공장코드,공정코드,lotrun_id,cst_no,machine_code,불량위치,불량코드,불량수량,검사시각,차수)
+    	values ('2', #{공정코드}, #{lotrunId}, #{cstNo}, #{machineCode}, #{불량위치}, #{불량코드}, #{불량수량}, #{검사시각},#{차수})    	
+	</insert>
+	
+	<update id="M0003002_Update3" parameterType="Map">
+		update d42_검사불량사유파일_cell
+		set 불량수량 = #{불량수량}
+		where 공장코드 = '2'
+		and 공정코드 = #{공정코드}
+		and lotrun_id = #{lotrunId}
+		and cst_no = #{cstNo}
+		and 불량위치 = #{불량위치}
+		and 불량코드 = #{불량코드}
+		and 차수 = #{차수}
+	</update>
+	
+	<update id="M0003002_Update4" parameterType="Map">
+		update d22_run카세트파일
+		set  
+			 t_불량수량 = isnull((select sum(불량수량) from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and cst_no = #{cstNo} and 차수 = #{차수}), 0),
+			 t_수량 = isnull((f_수량 - (select sum(불량수량) from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and cst_no = #{cstNo} and 차수 = #{차수})), 0)
+		where run_no = #{runNo}
+		and 공정코드 = #{공정코드}
+		and f_cstno = #{cstNo}
+		and f_수량 > 0
+		and 차수 = #{차수};
+	
+		update d22_run제조vlr
+		set 
+			 불량수량 = isnull((select sum(t_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+			 양품수량 = isnull((select sum(t_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0)
+		where run_no = #{runNo}
+		and 공정코드 = #{공정코드}
+		and 차수 = #{차수};		
+	</update>
+	
+	
+	<select id="M0003002_Sch14" parameterType="Map" resultType="CamelMap">
+		select 
+			a.공정코드, a.불량코드, a.불량명,
+			case when a.공정코드 = '061' and a.불량코드 = '400' then '271' 
+               when a.공정코드 = '061' and a.불량코드 = '401' then '441'
+             end 불량유형코드 
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+		where a.비고 = '2' 
+		order by 적용순서
+	</select>
+	
+	<select id="M0003002_Sch10" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="code != null and (code == '055' or code == '056')">
+				select 
+					run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드,
+					작업시작, 시작시각, 작업종료, 종료시각, machine_code,
+					f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, count(t_수량) over(partition by t_cstno) t_cnt, sum(t_수량) over(partition by t_cstno) t_수량, t_수량 t_org수량, f_수량-t_불량수량 t_양품수량, t_불량수량, t_cstno, 특이사항, a.차수, f_cstno+'|'+t_cstno pkey 
+				from d22_run카세트파일 a
+				join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = a.차수) 
+				where 공장코드 = '2' 
+				and run_no = #{runNo} 
+				and 공정코드 = #{공정코드}
+				order by CAST(seq AS INT), t_cstno, f_cstno			
+			</when>
+			<otherwise>
+				select 
+					run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드,
+					작업시작, 시작시각, 작업종료, 종료시각, machine_code,
+					f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, count(t_수량) over(partition by t_cstno) t_cnt, t_수량, t_수량 t_org수량, f_수량-t_불량수량 t_양품수량, t_불량수량, t_cstno, 특이사항, a.차수, f_cstno+'|'+t_cstno pkey 
+				from d22_run카세트파일	a	
+				join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = a.차수) 
+				where 공장코드 = '2' 
+				and run_no = #{runNo} 
+				and 공정코드 = #{공정코드}		
+				order by CAST(seq AS INT)
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="M0003002_Sch15" parameterType="Map" resultType="CamelMap">
+		WITH sample AS (
+			select a.cst_no, sum(qty) qty from (				
+				select 
+					a.cst_no, a.cell_id, a.신뢰성시료유형, case when nullif(a.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+				from (
+					select 
+						a.*
+					from dw_run_cell_data a
+					join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = a.차수)
+					where a.공장코드 = '2' and a.공정코드 = #{공정코드} and a.run_id = #{runNo}			  
+				) a
+				group by a.cst_no, a.cell_id, a.신뢰성시료유형
+			) a
+			group by a.cst_no
+		)
+		select 
+				run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드,
+				작업시작, 시작시각, 작업종료, 종료시각, machine_code,
+				f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, t_수량, f_수량-t_불량수량 t_양품수량, t_불량수량, t_cstno, t_수량 t_org수량, 특이사항, isNull(b.qty, 0) qty, a.차수, f_cstno+'|'+t_cstno pkey  
+			from d22_run카세트파일 a
+			left join sample b
+			on (a.f_cstno = b.cst_no)
+			join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = a.차수) 		
+			where 공장코드 = '2' 
+			and run_no = #{runNo} 
+			and 공정코드 = #{공정코드}		
+		order by CAST(seq AS INT)
+	</select>
+	
+	<select id="M0003002_Sch16" parameterType="Map" resultType="CamelMap">
+		select 
+			run_id, 공정코드, cst_no, cell_id, 시료일자, 신뢰성작업확인, 신뢰성시료유형, a.차수 
+		from dw_run_cell_data a
+		join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = a.차수) 
+		where 공장코드 = '2' 
+		and 공정코드 = #{공정코드} 
+		and run_id = #{runNo}
+		and cst_no = #{cstNo}  
+		and nullif(신뢰성시료유형, '') is not null
+	</select>
+	
+	<update id="M0003002_Update11" parameterType="Map">
+		update d22_run카세트파일
+		set  
+			 f_불량수량 = isNull((select sum(불량수량) from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and cst_no = #{cstNo} and 차수 = #{차수}), 0)
+		where run_no = #{runNo}
+		and 공정코드 = #{공정코드}
+		and f_cstno = #{cstNo}
+		and f_수량 > 0
+		and 차수 = #{차수};
+	
+		update d22_run제조vlr
+		set 
+			 불량수량 = isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0),
+			 양품수량 = (투입수량-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0))
+		where run_no = #{runNo}
+		and 공정코드 = #{공정코드}
+		and 차수 = #{차수};		
+	</update>
+	
+	<select id="M0003002_Sch11" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="code != null and code == '061'">
+				select 
+					distinct cst_no, cell_id, start_time, end_time, film_id_상부, film_id_하부, mcr_write
+				from d88_PFL공정LOG파일
+				where 공장코드 = '2'
+				and run_id = #{runId}		
+				and cst_no = #{cstno}
+				order by 1	
+			</when>
+			<when test="code != null and code == '067'">
+				select 
+					cst_no, cell_no cell_id, 시작시각 start_time, 종료시각 end_time, '' film_id_상부, ''  film_id_하부, '' mcr_write
+				from d84_DPFBFL_CELL파일 da
+				where run_no = #{runId}	
+				and cst_no = #{cstno}
+				order by 1
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>
+		
+	</select>
+	
+	<select id="M0003002_Sch12" parameterType="Map" resultType="CamelMap">
+		select 
+			run_id, cst_no, cell_id, a.차수, a.신뢰성시료유형, a.result
+		from dw_run_cell_data a
+		join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runId} and 공정코드= #{공정코드}) h on (h.차수 = a.차수) 
+		where 공장코드 = '2'
+		and 공정코드 = #{공정코드}
+		and run_id = #{runId}
+		and cell_id = #{cellId}
+	</select>
+	
+	<update id="M0003002_Update019" parameterType="Map">		
+	update dw_run_cell_data
+		set
+			시료일자= #{시료일자},
+			신뢰성작업확인= #{신뢰성작업확인},
+			신뢰성시료유형= #{신뢰성시료유형},
+			불량코드= #{불량코드}
+		where 공장코드 = '2'
+		and 공정코드 = #{공정코드}
+		and run_id = #{runId}
+		and cell_id = #{cellId}
+		and 차수 = #{차수}
+	</update>
+	
+	<update id="M0003002_Update20" parameterType="Map">
+	
+		delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and cst_no = #{fCstNo} and 차수 = #{차수};
+		
+    	merge into d42_검사불량사유파일 as t
+		using (
+			select 
+				공정코드, lotrun_id, 불량코드, 불량수량, 검사시각, #{cstNo} f_cst_no, #{차수} 차수
+			from (
+				select 
+					공정코드, lotrun_id, 불량코드, sum(불량수량) as 불량수량, max(검사시각) as 검사시각
+				from d42_검사불량사유파일_cell
+				where 공장코드 = '2'
+				and 공정코드 = #{공정코드}
+				and lotrun_id = #{runNo}
+				and cst_no = #{cstNo}
+				and 차수 = #{차수}
+				group by 공정코드, lotrun_id, 불량코드
+			) a
+		) as s (공정코드, lotrun_id, 불량코드, 불량수량, 검사시각, cst_no, 차수)
+		on t.공정코드 = s.공정코드 
+		   and t.lotrun_id = s.lotrun_id 
+		   and t.불량코드 = s.불량코드
+		   and t.cst_no = s.cst_no
+		   and t.차수 = s.차수
+		when matched then
+		    update set
+		        t.불량수량 = s.불량수량,
+		        t.block_su = 0
+		when not matched then
+		    insert (공장코드, 공정코드, lotrun_id, 불량코드, block_su, 불량수량, 검사시각, cst_no, 차수)
+		    values ('2', s.공정코드, s.lotrun_id, s.불량코드, 0, s.불량수량, s.검사시각, s.cst_no, s.차수);
+	</update>
+	
+	<select id="M0003002_Sch17" parameterType="Map" resultType="CamelMap">
+		select 
+			불량코드, 불량명
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부})
+		where 공정코드 = #{공정코드}
+		and 비고 = '2'
+		order by 적용순서
+	</select>
+	
+	<select id="M0003002_Sch18" parameterType="Map" resultType="CamelMap">		
+        WITH sample AS (
+			select 
+				a.신뢰성시료유형, b.불량코드, sum(qty) qty 
+			from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) b				
+			left join (
+				<choose>
+					<when test="code != null and code == '072'">
+					select 
+						b.cell_id, b.신뢰성시료유형, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty
+					from dw_run_cell_data b
+					join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = b.차수) 
+					where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo}
+					group by b.cell_id, b.신뢰성시료유형	
+					</when>			
+					<otherwise>
+					select 
+						b.신뢰성시료유형, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty
+					from (
+						select b.* from dw_run_cell_data b
+						join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) h on (h.차수 = b.차수)
+						where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo}
+					) b
+					group by b.cell_id, b.신뢰성시료유형
+					</otherwise>
+				</choose>
+			) a
+			on (a.신뢰성시료유형 = b.불량명)
+			where b.비고 = '2' 
+			and nullif(a.신뢰성시료유형, '') is not null
+			group by a.신뢰성시료유형, b.불량코드
+		)
+		select
+			<choose>
+                <when test="columns1 != null and columns1.size() > 0">                	 
+                    <foreach collection="columns1" item="item" separator=",">
+			            isnull(max(case when d.불량코드 = #{item.value} then d.qty end), 0) AS ${item.text}
+			        </foreach>
+                </when>
+                <otherwise>
+                *
+                </otherwise>
+            </choose>
+		from sample d
+	</select>
+	
+	<update id="M0003002_Sample" parameterType="Map">
+		<choose>
+			<when test="code != null and code == '061'">
+				merge into d22_run카세트파일 as t
+				using (
+					select a.cst_no, sum(qty) qty from (
+						select 
+							b.cst_no, b.cell_id, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from dw_run_cell_data b
+						where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo} and b.차수 = #{차수}
+						group by b.cst_no, b.cell_id, b.신뢰성시료유형
+					) a
+					group by a.cst_no
+				) s
+				on t.공장코드 = '2' and t.공정코드 = #{공정코드} and t.run_no = #{runNo} and f_cstno = s.cst_no and t.차수 = #{차수}
+				when matched then
+				    update set
+				        t.t_수량 = (t.f_수량 - t.f_불량수량 - s.qty)
+				;
+				
+				WITH sample AS (
+					select sum(qty) qty from (
+						select 
+							b.cell_id, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from dw_run_cell_data b
+						where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo} and b.차수 = #{차수}
+						group by b.cell_id, b.신뢰성시료유형
+					) a
+				)
+				update d22_run제조vlr
+				set 
+		    		양품수량 = (투입수량-불량수량-isNull((select qty from sample),0)),		    		
+		    		시료수량 = isNull((select qty from sample),0)  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and 차수 = #{차수};
+			</when>
+			<when test="code != null and code == '067'">
+				merge into d22_run카세트파일 as t
+				using (
+					select a.cst_no, sum(qty) qty from (
+						select 
+							b.cst_no, b.cell_id, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from dw_run_cell_data b
+						where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo} and b.차수 = #{차수}
+						group by b.cst_no, b.cell_id, b.신뢰성시료유형
+					) a
+					group by a.cst_no
+				) s
+				on t.공장코드 = '2' and t.공정코드 = #{공정코드} and t.run_no = #{runNo} and f_cstno = s.cst_no and t.차수 = #{차수}
+				when matched then
+				    update set
+				        t.t_수량 = (t.f_수량 - t.f_불량수량 - s.qty)
+				;
+				
+				WITH sample AS (
+					select sum(qty) qty from (
+						select 
+							b.cell_id, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from dw_run_cell_data b
+						where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo} and b.차수 = #{차수}
+						group by b.cell_id, b.신뢰성시료유형
+					) a
+				)
+				update d22_run제조vlr
+				set 
+		    		양품수량 = (투입수량-불량수량-isNull((select qty from sample),0)),
+		    		시료수량 = isNull((select qty from sample),0)  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and 차수 = #{차수};
+			</when>	
+			<when test="code != null and code == '070'">
+				
+				WITH sample AS (
+					select sum(qty) qty from (
+						select 
+							b.cell_id, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from dw_run_cell_data b
+						where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo} and b.차수 = #{차수}
+						group by b.cell_id, b.신뢰성시료유형
+					) a
+				)
+				update d22_run제조vlr
+				set 
+		    		양품수량 = (투입수량-불량수량-isNull((select qty from sample),0)),
+		    		시료수량 = isNull((select qty from sample),0)	  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and 차수 = #{차수};
+			</when>
+			<when test="code != null and code == '072'">
+				
+				WITH sample AS (
+					select sum(qty) qty from (
+						select 
+							b.cell_id, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from dw_run_cell_data b
+						where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo} and b.차수 = #{차수}
+						group by b.cell_id, b.신뢰성시료유형
+					) a
+				)
+				update d22_run제조vlr
+				set 
+		    		양품수량 = (투입수량-불량수량-isNull((select qty from sample),0)),
+		    		시료수량 = isNull((select qty from sample),0)	  		
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and 차수 = #{차수};
+			</when>
+			<when test="code != null and code == '073'">
+				
+				WITH sample AS (
+					select sum(qty) qty from (
+						select 
+							b.cell_id, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+						from dw_run_cell_data b
+						where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo} and b.차수 = #{차수}
+						group by b.cell_id, b.신뢰성시료유형
+					) a
+				)
+				update d22_run제조vlr
+				set 
+		    		양품수량 = (투입수량-불량수량-isNull((select qty from sample),0)),
+					시료수량 = isNull((select qty from sample),0)	
+				where run_no = #{runNo}
+		    	and 공정코드 = #{공정코드}
+		    	and 차수 = #{차수};
+			</when>		
+			<otherwise>
+			</otherwise>
+		</choose>		
+	</update>
+	
+	<update id="M0003002_Update020" parameterType="Map">		
+	update dw_run_cell_data
+		set
+			시료일자= null,
+			신뢰성작업확인= null,
+			신뢰성시료유형= null,
+			불량코드= null
+		where 공장코드 = '2'
+		and 공정코드 = #{공정코드}
+		and run_id = #{runId}
+		and cell_id = #{cellId}
+		and 차수 = #{차수}
+	</update>
+	
+	<update id="M0003002_RERUN" parameterType="Map">
+		insert into d22_run제조vlr(공장코드,RUN_NO,공정코드,레시피,LOT_NO,LOT_등분,작업시작,시작시각,작업종료,종료시각,작업일자,작업자,작업조,Machine_Code,SHIFT,책임자,책임자시작,책임자종료,선임자,P_CODE,작업구분,투입수량,검사수량,불량수량,양품수량,확인자,특이사항,차수)
+		select 
+			공장코드,RUN_NO,공정코드,레시피,LOT_NO,LOT_등분,null 작업시작,null 시작시각,null 작업종료,null 종료시각,작업일자,null 작업자,null 작업조,null Machine_Code,null SHIFT,null 책임자,0 책임자시작,0 책임자종료,null 선임자,'' P_CODE,작업구분,0 투입수량,0 검사수량,0 불량수량,0 양품수량,null 확인자,특이사항,a.차수+1 
+		from d22_run제조vlr a
+		join (select isNull(max(차수), 1) 차수 from d22_run제조vlr where run_no = #{runNo} and 공정코드= #{공정코드}) b on (a.차수 = b.차수) 
+		where run_no = #{runNo}
+		and 공정코드 = #{공정코드};	
+	</update>
+	
+	
+	<update id="M0003002_Update021" parameterType="Map">		
+	{CALL Gen품질검사대기From제조실적(#{신뢰성시료유형, jdbcType=VARCHAR}, 
+                                      #{신뢰성작업확인, jdbcType=VARCHAR}, 
+                                      #{cellIds, jdbcType=VARCHAR})}
+	</update>
+	
+	<update id="M0003002_Update022" parameterType="Map">		
+	update dw_run_cell_data
+		set
+			특이사항 = #{특이사항}
+		where 공장코드 = '2'
+		and 공정코드 = #{공정코드}
+		and run_id = #{runId}
+		and cell_id = #{cellId}
+		and 차수 = #{차수}
+	</update>
+	
+	<update id="M0003002_cancel" parameterType="Map">
+	
+		<choose>
+			<when test="code != null and code == '054' and type == 'CST'">
+				update d22_run카세트파일
+				set 
+					작업자 = null					
+					,작업시작 = null
+					,시작시각 = null		
+					,작업종료 = null
+					,종료시각 = null
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and f_cstno = #{fCstno}	
+				and 차수 = #{차수}
+			</when>
+			<otherwise>
+				delete from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+				delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+				delete from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+				delete from dw_run_cell_data where 공장코드 = '2' and run_id = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+				
+				update d22_run제조vlr
+				set 
+					 작업시작 = null,
+					 시작시각 = null,
+					 투입수량 = 0,
+					 검사수량 = 0,
+					 불량수량 = 0,
+					 양품수량 = 0,
+					 Machine_Code = null,
+					 작업종료 = null,
+					 종료시각 = null,
+					 책임자시작 = 0,
+					 책임자종료 = 0,
+					 shift = null, 
+					 책임자 = null, 
+					 선임자 = null,
+					 작업자 = null,  
+					 작업조 = null,
+					 시료수량 = 0
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</otherwise>
+		</choose>
+	</update>
+	
+	<select id="M0003002_Sch19" parameterType="Map" resultType="String">
+	select 
+		F_cstno as cst_no 
+	from Check전공정미투입카세트(#{runNo},#{공정코드})
+	</select>
+	
+	<update id="M0003002_Update12" parameterType="Map">
+		<choose>
+			<when test="code != null and (code == '061' or code == '067')">
+				update d22_run제조vlr
+				set 
+					 투입수량 = isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+					 검사수량 = isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+			 		 양품수량 = (isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0)-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0)-시료수량)
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</when>
+			<otherwise>
+				update d22_run제조vlr
+				set 
+					 투입수량 = isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+					 검사수량 = isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0),
+			 		 양품수량 = (isnull((select sum(f_수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수}), 0)-isnull((select sum(f_불량수량) from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수} and f_수량 > 0), 0))
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수};
+			</otherwise>
+		</choose>
+		
+	</update>
+	
+	<select id="M0003002_Sch20" parameterType="Map" resultType="CamelMap">		
+		with 불량집계 as (
+		    select 
+		        a.불량위치,
+		        b.불량명,
+		        sum(a.불량수량) 불량수량
+		    from d42_검사불량사유파일_cell a
+		    left join Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) b
+		        on a.공정코드 = b.공정코드 
+		        and a.불량코드 = b.불량코드
+		    where a.공장코드 = '2'
+		        and a.공정코드 = #{공정코드}
+		        and a.lotrun_id = #{runNo}		
+		        and a.차수 = #{차수}
+		    group by a.불량위치, b.불량명
+		)
+		select 
+		    불량위치, 
+		    불량명,
+		    불량수량
+		from 불량집계		
+		order by 불량위치;
+	</select>
+	
+	<select id="M0003002_Sch21" parameterType="Map" resultType="CamelMap">
+		select 
+			a.공정코드, a.불량코드, a.불량명, a.적용순서, isNull(sum(b.불량수량), 0) 불량수량, 'none' state 
+		from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) a
+		left join d42_검사불량사유파일_cell b
+		on (b.공장코드 = '2' and a.공정코드 = b.공정코드 and a.불량코드 = b.불량코드 and lotrun_id = #{runId} and 차수 = #{차수})
+		group by a.공정코드, a.불량코드, a.불량명, a.적용순서		
+		order by 적용순서
+	</select>
+	
+	<select id="M0003002_RERUNChk" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="code != null and code == '061'">
+			    select 
+					cont(*) cnt
+				from
+				(
+					select 
+						공장코드, '061' 공정코드, run_id, cst_no, cell_id, 
+						ROW_NUMBER() over (partition by run_id, cell_id order by end_time desc) end 차수, 설비호기, 근무조, 작업자,
+						start_time, end_time, '양품' result, null 불량코드, null scrap, null 시료일자, null 신뢰성작업확인, null 신뢰성시료유형,
+						null 맵핑유무, null 특이사항
+					from d88_PFL공정LOG파일
+					where 공장코드 = '2'
+					and run_id = #{runNo}
+					and 가동여부 = '가동'
+				) x
+				where 차수 = #{차수}+1;		
+			</when>
+			<when test="code != null and code == '067'">
+			    select count(*) cnt
+				from
+				(
+					select 공장코드, a.공정코드, 
+					       run_no, cst_no, cell_no, 
+					       case when cell_no = 'EMPTY' then 1 else ROW_NUMBER() over (partition by run_no, cell_no order by 종료시각 desc) end 차수,
+					       설비호기, 근무조, 작업자, 
+					       시작시각 start_time, 
+					       종료시각 end_time,
+					       case when nullif(scrap,'') is null then '양품' else '불량' end result,
+					       '' 불량코드,
+					       scrap,
+					       null 시료일자,
+					       null 신뢰성작업확인,
+					       null 신뢰성시료유형, '' 맵핑유무, '' 특이사항
+					from d84_DPFBFL_CELL파일 a
+					where run_no = #{runNo}
+					and 공장코드 = '2'	
+				) x
+				where cell_no != 'EMPTY'
+				and 차수 = #{차수}+1
+			</when>			
+			<otherwise>
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="M0003002_LogStartChk" parameterType="Map" resultType="CamelMap">
+	select 
+		진행가능여부
+	from Get_전공정정보_RunNo_공정코드(#{runNo},#{공정코드})
+	</select>
+	
+	<select id="M0003002_HoldChk" parameterType="Map" resultType="CamelMap">
+	select 
+		HOLD여부
+	from Get_RunNo상태가져오기(#{runNo})
+	</select>
+	
+	<select id="M0003002_ValidationPFLChk" parameterType="Map" resultType="CamelMap">
+	select 
+		상태
+	from CheckValidation_PFL전재세정(#{runNo})
+	</select>
+	
+	<select id="M0003002_AGBForBareCell" parameterType="Map" resultType="CamelMap">
+		select 
+			run_no, 수량, 불량수량
+		from (
+			select 
+				a.run_no, a.투입수량, c.수량, case when substring(a.run_no,11,1) = 'M' then 3 else 2 end rate,
+				CASE 
+			        WHEN a.투입수량 = 0 THEN 0
+			        ELSE CAST(b.불량수량 AS FLOAT) / a.투입수량 * 100
+			    END AS 불량률, isnull(d.불량수량, 0) 불량수량
+			from d22_run제조vlr a
+			left join (
+				select 
+					isnull(sum(불량수량), 0) 불량수량
+				from d42_검사불량사유파일
+				where 공정코드 = #{공정코드}
+				and lotrun_id = #{runNo}
+				and 불량코드 = '061'
+				and 불량수량 > 0
+			) b on (1=1)
+			left join (
+				select etc1 수량
+				FROM dw_common_code
+				where maj_code = 99
+				and code = '271'
+			) c on (1=1)
+			left join (
+				select 
+					isnull(sum(불량수량), 0) 불량수량
+				from d42_검사불량사유파일
+				where 공정코드 = #{공정코드}
+				and lotrun_id = #{runNo}
+				and 불량코드 = '013'
+				and 불량수량 > 0
+			) d on (1=1)
+			where a.run_no = #{runNo}
+			and a.공정코드 = #{공정코드}
+			and a.차수 = #{차수}
+		) d
+		where 불량률 <![CDATA[>=]]> rate
+	</select>
+	
+	<select id="M0003002_Exec_AGBForBareCell" parameterType="Map" resultType="CamelMap">
+	exec Gen품질검사대기From제조실적AGBForBareCell '271',#{userName},#{runNo},#{수량};
+	</select>
+	
+	<select id="M0003002_CompQrInfo" parameterType="Map" resultType="CamelMap">	
+		select 
+			e.제품모델, b.shift, b.machine_code, b.작업종료, 
+			case when b.공정코드 = '056' then 
+				(case when nullif(b.작업시작, '') is null and nullif(b.작업종료, '') is null and h.chk = 1 then g.qr 
+					else (case when nullif(b.작업시작, '') is not null and nullif(b.작업종료, '') is not null and h.chk = 1 then f.qr else null end) 
+				end)
+			else (case when nullif(b.작업종료, '') is not null then f.qr else null end)
+			end qr,
+			case when b.공정코드 = '056' then 
+				(case when nullif(b.작업시작, '') is null and nullif(b.작업종료, '') is null and h.chk = 1 then g.code 
+					else (case when nullif(b.작업시작, '') is not null and nullif(b.작업종료, '') is not null and h.chk = 1 then f.code else null end) 
+				end)
+			else (case when nullif(b.작업종료, '') is not null then f.code else null end)
+			end code
+		from d22_run제조mst a 
+		left join d22_run제조vlr b on (a.run_no = b.run_no and b.공정코드 in ('055','054','056'))
+		left join (select isNull(max(차수), 1) 차수, 공정코드 from d22_run제조vlr where run_no = #{runNo} and 공정코드 in ('055','054','056') group by 공정코드) i on (i.공정코드 = b.공정코드 and i.차수 = b.차수)
+		left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)
+		left join (
+			select 
+				공정코드, 설비번호, model_code, shift, qr, code  
+			from DW_CM_QR_INFO
+			where line = 'DFB1'
+			and process_id = 'D1UT' 
+			and 공정코드 in ( '055' , '054' , '056')		
+		) f on (f.공정코드 = b.공정코드 and f.설비번호 = b.machine_code and e.제품모델 = f.model_code and f.shift = (case when f.공정코드 = '055' then substring(b.shift, 1, 1) else '-' end))
+		left join (
+			select 
+				공정코드, 설비번호, model_code, shift, qr, code  
+			from DW_CM_QR_INFO
+			where line = 'DFB1'
+			and process_id = 'D1UT'			
+			and 공정코드 = '056'		
+		) g on (g.공정코드 = b.공정코드 and g.설비번호 = '-' and e.제품모델 = g.model_code and g.shift = '-')
+		left join (
+			select 
+				case when nullif(작업시작, '') is not null and nullif(작업종료, '') is not null then 1 
+				else 0 end chk
+			from d22_run제조vlr
+			where run_no = #{runNo}
+			and 공정코드 = '058'		
+		) h on (1=1)
+		where 1=1
+		and a.run_no = #{runNo}
+		order by case when b.공정코드 = '055' then 1
+					when b.공정코드 = '054' then 2
+					else 3 end
+
+	</select>
+	
+	<select id="M0003002_Sch13" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="code != null and (code == '061' or code == '067')">
+				select 
+				    c.거래처명, e.제품모델, e.제품inch, e.제품버젼, e.제품규격, 
+					a.입고일자, a.작업일자, 특기사항, 승인자, b.machine_code, f.설비명, f.설비약명, f.chamber,
+					a.승인일자, a.세정차수, b.shift, b.책임자, b.선임자, coalesce(b.작업조, (select shift from Get주간야간구분())) 작업조, b.책임자시작, b.책임자종료, b.작업자,
+					b.작업시작, b.시작시각, b.작업종료, b.종료시각,
+					b.투입수량, b.검사수량, b.불량수량, b.양품수량, b.특이사항, b.시료수량, b.차수
+				from d22_run제조mst a 
+				left join d22_run제조vlr b on (a.run_no = b.run_no and b.공정코드= #{공정코드})
+				left join d03_거래처마스터파일 c on (a.거래처코드=c.거래처코드)
+				left join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+				left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)		
+				left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+				where 1=1
+				and a.run_no = #{runNo}
+				order by b.차수 desc;
+			</when>	
+			<otherwise>
+				select 
+				    c.거래처명, e.제품모델, e.제품inch, e.제품버젼, e.제품규격, 
+					a.입고일자, a.작업일자, 특기사항, 승인자, b.machine_code, f.설비명, f.설비약명, f.chamber,
+					a.승인일자, a.세정차수, b.shift, b.책임자, b.선임자, coalesce(b.작업조, (select shift from Get주간야간구분())) 작업조, b.책임자시작, b.책임자종료, b.작업자,
+					b.작업시작, b.시작시각, b.작업종료, b.종료시각,
+					b.투입수량, b.검사수량, b.불량수량, b.양품수량, b.특이사항, b.차수
+				from d22_run제조mst a 
+				left join d22_run제조vlr b on (a.run_no = b.run_no and b.공정코드= #{공정코드})
+				left join d03_거래처마스터파일 c on (a.거래처코드=c.거래처코드)
+				left join d04_자재마스터파일 d on (a.자재코드 = d.자재코드)
+				left join d05_제품마스터파일 e on (a.제품코드 = e.제품코드)		
+				left join dw_equipment_mast f on (f.line= 'DFB1' and b.공정코드 = f.공정코드 and b.machine_code = f.설비번호)
+				where 1=1
+				and a.run_no = #{runNo}
+				order by b.차수 desc;
+            </otherwise>
+		</choose>
+	</select>
+	
+	
+	<select id="M0003002_Sch22" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="code != null and (code == '055' or code == '056')">
+				select 
+					run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드,
+					작업시작, 시작시각, 작업종료, 종료시각,
+					f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, count(t_수량) over(partition by t_cstno) t_cnt, sum(t_수량) over(partition by t_cstno) t_수량, t_수량 t_org수량, f_수량-t_불량수량 t_양품수량, t_불량수량, t_cstno, 특이사항, a.차수, f_cstno+'|'+t_cstno pkey
+				from d22_run카세트파일 a
+				where 공장코드 = '2' 
+				and run_no = #{runNo} 
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수}
+				order by CAST(seq AS INT), t_cstno, f_cstno			
+			</when>
+			<otherwise>
+				select 
+					run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드, in_cstno,
+					작업시작, 시작시각, 작업종료, 종료시각, 
+					f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, count(t_수량) over(partition by t_cstno) t_cnt, t_수량, f_수량-t_불량수량 t_양품수량, t_수량 t_org수량, t_불량수량, t_cstno, 특이사항, a.차수, f_cstno+'|'+t_cstno pkey 
+				from d22_run카세트파일 a
+				where 공장코드 = '2' 
+				and run_no = #{runNo} 
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수}
+				order by CAST(seq AS INT)
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="M0003002_Sch23" parameterType="Map" resultType="CamelMap">
+		<choose>
+			<when test="code != null and (code == '055' or code == '056')">
+				select 
+					run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드,
+					작업시작, 시작시각, 작업종료, 종료시각, machine_code,
+					f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, count(t_수량) over(partition by t_cstno) t_cnt, sum(t_수량) over(partition by t_cstno) t_수량, t_수량 t_org수량, f_수량-t_불량수량 t_양품수량, t_불량수량, t_cstno, 특이사항, a.차수, f_cstno+'|'+t_cstno pkey 
+				from d22_run카세트파일 a
+				where 공장코드 = '2' 
+				and run_no = #{runNo} 
+				and 공정코드 = #{공정코드}
+				and 차수 = #{차수}
+				order by CAST(seq AS INT), t_cstno, f_cstno			
+			</when>
+			<otherwise>
+				select 
+					run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드,
+					작업시작, 시작시각, 작업종료, 종료시각, machine_code,
+					f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, count(t_수량) over(partition by t_cstno) t_cnt, t_수량, t_수량 t_org수량, f_수량-t_불량수량 t_양품수량, t_불량수량, t_cstno, 특이사항, a.차수, f_cstno+'|'+t_cstno pkey 
+				from d22_run카세트파일	a
+				where 공장코드 = '2' 
+				and run_no = #{runNo} 
+				and 공정코드 = #{공정코드}		
+				and 차수 = #{차수}
+				order by CAST(seq AS INT)
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="M0003002_Sch24" parameterType="Map" resultType="CamelMap">
+		WITH sample AS (
+			select a.cst_no, sum(qty) qty from (				
+				select 
+					a.cst_no, a.cell_id, a.신뢰성시료유형, case when nullif(a.신뢰성시료유형, '') is not null then 1 else 0 end qty 
+				from (
+					select 
+						a.*
+					from dw_run_cell_data a
+					where a.공장코드 = '2' and a.공정코드 = #{공정코드} and a.run_id = #{runNo} and 차수 = #{차수}			  
+				) a
+				group by a.cst_no, a.cell_id, a.신뢰성시료유형
+			) a
+			group by a.cst_no
+		)
+		select 
+				run_no, 공정코드, lot_no, f_cstno, 작업자, 작업조, shift, nxt_공정코드,
+				작업시작, 시작시각, 작업종료, 종료시각, machine_code,
+				f_수량, f_수량-f_불량수량 f_양품수량, f_불량수량, t_수량, f_수량-t_불량수량 t_양품수량, t_불량수량, t_cstno, t_수량 t_org수량, 특이사항, isNull(b.qty, 0) qty, a.차수, f_cstno+'|'+t_cstno pkey  
+			from d22_run카세트파일 a
+			left join sample b
+			on (a.f_cstno = b.cst_no)
+			where 공장코드 = '2' 
+			and run_no = #{runNo} 
+			and 공정코드 = #{공정코드}	
+			and 차수 = #{차수}	
+		order by CAST(seq AS INT)
+	</select>
+	
+	<select id="M0003002_Sch25" parameterType="Map" resultType="CamelMap">		
+        WITH sample AS (
+			select 
+				a.신뢰성시료유형, b.불량코드, sum(qty) qty 
+			from Get공정별불량파일(#{line}, #{공정코드}, #{자동여부}) b				
+			left join (
+				<choose>
+					<when test="code != null and code == '072'">
+					select 
+						b.cell_id, b.신뢰성시료유형, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty
+					from dw_run_cell_data b
+					where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo} and 차수 = #{차수}
+					group by b.cell_id, b.신뢰성시료유형	
+					</when>			
+					<otherwise>
+					select 
+						b.신뢰성시료유형, case when nullif(b.신뢰성시료유형, '') is not null then 1 else 0 end qty
+					from (
+						select b.* from dw_run_cell_data b
+						where b.공장코드 = '2' and b.공정코드 = #{공정코드} and b.run_id = #{runNo} and 차수 = #{차수}
+					) b
+					group by b.cell_id, b.신뢰성시료유형
+					</otherwise>
+				</choose>
+			) a
+			on (a.신뢰성시료유형 = b.불량명)
+			where b.비고 = '2' 
+			and nullif(a.신뢰성시료유형, '') is not null
+			group by a.신뢰성시료유형, b.불량코드
+		)
+		select
+			<choose>
+                <when test="columns1 != null and columns1.size() > 0">                	 
+                    <foreach collection="columns1" item="item" separator=",">
+			            isnull(max(case when d.불량코드 = #{item.value} then d.qty end), 0) AS ${item.text}
+			        </foreach>
+                </when>
+                <otherwise>
+                *
+                </otherwise>
+            </choose>
+		from sample d
+	</select>
+	
+	<update id="M0003002_remove" parameterType="Map">
+	
+		<choose>
+			<when test="code != null and code == '054' and type == 'CST'">
+				update d22_run카세트파일
+				set 
+					작업자 = null
+					,shift = null
+					,작업시작 = null
+					,시작시각 = null
+					,NXT_공정코드 = coalesce(#{nxt공정코드}, '-')
+					,작업조= null
+					,작업종료 = null
+					,종료시각 = null
+				where run_no = #{runNo}
+				and 공정코드 = #{공정코드}
+				and f_cstno = #{fCstno}	
+				and 차수 = #{차수}
+			</when>
+			<otherwise>
+				delete from d22_run카세트파일 where 공장코드 = '2' and run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+				delete from d42_검사불량사유파일 where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+				delete from d42_검사불량사유파일_cell where 공장코드 = '2' and 공정코드 = #{공정코드} and lotrun_id = #{runNo} and 차수 = #{차수};
+				delete from dw_run_cell_data where 공장코드 = '2' and run_id = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+				delete from d22_run제조vlr where run_no = #{runNo} and 공정코드 = #{공정코드} and 차수 = #{차수};
+			</otherwise>
+		</choose>
+	</update>
+	
+	
+	<select id="M0003002_Sch26" parameterType="Map" resultType="CamelMap">
+		select x.*
+		from
+		(
+			select 
+				공장코드, '061' 공정코드, run_id, cst_no, cell_id, 
+				ROW_NUMBER() over (partition by run_id, cell_id order by end_time desc) 차수, f.설비약명 as 설비호기, 근무조, 작업자,
+				start_time, end_time, '양품' result, null 불량코드, null scrap, null 시료일자, null 신뢰성작업확인, null 신뢰성시료유형,
+				null 맵핑유무, null 특이사항
+			from d88_PFL공정LOG파일 a
+			left join dw_equipment_mast f on (f.line= 'DFB1' and f.공정코드 = '061' and a.설비호기 = f.설비번호)
+			where 공장코드 = '2'
+			and run_id = #{runNo}
+			and 가동여부 = '가동'
+		) x
+		where 차수 = #{차수}
+		and exists (
+           select 1 from d25_PFL외관검사파일 t
+           where 1=1
+           and x.cell_id = t.cell_id
+        )
+	</select>
+	
+	<select id="M0003002_Sch27" parameterType="Map" resultType="CamelMap">
+		select x.*
+		from
+		(
+			select 공장코드, a.공정코드, 
+			       run_no AS run_id, cst_no, cell_no AS cell_id, 
+			       case when cell_no = 'EMPTY' then 1 else ROW_NUMBER() over (partition by run_no, cell_no order by 종료시각 desc) end 차수,
+			       f.설비약명 as 설비호기, 근무조, 작업자, 
+			       시작시각 start_time, 
+			       종료시각 end_time,
+			       case when nullif(scrap,'') is null then '양품' else '불량' end result,
+			       '' 불량코드,
+			       scrap,
+			       null 시료일자,
+			       null 신뢰성작업확인,
+			       null 신뢰성시료유형, null 맵핑유무, null 특이사항
+			from d84_DPFBFL_CELL파일 a
+			left join dw_equipment_mast f on (f.line= 'DFB1' and f.공정코드 = a.공정코드 and a.설비호기 = f.설비번호)
+			where run_no = #{runNo}
+			and 공장코드 = '2'	
+		) x
+		where cell_id != 'EMPTY'
+		and 차수 = #{차수}
+		and exists (
+           select 1 from d25_PFL외관검사파일 t
+           where 1=1
+           and x.run_id != t.run_id
+           and x.cell_id = t.cell_id
+        )
+	</select>
+
+	<update id="M0003002_Update13" parameterType="Map">
+		update d22_run카세트파일
+		set 
+			IN_CSTNO = #{inCstno}
+			,T_CSTNO = #{inCstno}
+		where run_no = #{runNo}
+		and 공정코드 = #{공정코드}
+		and 차수 = #{차수}
+		and seq = #{seq}
+	</update>
+	
+	<update id="M0003002_Update14" parameterType="Map">
+		update d42_검사불량사유파일
+		set 
+			cst_no = #{inCstno}
+		where 공장코드 = '2'
+		and lotrun_id = #{runNo}
+		and 공정코드 = #{공정코드}
+		and 차수 = #{차수}
+		and cst_no = #{tCstno};
+		
+		update d42_검사불량사유파일_cell
+		set	
+			cst_no = #{inCstno}
+		from d42_검사불량사유파일_cell
+		where 공장코드 = '2'
+		and lotrun_id = #{runNo}
+		and 공정코드 = #{공정코드}
+		and cst_no = #{tCstno}
+		and 차수 = #{차수};
+	</update>
+	
+</mapper>

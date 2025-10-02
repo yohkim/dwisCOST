@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 프로세스 플래닝 > 제품 모델 관리 -->
+<mapper namespace="com.dowinsys.mes.web.m0002000.mapper.M0002002Mapper">
+
+	<select id="selectModelList" resultType="com.dowinsys.mes.common.CamelMap">
+	SELECT
+		a.MODEL,
+		a.code,
+		description,
+		Tray_Cell,
+		use_yn,
+		create_date,
+		create_name,
+		case when image_data is NULL THEN 0
+		ELSE 1 END image_exist
+	FROM dw_model_mast a left outer join dw_model_image b on a.model = b.model
+	WHERE 1 = 1 
+	<if test="model != null and model != ''" >
+	  AND a.MODEL = #{model}
+	</if>
+	<if test="desc != null and desc != ''" >
+	  AND description LIKE '%' + #{desc} + '%'
+	</if>
+	<if test="trayCell != null and trayCell != ''" >
+	  AND Tray_Cell = #{trayCell}
+	</if>	
+	<if test="useYn != null and useYn != ''" >
+	  AND use_yn = #{useYn}
+	</if>	
+	</select>
+	
+	<select id="checkDeleteModel" resultType="Map">
+	select COALESCE(STRING_AGG(model, '/'), 'NoData') AS model
+	from dw_model_mast a
+	where a.model in
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.model}
+	</foreach>
+	  and exists ( select 1 
+				   from dw_product_mast  b 
+				   where a.model = b.model )
+	</select>	
+	
+	<select id="checkInsertModel" resultType="Map">
+	select COALESCE(STRING_AGG(model, '/'), 'NoData') AS model
+	from dw_model_mast a
+	where upper(a.model) in
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		upper(#{item.model})
+	</foreach>
+	</select>	
+	
+	<select id="checkInsertModelCode" resultType="Map">
+	select COALESCE(STRING_AGG(code, '/'), 'NoData') AS code
+	from dw_model_mast a
+	where upper(a.code) in
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		upper(#{item.code})
+	</foreach>
+	</select>	
+
+	<insert id="insertModel" parameterType="Map">
+	INSERT INTO dw_model_mast_input
+	(   
+		MODEL,
+		code,
+		description,
+		Tray_Cell,
+		use_yn,
+		create_date,
+		create_name
+	)
+	VALUES
+	(
+		#{model},
+		#{code},
+		#{description},
+		#{trayCell},
+		#{useYn},
+		GETDATE(),
+		#{createName}		
+	)
+	</insert>	
+	
+	<update id="updateModel" parameterType="Map">
+	UPDATE dw_model_mast_input
+	SET code = #{code},
+		description = #{description},
+		Tray_Cell = #{trayCell},
+		use_yn = #{useYn}
+	WHERE MODEL = #{model}
+	</update>
+	
+	<delete id="deleteModel" parameterType="Map">
+	DELETE  FROM dw_model_mast_input
+	WHERE MODEL = #{model}
+	</delete>	
+	
+	<select id="selectProductList" resultType="CamelMap">	
+	SELECT a.line,
+		a.Prod_code,
+		a.Model,
+		b.description as model_name,
+		a.Inch,
+		a.Glass_thick,
+		a.Version,
+		a.spec,
+		a.Unit,
+		a.Unit_code,
+		a.customer_name,
+		a.customer_code,	
+		a.Sheet,
+		a.Block,
+		a.Cell,
+		a.RUN_SIZE,
+		case when a.Mass_Prod = '1' then 'Y'
+		     else 'N'
+		end as Mass_Prod,		
+		a.Note,
+		a.create_date,
+		a.create_name
+	FROM dw_product_mast a
+	left outer join dw_model_mast b 
+	on ( a.model = b.model)	
+	WHERE 1 = 1
+	<if test="line != null and line != ''" >
+	  AND a.LINE = #{line}
+	</if>
+		AND Prod_code LIKE #{prodType} + '%'
+	  order by a.line, a.Prod_code
+	</select>
+	
+	<select id="checkDeleteProduct" resultType="Map">
+	select  COALESCE(STRING_AGG(line+'-'+Prod_code, '/'), 'NoData') AS prodCode
+	from dw_product_mast a
+	where (line + '-' +  Prod_code ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + #{item.prodCode}
+	</foreach>
+	  and exists ( select 1 
+				   from dw_product_process  b 
+				   where a.line = b.line
+				     and a.Prod_code = b.prod_code )
+	</select>
+	
+	<select id="checkInsertProduct" resultType="Map">
+	select  COALESCE(STRING_AGG(line+'-'+Prod_code, '/'), 'NoData') AS prodCode
+	from dw_product_mast a
+	where (line + '-' +  upper(Prod_code) ) in	
+	<foreach item="item" collection="vo" open="(" separator="," close=")" >
+		#{item.line} + '-' + upper(#{item.prodCode})
+	</foreach>
+	</select>	
+
+	<insert id="insertProduct" parameterType="Map">
+	INSERT INTO dw_product_mast_input
+	(
+		line,
+		Prod_code,
+		Model,
+		Inch,
+		Glass_thick,
+		Version,
+		Spec,
+		Unit,
+		Unit_code,
+		customer_name,
+		customer_code,
+		Sheet,
+		Block,
+		Cell,
+		Run_Size,
+		Mass_Prod,
+		Note,
+		create_date,
+		create_name
+	)
+	VALUES
+	(
+		#{line}, 
+		#{prodCode},
+		#{model}, 
+		ISNULL(#{inch},0),		
+		ISNULL(#{glassThick},0),
+		#{version}, 		
+		#{spec}, 
+		#{unit}, 
+		#{unitCode},
+		#{customerName},  
+		#{customerCode}, 
+		ISNULL(#{sheet},0),
+		ISNULL(#{block},0),
+		ISNULL(#{cell},0),
+		ISNULL(#{runSize},0),
+		case when #{massProd} = 'Y' then '1'
+		     else '0'
+		end,		
+		#{note},
+		GETDATE(),
+		#{createName}		
+	)
+	</insert>	
+	
+	<update id="updateProduct" parameterType="Map">
+	UPDATE dw_product_mast_input
+	SET	Model = #{model},        
+		Inch = ISNULL(#{inch},0),
+		Glass_thick = #{glassThick},  
+		Version = #{version},      
+		Spec = #{spec},         
+		Unit = #{unit},         
+		Unit_code = #{unitCode},    
+		customer_name = #{customerName},
+		customer_code = #{customerCode},
+		Sheet = ISNULL(#{sheet},0),     
+		Block = ISNULL(#{block},0),        
+		Cell = ISNULL(#{cell},0),         
+		Run_Size = ISNULL(#{runSize},0),  
+		Mass_Prod = case when #{massProd} = 'Y' then '1'
+		     else '0'
+		end,
+		Note = #{note}
+	where line = #{line} 
+	  and Prod_code = #{prodCode} 
+	</update>
+	
+	<delete id="deleteProduct" parameterType="Map">
+	DELETE  FROM dw_product_mast_input
+	WHERE line = #{line} 
+	  and Prod_code = #{prodCode} 
+	</delete>	
+	
+	<update id="uploadFilmImage">
+		MERGE dw_model_image AS tg
+		USING (select #{model} model) AS src
+		ON tg.model = src.model 
+		WHEN MATCHED THEN 
+			UPDATE SET image_data = #{image},upload_date = getdate()
+		WHEN NOT MATCHED THEN
+		INSERT (model, code, image_data, upload_date)
+		VALUES(#{model}, #{code}, #{image}, getdate());
+	</update>
+</mapper>
